@@ -42,12 +42,12 @@ Hyntx follows a layered architecture with clear separation of concerns:
 
 Each module has one clear purpose:
 
-| Module | Responsibility |
-|--------|---------------|
+| Module          | Responsibility                        |
+| --------------- | ------------------------------------- |
 | `log-reader.ts` | Read and parse Claude Code JSONL logs |
-| `sanitizer.ts` | Redact secrets from prompts |
-| `analyzer.ts` | Orchestrate analysis with batching |
-| `reporter.ts` | Format output for terminal/file |
+| `sanitizer.ts`  | Redact secrets from prompts           |
+| `analyzer.ts`   | Orchestrate analysis with batching    |
+| `reporter.ts`   | Format output for terminal/file       |
 
 ### 2. Dependency Inversion
 
@@ -245,11 +245,11 @@ type AnalysisProvider = {
 
 #### Provider Limits
 
-| Provider | Max Tokens/Batch | Prioritization |
-|----------|------------------|----------------|
-| Ollama | 30,000 | Longest-first |
-| Anthropic | 100,000 | Chronological |
-| Google | 500,000 | Chronological |
+| Provider  | Max Tokens/Batch | Prioritization |
+| --------- | ---------------- | -------------- |
+| Ollama    | 30,000           | Longest-first  |
+| Anthropic | 100,000          | Chronological  |
+| Google    | 500,000          | Chronological  |
 
 ---
 
@@ -315,12 +315,12 @@ if (!isSchemaSupported(version)) {
 
 ### Exit Codes
 
-| Code | Meaning | Example |
-|------|---------|---------|
-| 0 | Success | Analysis completed |
-| 1 | General error | Network failure, API error |
-| 2 | No data | No logs found, no prompts in range |
-| 3 | Provider unavailable | All providers failed |
+| Code | Meaning              | Example                            |
+| ---- | -------------------- | ---------------------------------- |
+| 0    | Success              | Analysis completed                 |
+| 1    | General error        | Network failure, API error         |
+| 2    | No data              | No logs found, no prompts in range |
+| 3    | Provider unavailable | All providers failed               |
 
 ### Error Categories
 

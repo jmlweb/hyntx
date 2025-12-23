@@ -8,18 +8,18 @@ hyntx [options]
 
 ## Options
 
-| Flag | Alias | Type | Default | Description |
-|------|-------|------|---------|-------------|
-| `--date` | | `string` | `today` | Date to analyze |
-| `--from` | | `string` | | Range start date |
-| `--to` | | `string` | | Range end date |
-| `--project` | | `string` | | Filter by project name |
-| `--output` | `-o` | `string` | | Save report to file |
-| `--verbose` | `-v` | `boolean` | `false` | Show debug information |
-| `--dry-run` | | `boolean` | `false` | Preview without sending to AI |
-| `--check-reminder` | | `boolean` | `false` | Check if reminder is due |
-| `--help` | `-h` | `boolean` | | Show help |
-| `--version` | | `boolean` | | Show version |
+| Flag               | Alias | Type      | Default | Description                   |
+| ------------------ | ----- | --------- | ------- | ----------------------------- |
+| `--date`           |       | `string`  | `today` | Date to analyze               |
+| `--from`           |       | `string`  |         | Range start date              |
+| `--to`             |       | `string`  |         | Range end date                |
+| `--project`        |       | `string`  |         | Filter by project name        |
+| `--output`         | `-o`  | `string`  |         | Save report to file           |
+| `--verbose`        | `-v`  | `boolean` | `false` | Show debug information        |
+| `--dry-run`        |       | `boolean` | `false` | Preview without sending to AI |
+| `--check-reminder` |       | `boolean` | `false` | Check if reminder is due      |
+| `--help`           | `-h`  | `boolean` |         | Show help                     |
+| `--version`        |       | `boolean` |         | Show version                  |
 
 ---
 
@@ -27,11 +27,11 @@ hyntx [options]
 
 The `--date`, `--from`, and `--to` flags accept:
 
-| Format | Example | Description |
-|--------|---------|-------------|
-| `today` | `--date today` | Current day |
-| `yesterday` | `--date yesterday` | Previous day |
-| ISO date | `--date 2025-01-20` | Specific date |
+| Format      | Example             | Description   |
+| ----------- | ------------------- | ------------- |
+| `today`     | `--date today`      | Current day   |
+| `yesterday` | `--date yesterday`  | Previous day  |
+| ISO date    | `--date 2025-01-20` | Specific date |
 
 ### Date Range
 
@@ -101,12 +101,12 @@ hyntx --dry-run --verbose
 
 ## Exit Codes
 
-| Code | Name | Scenario |
-|------|------|----------|
-| 0 | `SUCCESS` | Analysis completed successfully |
-| 1 | `ERROR` | General error (API, network, parse failure) |
-| 2 | `NO_DATA` | No logs found or no prompts in range |
-| 3 | `PROVIDER_UNAVAILABLE` | All configured providers unavailable |
+| Code | Name                   | Scenario                                    |
+| ---- | ---------------------- | ------------------------------------------- |
+| 0    | `SUCCESS`              | Analysis completed successfully             |
+| 1    | `ERROR`                | General error (API, network, parse failure) |
+| 2    | `NO_DATA`              | No logs found or no prompts in range        |
+| 3    | `PROVIDER_UNAVAILABLE` | All configured providers unavailable        |
 
 ### Usage in Scripts
 
@@ -128,31 +128,31 @@ esac
 
 ### Provider Configuration
 
-| Variable | Default | Description |
-|----------|---------|-------------|
+| Variable         | Default  | Description                   |
+| ---------------- | -------- | ----------------------------- |
 | `HYNTX_SERVICES` | Required | Comma-separated provider list |
-| `HYNTX_REMINDER` | `7d` | Reminder frequency |
+| `HYNTX_REMINDER` | `7d`     | Reminder frequency            |
 
 ### Ollama
 
-| Variable | Default |
-|----------|---------|
-| `HYNTX_OLLAMA_MODEL` | `llama3.2` |
-| `HYNTX_OLLAMA_HOST` | `http://localhost:11434` |
+| Variable             | Default                  |
+| -------------------- | ------------------------ |
+| `HYNTX_OLLAMA_MODEL` | `llama3.2`               |
+| `HYNTX_OLLAMA_HOST`  | `http://localhost:11434` |
 
 ### Anthropic
 
-| Variable | Default |
-|----------|---------|
-| `HYNTX_ANTHROPIC_MODEL` | `claude-3-5-haiku-latest` |
-| `HYNTX_ANTHROPIC_KEY` | Required if using Anthropic |
+| Variable                | Default                     |
+| ----------------------- | --------------------------- |
+| `HYNTX_ANTHROPIC_MODEL` | `claude-3-5-haiku-latest`   |
+| `HYNTX_ANTHROPIC_KEY`   | Required if using Anthropic |
 
 ### Google
 
-| Variable | Default |
-|----------|---------|
-| `HYNTX_GOOGLE_MODEL` | `gemini-2.0-flash-exp` |
-| `HYNTX_GOOGLE_KEY` | Required if using Google |
+| Variable             | Default                  |
+| -------------------- | ------------------------ |
+| `HYNTX_GOOGLE_MODEL` | `gemini-2.0-flash-exp`   |
+| `HYNTX_GOOGLE_KEY`   | Required if using Google |
 
 ### Example Configurations
 
@@ -175,13 +175,13 @@ export HYNTX_GOOGLE_KEY=AI...
 
 ## Error Messages
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `~/.claude/projects/ not found` | Claude Code not installed | Install Claude Code |
-| `No prompts found for the specified range` | No user messages in date range | Try different date |
-| `All providers unavailable` | No provider responded | Check provider config |
-| `Invalid date format` | Unrecognized date string | Use `today`, `yesterday`, or `YYYY-MM-DD` |
-| `Invalid date range` | `--from` is after `--to` | Swap dates |
+| Error                                      | Cause                          | Solution                                  |
+| ------------------------------------------ | ------------------------------ | ----------------------------------------- |
+| `~/.claude/projects/ not found`            | Claude Code not installed      | Install Claude Code                       |
+| `No prompts found for the specified range` | No user messages in date range | Try different date                        |
+| `All providers unavailable`                | No provider responded          | Check provider config                     |
+| `Invalid date format`                      | Unrecognized date string       | Use `today`, `yesterday`, or `YYYY-MM-DD` |
+| `Invalid date range`                       | `--from` is after `--to`       | Swap dates                                |
 
 ---
 
@@ -223,17 +223,18 @@ export HYNTX_GOOGLE_KEY=AI...
 
 ## Statistics
 
-| Metric | Value |
-|--------|-------|
-| Prompts | 23 |
+| Metric   | Value           |
+| -------- | --------------- |
+| Prompts  | 23              |
 | Projects | my-app, backend |
-| Score | 7.2/10 |
+| Score    | 7.2/10          |
 
 ## Patterns
 
 ### 🟡 Missing Technical Context (68%)
 
 **Examples:**
+
 - "fix auth bug"
 - "update component"
 

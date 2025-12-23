@@ -1,0 +1,29 @@
+---
+description: All documentation, both for humans and agents, must always be written in English
+globs:
+  - "**/*.md"
+  - "**/*.mdx"
+  - "**/README*"
+  - "**/CHANGELOG*"
+  - "**/LICENSE*"
+  - "**/docs/**/*"
+alwaysApply: true
+---
+
+All documentation files, including but not limited to:
+- README files
+- Markdown documentation files (*.md, *.mdx)
+- Code comments that serve as documentation
+- Architecture and specification documents
+- API documentation
+- User guides and tutorials
+- Agent documentation (AGENTS.md, SPECS.md, etc.)
+- Changelogs and license files
+
+Must be written exclusively in English. This applies to:
+- Human-facing documentation
+- Agent-facing documentation (rules, specifications, etc.)
+- Inline documentation comments
+- Documentation strings
+
+Exceptions: Code comments that are not documentation (e.g., temporary debug comments, TODO comments in non-English for internal use) may use other languages, but all formal documentation must be in English.

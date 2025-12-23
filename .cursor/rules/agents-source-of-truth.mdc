@@ -1,0 +1,8 @@
+---
+description: AGENTS.md is the source of truth for all project rules and conventions
+alwaysApply: true
+---
+
+The file `AGENTS.md` in the project root is the definitive source of truth for all project rules, conventions, architecture, and implementation guidelines. When there are conflicts between rules or ambiguity, refer to `AGENTS.md` as the authoritative reference.
+
+**IMPORTANT**: Never, under any circumstances, create a rule in `.cursor`. All project rules must be defined in `AGENTS.md` only.

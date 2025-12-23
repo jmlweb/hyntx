@@ -16,7 +16,12 @@ function sanitize(text: string): { text: string; redacted: number } {
 }
 
 // ✅ Good: Composition
-const pipeline = compose(readLogs, sanitizePrompts, analyzePrompts, formatReport);
+const pipeline = compose(
+  readLogs,
+  sanitizePrompts,
+  analyzePrompts,
+  formatReport,
+);
 
 // ❌ Avoid: Classes for stateless operations
 class Sanitizer {

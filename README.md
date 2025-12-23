@@ -135,24 +135,24 @@ export HYNTX_OLLAMA_MODEL=llama3.2
 
 **Ollama:**
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `HYNTX_OLLAMA_MODEL` | `llama3.2` | Model to use |
-| `HYNTX_OLLAMA_HOST` | `http://localhost:11434` | Ollama server URL |
+| Variable             | Default                  | Description       |
+| -------------------- | ------------------------ | ----------------- |
+| `HYNTX_OLLAMA_MODEL` | `llama3.2`               | Model to use      |
+| `HYNTX_OLLAMA_HOST`  | `http://localhost:11434` | Ollama server URL |
 
 **Anthropic:**
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `HYNTX_ANTHROPIC_MODEL` | `claude-3-5-haiku-latest` | Model to use |
-| `HYNTX_ANTHROPIC_KEY` | - | API key (required) |
+| Variable                | Default                   | Description        |
+| ----------------------- | ------------------------- | ------------------ |
+| `HYNTX_ANTHROPIC_MODEL` | `claude-3-5-haiku-latest` | Model to use       |
+| `HYNTX_ANTHROPIC_KEY`   | -                         | API key (required) |
 
 **Google:**
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `HYNTX_GOOGLE_MODEL` | `gemini-2.0-flash-exp` | Model to use |
-| `HYNTX_GOOGLE_KEY` | - | API key (required) |
+| Variable             | Default                | Description        |
+| -------------------- | ---------------------- | ------------------ |
+| `HYNTX_GOOGLE_MODEL` | `gemini-2.0-flash-exp` | Model to use       |
+| `HYNTX_GOOGLE_KEY`   | -                      | API key (required) |
 
 ### Reminder Settings
 

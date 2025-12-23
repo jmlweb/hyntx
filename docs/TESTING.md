@@ -89,9 +89,24 @@ describe('parseDate', () => {
 describe('groupByDay', () => {
   it('groups prompts by date', () => {
     const prompts = [
-      { content: 'a', timestamp: new Date('2025-01-20'), sessionId: '1', projectName: 'app' },
-      { content: 'b', timestamp: new Date('2025-01-20'), sessionId: '1', projectName: 'app' },
-      { content: 'c', timestamp: new Date('2025-01-21'), sessionId: '2', projectName: 'app' },
+      {
+        content: 'a',
+        timestamp: new Date('2025-01-20'),
+        sessionId: '1',
+        projectName: 'app',
+      },
+      {
+        content: 'b',
+        timestamp: new Date('2025-01-20'),
+        sessionId: '1',
+        projectName: 'app',
+      },
+      {
+        content: 'c',
+        timestamp: new Date('2025-01-21'),
+        sessionId: '2',
+        projectName: 'app',
+      },
     ];
 
     const groups = groupByDay(prompts);
@@ -177,7 +192,10 @@ import { describe, it, expect } from 'vitest';
 import { batchPrompts } from './analyzer.js';
 
 describe('batchPrompts', () => {
-  const limits = { maxTokensPerBatch: 100, prioritization: 'chronological' as const };
+  const limits = {
+    maxTokensPerBatch: 100,
+    prioritization: 'chronological' as const,
+  };
 
   it('returns single batch for small input', () => {
     const prompts = ['short prompt', 'another one'];
@@ -207,7 +225,10 @@ describe('batchPrompts', () => {
   });
 
   it('applies longest-first prioritization', () => {
-    const limits = { maxTokensPerBatch: 1000, prioritization: 'longest-first' as const };
+    const limits = {
+      maxTokensPerBatch: 1000,
+      prioritization: 'longest-first' as const,
+    };
     const prompts = ['short', 'medium length', 'this is the longest prompt'];
 
     const batches = batchPrompts(prompts, limits);
@@ -222,7 +243,11 @@ describe('batchPrompts', () => {
 
 ```typescript
 import { describe, it, expect } from 'vitest';
-import { detectSchemaVersion, isSchemaSupported, getSchemaWarning } from './schema-validator.js';
+import {
+  detectSchemaVersion,
+  isSchemaSupported,
+  getSchemaWarning,
+} from './schema-validator.js';
 
 describe('detectSchemaVersion', () => {
   it('detects v1.0 schema', () => {
@@ -300,7 +325,9 @@ describe('Provider Factory', () => {
     const fallbackSpy = vi.fn();
 
     // Ollama unavailable
-    vi.spyOn(global, 'fetch').mockRejectedValueOnce(new Error('Connection refused'));
+    vi.spyOn(global, 'fetch').mockRejectedValueOnce(
+      new Error('Connection refused'),
+    );
 
     const provider = await getAvailableProvider(mockConfig, fallbackSpy);
 
@@ -317,7 +344,9 @@ describe('Provider Factory', () => {
 
     vi.spyOn(global, 'fetch').mockRejectedValue(new Error('Unavailable'));
 
-    await expect(getAvailableProvider(config)).rejects.toThrow('All providers unavailable');
+    await expect(getAvailableProvider(config)).rejects.toThrow(
+      'All providers unavailable',
+    );
   });
 });
 ```
@@ -469,12 +498,12 @@ describe('env config', () => {
 
 ## Coverage Goals
 
-| Category | Target |
-|----------|--------|
-| Core modules | 90%+ |
-| Providers | 80%+ |
-| Utils | 85%+ |
-| Overall | 85%+ |
+| Category     | Target |
+| ------------ | ------ |
+| Core modules | 90%+   |
+| Providers    | 80%+   |
+| Utils        | 85%+   |
+| Overall      | 85%+   |
 
 ### Viewing Coverage
 

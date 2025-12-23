@@ -2,12 +2,12 @@
 
 ## Prerequisites
 
-| Tool | Version | Installation |
-|------|---------|--------------|
-| Node.js | 22.x LTS | Via nvm (see below) |
-| nvm | Latest | [nvm-sh/nvm](https://github.com/nvm-sh/nvm) |
-| pnpm | 9.x | Via Corepack (automatic) |
-| Corepack | Bundled | Included with Node.js 22+ |
+| Tool     | Version  | Installation                                |
+| -------- | -------- | ------------------------------------------- |
+| Node.js  | 22.x LTS | Via nvm (see below)                         |
+| nvm      | Latest   | [nvm-sh/nvm](https://github.com/nvm-sh/nvm) |
+| pnpm     | 9.x      | Via Corepack (automatic)                    |
+| Corepack | Bundled  | Included with Node.js 22+                   |
 
 ## Initial Setup
 
@@ -421,11 +421,11 @@ This file pins the project to Node.js 22.x LTS. When using nvm with automatic sw
 
 ## Quick Reference
 
-| Command | Description |
-|---------|-------------|
-| `pnpm dev` | Watch mode with rebuild |
-| `pnpm build` | Production build |
-| `pnpm start` | Run CLI |
-| `pnpm check` | Run all checks (types + lint + format) |
-| `pnpm test` | Run tests in watch mode |
-| `pnpm test:run` | Run tests once |
+| Command         | Description                            |
+| --------------- | -------------------------------------- |
+| `pnpm dev`      | Watch mode with rebuild                |
+| `pnpm build`    | Production build                       |
+| `pnpm start`    | Run CLI                                |
+| `pnpm check`    | Run all checks (types + lint + format) |
+| `pnpm test`     | Run tests in watch mode                |
+| `pnpm test:run` | Run tests once                         |
