@@ -19,11 +19,13 @@ Evaluate all tasks in the backlog for correctness, currency, and relevance. Upda
 For each task, check:
 
 **Template Compliance**:
+
 - Compare task structure with the template in `AGENTS.md` (Task File Template section)
 - Verify all required sections exist: Metadata, Description, Objective, Scope, Files to Create/Modify, Implementation, Acceptance Criteria, Test Cases, References
 - Check that Metadata fields are present and correctly formatted
 
 **Specification Currency**:
+
 - Read relevant sections from `docs/SPECS.md`, `docs/ARCHITECTURE.md`, and other documentation
 - Compare task descriptions with current architecture and specifications
 - Verify that referenced documentation sections still exist and are accurate
@@ -31,6 +33,7 @@ For each task, check:
 - Verify that file paths and module structures match current codebase structure
 
 **Dependencies Validity**:
+
 - Check if dependencies listed in the task are still valid (exist in ROADMAP.md)
 - Verify that dependencies haven't been completed and removed from roadmap
 - Check if dependencies are correctly marked as completed in roadmap
@@ -40,26 +43,31 @@ For each task, check:
 For each task, determine if it still makes sense:
 
 **Check Implementation Status**:
+
 - Verify if the task has already been implemented (check if files mentioned in "Files to Create/Modify" already exist)
 - Check if the functionality described in the task already exists in the codebase
 - Look for code that might have been implemented without updating the task
 
 **Check for Duplication**:
+
 - Look for other tasks with similar objectives or overlapping scope
 - Identify tasks that might be redundant or superseded by other tasks
 
 **Check for Obsolescence**:
+
 - Determine if the task is still aligned with project goals
 - Check if architectural decisions have changed in ways that make the task obsolete
 - Verify if dependencies make the task impossible or unnecessary
 
 **Check Priority Appropriateness**:
+
 - Review if the priority (P0/P1/P2/P3) still matches current project needs
 - Consider if the task's phase assignment is still appropriate
 
 ### 4. Update or Remove Tasks
 
 **If task needs updates** (specifications outdated or incomplete):
+
 - Update the task file with correct information
 - Fix template compliance issues
 - Update references to documentation
@@ -68,6 +76,7 @@ For each task, determine if it still makes sense:
 - Ensure all sections are complete and accurate
 
 **If task should be removed** (obsolete, duplicate, or already implemented):
+
 - Delete the task file from `backlog/<task-name>.md`
 - Remove the task entry from `ROADMAP.md`
 - Update any other tasks that reference this task as a dependency
@@ -75,6 +84,7 @@ For each task, determine if it still makes sense:
 ### 5. Report Changes
 
 Provide a summary of:
+
 - Tasks updated (with brief explanation of changes)
 - Tasks removed (with reason for removal)
 - Tasks that were checked and found to be correct
@@ -82,6 +92,7 @@ Provide a summary of:
 ## Decision Criteria
 
 ### Update Task If:
+
 - Task structure doesn't match template
 - Documentation references are outdated
 - File paths or module names are incorrect
@@ -91,6 +102,7 @@ Provide a summary of:
 - Description or scope needs clarification
 
 ### Remove Task If:
+
 - Functionality already exists in codebase
 - Task is a duplicate of another task
 - Task is obsolete due to architectural changes
@@ -99,6 +111,7 @@ Provide a summary of:
 - Task has been superseded by a different approach
 
 ### Keep Task As-Is If:
+
 - Specification is complete and accurate
 - References are current
 - Implementation path is clear
@@ -144,4 +157,3 @@ Provide a summary of:
    - Check if task is still relevant
    - Update or remove as needed
 3. Report summary of changes made
-

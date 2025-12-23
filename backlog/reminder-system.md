@@ -77,4 +77,4 @@ Uses types from `src/types/index.ts`:
 ## References
 
 - Section 9 of `docs/SPECS.md` - Reminder System
-- Section 2.4 of `docs/SPECS.md` - Persistent State
+- Section 2 of `docs/SPECS.md` - Environment Variables (Persistent State)

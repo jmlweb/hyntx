@@ -3,7 +3,7 @@
 ## Metadata
 
 - **Priority**: P3
-- **Phase**: 4
+- **Phase**: 1
 - **Dependencies**: tipos-base.md
 - **Estimation**: 3-4 hours
 
@@ -79,6 +79,5 @@ Uses types from `src/types/index.ts`:
 
 ## References
 
-- Section 17.1 of `docs/SPECS.md` - env.ts
-- Section 17.2 of `docs/SPECS.md` - paths.ts
+- Section 17 of `docs/SPECS.md` - Utils
 - Section 2 of `docs/SPECS.md` - Environment Variables

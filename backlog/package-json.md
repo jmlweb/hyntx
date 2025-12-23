@@ -38,8 +38,10 @@ Configuration of:
 - `type: "module"` for ESM
 - `bin` for CLI
 - `scripts` (build, dev, start)
-- `dependencies` (chalk, ora, prompts, date-fns, glob)
-- `devDependencies` (@types/node, @types/prompts, tsup, typescript)
+- `dependencies`:
+  - **UI/UX**: `chalk`, `ora`, `prompts`, `boxen`, `cli-table3`, `cli-progress`, `figlet`
+  - **Core**: `date-fns`, `glob`
+- `devDependencies`: `@types/node`, `@types/prompts`, `@types/figlet`, `tsup`, `typescript`
 - `engines` (node >= 18)
 
 ### Integrations

@@ -338,6 +338,20 @@ try {
 
 ## CLI Output
 
+### Terminal UI Libraries
+
+The project uses a comprehensive set of terminal UI libraries for an attractive and professional user experience:
+
+| Library        | Purpose          | When to Use                         |
+| -------------- | ---------------- | ----------------------------------- |
+| `chalk`        | Colors & styling | All colored text, semantic coloring |
+| `ora`          | Spinners         | Short operations (< 5 seconds)      |
+| `prompts`      | Interactivity    | User input, menus, confirmations    |
+| `boxen`        | Boxed sections   | Visual separation, callouts         |
+| `cli-table3`   | Tables           | Structured data display             |
+| `cli-progress` | Progress bars    | Long operations (> 5 seconds)       |
+| `figlet`       | ASCII art        | Optional headers/logos              |
+
 ### Use Chalk for Colors
 
 ```typescript
@@ -371,11 +385,125 @@ try {
 }
 ```
 
+### Use Boxen for Boxed Sections
+
+```typescript
+import boxen from 'boxen';
+import chalk from 'chalk';
+
+// Boxed sections for visual separation
+const boxedContent = boxen(
+  chalk.bold('📊 Statistics\n') +
+    `Prompts: 23\n` +
+    `Projects: my-app, backend\n` +
+    `Score: ${chalk.green('7.2/10')}`,
+  {
+    title: 'Analysis Results',
+    borderColor: 'cyan',
+    padding: 1,
+    margin: 1,
+  },
+);
+console.log(boxedContent);
+```
+
+### Use cli-table3 for Structured Data
+
+```typescript
+import Table from 'cli-table3';
+import chalk from 'chalk';
+
+const table = new Table({
+  head: ['Metric', 'Value'],
+  style: { head: ['cyan', 'bold'] },
+});
+
+table.push(
+  ['Prompts', '23'],
+  ['Projects', 'my-app, backend'],
+  ['Score', chalk.green('7.2/10')],
+);
+
+console.log(table.toString());
+```
+
+### Use cli-progress for Long Operations
+
+```typescript
+import cliProgress from 'cli-progress';
+import chalk from 'chalk';
+
+const progressBar = new cliProgress.SingleBar(
+  {
+    format: chalk.cyan('{bar}') + ' | {percentage}% | {value}/{total} batches',
+    barCompleteChar: '\u2588',
+    barIncompleteChar: '\u2591',
+    hideCursor: true,
+  },
+  cliProgress.Presets.shades_classic,
+);
+
+progressBar.start(10, 0); // Total: 10 batches
+
+for (let i = 0; i < 10; i++) {
+  await processBatch(i);
+  progressBar.update(i + 1);
+}
+
+progressBar.stop();
+```
+
+### Use Figlet for ASCII Art (Optional)
+
+```typescript
+import figlet from 'figlet';
+import chalk from 'chalk';
+
+// Optional ASCII art header
+if (!options.noArt) {
+  const asciiArt = figlet.textSync('Hyntx', {
+    font: 'Standard',
+    horizontalLayout: 'default',
+    verticalLayout: 'default',
+  });
+  console.log(chalk.cyan(asciiArt));
+}
+```
+
+### Use Prompts for Interactivity
+
+```typescript
+import prompts from 'prompts';
+import chalk from 'chalk';
+
+// Clean visual menus and prompts
+const response = await prompts({
+  type: 'multiselect',
+  name: 'providers',
+  message: 'Select providers (space to select, enter to confirm):',
+  choices: [
+    { title: 'ollama (local)', value: 'ollama', selected: true },
+    { title: 'anthropic (Claude Haiku)', value: 'anthropic' },
+    { title: 'google (Gemini Flash)', value: 'google' },
+  ],
+  instructions: false, // Hide default instructions for cleaner UI
+});
+
+// Confirmation prompts
+const confirmed = await prompts({
+  type: 'confirm',
+  name: 'value',
+  message: chalk.cyan('Save configuration to ~/.zshrc?'),
+  initial: true,
+});
+```
+
 ### Avoid Plain console.log for UX
 
 ```typescript
-// ✅ Good: Styled output
-console.log(chalk.green(`✅ ${count} prompts analyzed`));
+// ✅ Good: Styled output with boxes/tables
+console.log(boxedContent);
+console.log(table.toString());
 
 // ❌ Avoid: Plain output for user-facing messages
 console.log('Analysis complete');

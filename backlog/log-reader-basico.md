@@ -4,7 +4,7 @@
 
 - **Priority**: P0
 - **Phase**: 1
-- **Dependencies**: tipos-base.md, schema-validator.md
+- **Dependencies**: tipos-base.md, schema-validator.md, utils-completos.md (partial - paths.ts)
 - **Estimation**: 3-4 hours
 
 ## Description

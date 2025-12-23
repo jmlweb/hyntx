@@ -167,13 +167,13 @@ pnpm test      # Run tests
 
 ### Commands
 
-| Command          | Purpose                                                          |
-| ---------------- | ---------------------------------------------------------------- |
-| `/next-task`     | Pick next task, execute, verify, cleanup, commit (full workflow) |
-| `/add-task`      | Add a new task to backlog and update roadmap                     |
-| `/do-task`       | Orchestrate agents to complete a task (global)                   |
-| `/groom-tasks`   | Evaluate task specifications, update outdated tasks, remove obsolete tasks from backlog and roadmap |
-| `/reprioritize`  | Evaluate and reorder tasks in roadmap to ensure optimal implementation order respecting dependencies and priorities |
+| Command         | Purpose                                                                                                             |
+| --------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `/next-task`    | Pick next task, execute, verify, cleanup, commit (full workflow)                                                    |
+| `/add-task`     | Add a new task to backlog and update roadmap                                                                        |
+| `/do-task`      | Orchestrate agents to complete a task (global)                                                                      |
+| `/groom-tasks`  | Evaluate task specifications, update outdated tasks, remove obsolete tasks from backlog and roadmap                 |
+| `/reprioritize` | Evaluate and reorder tasks in roadmap to ensure optimal implementation order respecting dependencies and priorities |
 
 ### Task Completion Workflow
 

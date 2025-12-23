@@ -12,23 +12,29 @@ These tasks are essential and must be completed first, as they form the foundati
 
 Define all TypeScript interfaces and types necessary for the system. Fundamental base for all development.
 
-### 2. [Initial Interactive Setup](backlog/setup-inicial.md)
-
-**Priority**: P0 | **Dependencies**: tipos-base.md, utils-completos.md (partial)
-
-Implement the initial configuration system that allows users to configure Hyntx on first use.
-
-### 3. [Basic JSONL Log Reading](backlog/log-reader-basico.md)
-
-**Priority**: P0 | **Dependencies**: tipos-base.md, schema-validator.md
-
-Implement the basic capability to read and parse Claude Code JSONL files.
-
-### 4. [Log Schema Validator](backlog/schema-validator.md)
+### ~~2. [Log Schema Validator](backlog/schema-validator.md)~~ ✅ COMPLETED
 
 **Priority**: P0 | **Dependencies**: tipos-base.md
 
 Implement schema validation to handle log format changes gracefully.
+
+### 3. [Complete Utilities](backlog/utils-completos.md)
+
+**Priority**: P3 | **Dependencies**: tipos-base.md
+
+Implement all system utilities: environment variable management and path constants. Required early for setup and log reading.
+
+### 4. [Basic JSONL Log Reading](backlog/log-reader-basico.md)
+
+**Priority**: P0 | **Dependencies**: tipos-base.md, schema-validator.md, utils-completos.md (partial - paths.ts)
+
+Implement the basic capability to read and parse Claude Code JSONL files.
+
+### 5. [Initial Interactive Setup](backlog/setup-inicial.md)
+
+**Priority**: P0 | **Dependencies**: tipos-base.md, utils-completos.md (partial - shell-config)
+
+Implement the initial configuration system that allows users to configure Hyntx on first use.
 
 ---
 
@@ -36,31 +42,31 @@ Implement schema validation to handle log format changes gracefully.
 
 These tasks implement the main functionality of the system.
 
-### 5. [Complete Log Reading with Filters](backlog/log-reader-completo.md)
+### 6. [Complete Log Reading with Filters](backlog/log-reader-completo.md)
 
 **Priority**: P1 | **Dependencies**: log-reader-basico.md, schema-validator.md
 
 Extend log reading with date and project filters, and day grouping.
 
-### 6. [Secret Sanitizer](backlog/sanitizer.md)
+### 7. [Secret Sanitizer](backlog/sanitizer.md)
 
 **Priority**: P1 | **Dependencies**: tipos-base.md
 
 Implement automatic redaction of secrets and sensitive information before analysis.
 
-### 7. [Provider Base and Ollama](backlog/provider-base-ollama.md)
+### 8. [Provider Base and Ollama](backlog/provider-base-ollama.md)
 
 **Priority**: P1 | **Dependencies**: tipos-base.md
 
 Implement base provider interface and Ollama provider (local, offline-first).
 
-### 8. [Analyzer with Map-Reduce Batching](backlog/analyzer-batching.md)
+### 9. [Analyzer with Map-Reduce Batching](backlog/analyzer-batching.md)
 
 **Priority**: P1 | **Dependencies**: tipos-base.md, provider-base-ollama.md
 
 Implement analysis system with intelligent batching to handle large volumes of prompts.
 
-### 9. [Terminal Reporter](backlog/reporter-terminal.md)
+### 10. [Terminal Reporter](backlog/reporter-terminal.md)
 
 **Priority**: P1 | **Dependencies**: tipos-base.md
 
@@ -72,25 +78,25 @@ Implement report formatter for terminal output with Before/After visualization.
 
 These tasks complete the basic CLI and add support for multiple providers.
 
-### 10. [Basic CLI Entry Point](backlog/cli-entry-basico.md)
+### 11. [Basic CLI Entry Point](backlog/cli-entry-basico.md)
 
 **Priority**: P2 | **Dependencies**: tipos-base.md, setup-inicial.md, log-reader-completo.md, sanitizer.md, analyzer-batching.md, provider-base-ollama.md, reporter-terminal.md, utils-completos.md
 
 Implement the basic CLI entry point that integrates all components for minimum viable functionality.
 
-### 11. [Anthropic Provider](backlog/provider-anthropic.md)
+### 12. [Anthropic Provider](backlog/provider-anthropic.md)
 
 **Priority**: P2 | **Dependencies**: tipos-base.md, provider-base-ollama.md
 
 Implement Anthropic provider (Claude API) as an alternative to Ollama.
 
-### 12. [Google Provider](backlog/provider-google.md)
+### 13. [Google Provider](backlog/provider-google.md)
 
 **Priority**: P2 | **Dependencies**: tipos-base.md, provider-base-ollama.md
 
 Implement Google provider (Gemini API) as a third provider option.
 
-### 13. [Multi-Provider Factory with Fallback](backlog/provider-factory.md)
+### 14. [Multi-Provider Factory with Fallback](backlog/provider-factory.md)
 
 **Priority**: P2 | **Dependencies**: tipos-base.md, provider-base-ollama.md, provider-anthropic.md, provider-google.md, utils-completos.md
 
@@ -102,29 +108,23 @@ Implement provider factory with automatic selection and fallback between provide
 
 These tasks add advanced features and complete the system.
 
-### 14. [Reminder System](backlog/reminder-system.md)
+### 15. [Reminder System](backlog/reminder-system.md)
 
 **Priority**: P3 | **Dependencies**: tipos-base.md, utils-completos.md
 
 Implement periodic reminder system to maintain the analysis habit.
 
-### 15. [Markdown Format Reporter](backlog/reporter-markdown.md)
+### 16. [Markdown Format Reporter](backlog/reporter-markdown.md)
 
 **Priority**: P3 | **Dependencies**: tipos-base.md, reporter-terminal.md
 
 Implement report formatting in Markdown to save results to files.
 
-### 16. [Complete CLI with All Options](backlog/cli-completo.md)
+### 17. [Complete CLI with All Options](backlog/cli-completo.md)
 
 **Priority**: P3 | **Dependencies**: cli-entry-basico.md, reminder-system.md, reporter-markdown.md, provider-factory.md, log-reader-completo.md
 
 Extend CLI with all advanced options: date ranges, filters, file output, verbose, dry-run.
-
-### 17. [Complete Utilities](backlog/utils-completos.md)
-
-**Priority**: P3 | **Dependencies**: tipos-base.md
-
-Implement all system utilities: environment variable management and path constants.
 
 ### 18. [Complete Error Handling](backlog/error-handling.md)
 
@@ -157,26 +157,25 @@ Configure package.json with all necessary dependencies, scripts, and metadata.
 For efficient development, it is recommended to follow this order:
 
 1. ~~**tipos-base.md** - Fundamental base~~ ✅
-2. **schema-validator.md** - Simple, no complex dependencies
-3. **utils-completos.md** (partial - paths.ts) - Required for log-reader
+2. ~~**schema-validator.md** - Simple, no complex dependencies~~ ✅
+3. **utils-completos.md** - Required early for paths and shell-config (can be done partially as needed)
 4. **log-reader-basico.md** - Basic core functionality
-5. **log-reader-completo.md** - Extends the basic
-6. **sanitizer.md** - Independent, required before providers
-7. **provider-base-ollama.md** - First functional provider
-8. **analyzer-batching.md** - Orchestrates analysis
-9. **reporter-terminal.md** - Shows results
-10. **setup-inicial.md** - Initial configuration
-11. **utils-completos.md** (complete) - Rest of utilities
-12. **cli-entry-basico.md** - Basic functional CLI
-13. **provider-anthropic.md** - Second provider
-14. **provider-google.md** - Third provider
-15. **provider-factory.md** - Multi-provider support
-16. **reminder-system.md** - Reminder system
-17. **reporter-markdown.md** - File output
-18. **cli-completo.md** - Complete CLI
-19. **error-handling.md** - Complete review
-20. **package-json.md** - Project configuration
-21. **testing-strategy.md** - Testing documentation
+5. **setup-inicial.md** - Initial configuration
+6. **log-reader-completo.md** - Extends the basic
+7. **sanitizer.md** - Independent, required before providers
+8. **provider-base-ollama.md** - First functional provider
+9. **analyzer-batching.md** - Orchestrates analysis
+10. **reporter-terminal.md** - Shows results
+11. **cli-entry-basico.md** - Basic functional CLI
+12. **provider-anthropic.md** - Second provider
+13. **provider-google.md** - Third provider
+14. **provider-factory.md** - Multi-provider support
+15. **reminder-system.md** - Reminder system
+16. **reporter-markdown.md** - File output
+17. **cli-completo.md** - Complete CLI
+18. **error-handling.md** - Complete review
+19. **package-json.md** - Project configuration
+20. **testing-strategy.md** - Testing documentation
 
 ---
 

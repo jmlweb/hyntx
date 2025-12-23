@@ -233,6 +233,41 @@ Where `<project-hash>` is the encoded path:
 
 ## 15. Reporter (src/core/reporter.ts)
 
+The reporter module formats analysis results for different output formats. The terminal output prioritizes visual appeal and usability.
+
+### 15.1 Terminal UI Requirements
+
+The terminal reporter must provide an **attractive and visually engaging** user experience using the following tools:
+
+| Library          | Purpose       | Visual Result                               | Usage                                                                  |
+| ---------------- | ------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
+| **chalk**        | Colors        | Vibrant colors and styles (bold, underline) | Semantic coloring: success=green, warning=yellow, error=red, info=cyan |
+| **ora**          | Spinners      | Elegant animated loading icons              | Short operations (provider connection, single operations)              |
+| **prompts**      | Interactivity | Clean visual menus, lists, and prompts      | Interactive setup, user input (menus, confirmations, text input)       |
+| **boxen**        | Containers    | Draws boxes around text in terminal         | Visual separation of sections, callouts, Before/After examples         |
+| **cli-table3**   | Tables        | Formatted tables for structured data        | Statistics, patterns list, data grids                                  |
+| **cli-progress** | Progress bars | Animated progress indicators                | Long-running operations (reading logs, analyzing batches)              |
+| **figlet**       | ASCII art     | Text-based logos and banners                | Optional header/logo (can be disabled via `--no-art` flag)             |
+
+**Visual Features:**
+
+- **ASCII Art Headers**: Optional ASCII art logo/banner for brand identity (can be disabled via `--no-art` flag)
+- **Boxed Sections**: Use `boxen` to create visually distinct sections with borders
+- **Tables**: Use `cli-table3` for structured data (statistics, patterns list)
+- **Progress Indicators**: Use `cli-progress` for long-running operations (reading logs, analyzing batches)
+- **Spinners**: Use `ora` for short operations (provider connection, single operations)
+- **Colors**: Use `chalk` consistently for semantic coloring (success=green, warning=yellow, error=red, info=cyan)
+- **Interactivity**: Use `prompts` for clean, visual interactive menus and user input
+- **Animations**: Smooth transitions and loading states throughout the workflow
+
+**Visual Hierarchy**:
+
+- Headers: Bold, colored, optionally boxed
+- Statistics: Tabular format with clear labels
+- Patterns: Boxed sections with severity indicators
+- Before/After: Side-by-side or stacked with clear visual distinction
+- Suggestions: Highlighted callout boxes
+
 > **Tareas de implementación**:
 >
 > - Terminal: Ver [reporter-terminal.md](../backlog/reporter-terminal.md)

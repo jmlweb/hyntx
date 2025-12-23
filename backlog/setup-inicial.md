@@ -51,8 +51,14 @@ Uses types from `src/types/index.ts`:
 
 ### Integrations
 
-- Uses `prompts` for user interaction
-- Uses `chalk` for terminal colors
+**Terminal UI:**
+
+- Uses `prompts` for clean visual interactive menus, lists, and user input
+- Uses `chalk` for terminal colors and styling
+- Uses `boxen` for boxed sections in setup instructions (optional)
+
+**Core:**
+
 - Integrates with `src/types/index.ts` for types
 - Reads/writes system files (`~/.zshrc`, `~/.bashrc`, etc.)
 

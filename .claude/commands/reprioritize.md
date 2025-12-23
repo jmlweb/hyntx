@@ -18,6 +18,7 @@ Evaluate the order of tasks in `ROADMAP.md` and reorganize them to ensure optima
 ### 2. Build Dependency Graph
 
 Create a directed graph where:
+
 - Nodes are tasks
 - Edges represent dependencies (task A depends on task B means B → A)
 - Each task has metadata: priority, phase, dependencies list
@@ -27,15 +28,18 @@ Create a directed graph where:
 For each task in the current order, verify:
 
 **Dependency Ordering**:
+
 - All dependencies of a task must appear before the task in the roadmap
 - Check that completed tasks (marked with ✅) are placed correctly
 - Verify that dependencies listed in task metadata match what appears in the roadmap
 
 **Priority Ordering**:
+
 - Tasks with higher priority (lower number: P0 > P1 > P2 > P3 > P4) should generally come before lower priority tasks
 - Within the same priority, order should respect dependencies
 
 **Phase Ordering**:
+
 - Tasks in Phase 1 should come before Phase 2, Phase 2 before Phase 3, etc.
 - However, dependencies may require cross-phase ordering
 
@@ -44,6 +48,7 @@ For each task in the current order, verify:
 Determine the optimal order using topological sort with priority/phase tie-breaking:
 
 **Algorithm**:
+
 1. Build dependency graph
 2. Identify tasks with no unmet dependencies (can be done now)
 3. Among available tasks, prioritize by:
@@ -56,6 +61,7 @@ Determine the optimal order using topological sort with priority/phase tie-break
 6. Repeat until all tasks are ordered
 
 **Special Cases**:
+
 - Completed tasks (✅) should remain in their original position or be moved to a "completed" section
 - Tasks with "partial" dependencies (e.g., "utils-completos.md (partial)") are considered satisfied if any part is completed
 - Tasks marked as optional (P4) can be placed later even if dependencies are met
@@ -65,6 +71,7 @@ Determine the optimal order using topological sort with priority/phase tie-break
 Compare the current order in `ROADMAP.md` with the calculated optimal order:
 
 **Identify Changes Needed**:
+
 - Tasks that should be moved earlier (dependencies allow, higher priority)
 - Tasks that should be moved later (blocked by dependencies, lower priority)
 - Tasks that violate dependency constraints
@@ -75,12 +82,14 @@ Compare the current order in `ROADMAP.md` with the calculated optimal order:
 If changes are needed:
 
 **Reorder Tasks**:
+
 - Move tasks to their optimal positions within the same phase section
 - Move tasks between phase sections if necessary (and update phase numbers in task files if phase changes)
 - Update task numbers in the roadmap (1, 2, 3, etc.)
 - Preserve completed tasks (✅) in a logical position or separate section
 
 **Update Phase Sections**:
+
 - Ensure tasks are in the correct phase section based on their priority:
   - P0 → Phase 1
   - P1 → Phase 2
@@ -90,14 +99,17 @@ If changes are needed:
 - Move tasks between phases if priority/phase metadata doesn't match
 
 **Update Task Metadata** (if phase changed):
+
 - If a task is moved to a different phase, update the "Phase" field in the task's `backlog/<task-name>.md` file
 
 **Update "Recommended Implementation Order"**:
+
 - Update the "Recommended Implementation Order" section at the bottom of `ROADMAP.md` to match the new order
 
 ### 7. Report Changes
 
 Provide a summary of:
+
 - Tasks that were reordered (with old and new positions)
 - Tasks that were moved between phases
 - Dependencies that were violated and have been fixed
@@ -106,17 +118,20 @@ Provide a summary of:
 ## Decision Criteria
 
 ### Move Task Earlier If:
+
 - All dependencies are met and it has higher priority than tasks before it
 - It blocks many other tasks (high number of dependents)
 - It has same priority but simpler (lower estimation)
 - Current position violates dependency constraints
 
 ### Move Task Later If:
+
 - Dependencies are not met by tasks before it
 - It has lower priority than tasks after it that could be done first
 - Current position violates dependency constraints
 
 ### Change Phase If:
+
 - Task's priority doesn't match its phase assignment:
   - P0 task in Phase 2+ → Move to Phase 1
   - P1 task in Phase 1 or Phase 3+ → Move to Phase 2
@@ -126,6 +141,7 @@ Provide a summary of:
 - However, dependencies may require keeping task in earlier phase
 
 ### Keep Order As-Is If:
+
 - Order respects all dependencies
 - Priorities are correctly ordered (P0 before P1, etc.)
 - Phases are correctly assigned
@@ -175,4 +191,3 @@ Provide a summary of:
 6. Update ROADMAP.md if changes are needed
 7. Update task files if phases changed
 8. Report summary of changes made
-
