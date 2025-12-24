@@ -42,7 +42,7 @@ Implement the initial configuration system that allows users to configure Hyntx 
 
 These tasks implement the main functionality of the system.
 
-### 6. [Complete Log Reading with Filters](backlog/log-reader-completo.md)
+### ~~6. [Complete Log Reading with Filters](backlog/log-reader-completo.md)~~ ✅ COMPLETED
 
 **Priority**: P1 | **Dependencies**: log-reader-basico.md, schema-validator.md
 
@@ -149,7 +149,7 @@ For efficient development, it is recommended to follow this order:
 3. ~~**utils-completos.md** - Required early for paths and shell-config~~ ✅
 4. ~~**log-reader-basico.md** - Basic core functionality~~ ✅
 5. ~~**setup-inicial.md** - Initial configuration~~ ✅
-6. **log-reader-completo.md** - Extends the basic
+6. ~~**log-reader-completo.md** - Extends the basic~~ ✅
 7. **sanitizer.md** - Independent, required before providers
 8. **provider-base-ollama.md** - First functional provider
 9. **analyzer-batching.md** - Orchestrates analysis

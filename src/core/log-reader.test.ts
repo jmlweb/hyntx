@@ -6,7 +6,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { glob } from 'glob';
-import { claudeProjectsExist, readLogs, getProjects } from './log-reader.js';
+import {
+  claudeProjectsExist,
+  readLogs,
+  getProjects,
+  parseDate,
+  groupByDay,
+} from './log-reader.js';
 import { CLAUDE_PROJECTS_DIR } from '../utils/paths.js';
 
 // Mock external dependencies
@@ -383,5 +389,359 @@ describe('getProjects', () => {
 
     expect(projects).toEqual(['project-a', 'project-b']);
     expect(projects).not.toContain('.hidden');
+  });
+});
+
+describe('parseDate', () => {
+  it('parses "today" as current date', () => {
+    const result = parseDate('today');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    expect(result.getTime()).toBe(today.getTime());
+  });
+
+  it('parses "yesterday" correctly', () => {
+    const result = parseDate('yesterday');
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setHours(0, 0, 0, 0);
+
+    expect(result.getTime()).toBe(yesterday.getTime());
+  });
+
+  it('parses ISO date string', () => {
+    const result = parseDate('2025-01-23');
+
+    // Verify it's a valid date and the date part is correct
+    expect(result).toBeInstanceOf(Date);
+    expect(result.getTime()).not.toBeNaN();
+    // The date should be 2025-01-23 in local timezone
+    const year = result.getFullYear();
+    const month = result.getMonth() + 1; // getMonth() returns 0-11
+    const day = result.getDate();
+    expect(year).toBe(2025);
+    expect(month).toBe(1);
+    expect(day).toBe(23);
+  });
+
+  it('throws on invalid date', () => {
+    expect(() => parseDate('invalid')).toThrow('Invalid date format');
+  });
+
+  it('handles case-insensitive "today"', () => {
+    const result = parseDate('TODAY');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    expect(result.getTime()).toBe(today.getTime());
+  });
+
+  it('handles case-insensitive "yesterday"', () => {
+    const result = parseDate('YESTERDAY');
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setHours(0, 0, 0, 0);
+
+    expect(result.getTime()).toBe(yesterday.getTime());
+  });
+});
+
+describe('groupByDay', () => {
+  it('groups prompts by date', () => {
+    const prompts = [
+      {
+        content: 'a',
+        timestamp: '2025-01-23T10:00:00.000Z',
+        sessionId: '1',
+        project: 'app',
+        date: '2025-01-23',
+      },
+      {
+        content: 'b',
+        timestamp: '2025-01-23T11:00:00.000Z',
+        sessionId: '1',
+        project: 'app',
+        date: '2025-01-23',
+      },
+      {
+        content: 'c',
+        timestamp: '2025-01-24T10:00:00.000Z',
+        sessionId: '2',
+        project: 'app',
+        date: '2025-01-24',
+      },
+    ];
+
+    const groups = groupByDay(prompts);
+
+    expect(groups).toHaveLength(2);
+    expect(groups[0]?.date).toBe('2025-01-23');
+    expect(groups[0]?.prompts).toHaveLength(2);
+    expect(groups[1]?.date).toBe('2025-01-24');
+    expect(groups[1]?.prompts).toHaveLength(1);
+  });
+
+  it('sorts prompts chronologically within each day', () => {
+    const prompts = [
+      {
+        content: 'second',
+        timestamp: '2025-01-23T12:00:00.000Z',
+        sessionId: '1',
+        project: 'app',
+        date: '2025-01-23',
+      },
+      {
+        content: 'first',
+        timestamp: '2025-01-23T10:00:00.000Z',
+        sessionId: '1',
+        project: 'app',
+        date: '2025-01-23',
+      },
+      {
+        content: 'third',
+        timestamp: '2025-01-23T14:00:00.000Z',
+        sessionId: '1',
+        project: 'app',
+        date: '2025-01-23',
+      },
+    ];
+
+    const groups = groupByDay(prompts);
+
+    expect(groups[0]?.prompts[0]?.content).toBe('first');
+    expect(groups[0]?.prompts[1]?.content).toBe('second');
+    expect(groups[0]?.prompts[2]?.content).toBe('third');
+  });
+
+  it('includes all unique projects in each group', () => {
+    const prompts = [
+      {
+        content: 'a',
+        timestamp: '2025-01-23T10:00:00.000Z',
+        sessionId: '1',
+        project: 'app',
+        date: '2025-01-23',
+      },
+      {
+        content: 'b',
+        timestamp: '2025-01-23T11:00:00.000Z',
+        sessionId: '2',
+        project: 'backend',
+        date: '2025-01-23',
+      },
+      {
+        content: 'c',
+        timestamp: '2025-01-23T12:00:00.000Z',
+        sessionId: '3',
+        project: 'app',
+        date: '2025-01-23',
+      },
+    ];
+
+    const groups = groupByDay(prompts);
+
+    expect(groups[0]?.projects).toHaveLength(2);
+    expect(groups[0]?.projects).toContain('app');
+    expect(groups[0]?.projects).toContain('backend');
+  });
+
+  it('sorts groups by date', () => {
+    const prompts = [
+      {
+        content: 'later',
+        timestamp: '2025-01-25T10:00:00.000Z',
+        sessionId: '1',
+        project: 'app',
+        date: '2025-01-25',
+      },
+      {
+        content: 'earlier',
+        timestamp: '2025-01-23T10:00:00.000Z',
+        sessionId: '1',
+        project: 'app',
+        date: '2025-01-23',
+      },
+    ];
+
+    const groups = groupByDay(prompts);
+
+    expect(groups[0]?.date).toBe('2025-01-23');
+    expect(groups[1]?.date).toBe('2025-01-25');
+  });
+});
+
+describe('readLogs with filters', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('filters by single date (today)', async () => {
+    mockExistsSync.mockReturnValue(true);
+    mockGlob.mockResolvedValue(['/mock/.claude/projects/test/log.jsonl']);
+
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0] ?? '2025-01-23';
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0] ?? '2025-01-22';
+
+    const jsonlContent = [
+      JSON.stringify({
+        type: 'user',
+        message: { role: 'user', content: 'Today prompt' },
+        timestamp: `${todayStr}T10:00:00.000Z`,
+        sessionId: 's1',
+        cwd: '/test',
+      }),
+      JSON.stringify({
+        type: 'user',
+        message: { role: 'user', content: 'Yesterday prompt' },
+        timestamp: `${yesterdayStr}T10:00:00.000Z`,
+        sessionId: 's1',
+        cwd: '/test',
+      }),
+    ].join('\n');
+
+    mockReadFile.mockResolvedValue(jsonlContent);
+
+    const result = await readLogs({ date: 'today' });
+
+    expect(result.prompts).toHaveLength(1);
+    expect(result.prompts[0]?.content).toBe('Today prompt');
+  });
+
+  it('filters by date range', async () => {
+    mockExistsSync.mockReturnValue(true);
+    mockGlob.mockResolvedValue(['/mock/.claude/projects/test/log.jsonl']);
+
+    const jsonlContent = [
+      JSON.stringify({
+        type: 'user',
+        message: { role: 'user', content: 'Jan 20' },
+        timestamp: '2025-01-20T10:00:00.000Z',
+        sessionId: 's1',
+        cwd: '/test',
+      }),
+      JSON.stringify({
+        type: 'user',
+        message: { role: 'user', content: 'Jan 23' },
+        timestamp: '2025-01-23T10:00:00.000Z',
+        sessionId: 's1',
+        cwd: '/test',
+      }),
+      JSON.stringify({
+        type: 'user',
+        message: { role: 'user', content: 'Jan 25' },
+        timestamp: '2025-01-25T10:00:00.000Z',
+        sessionId: 's1',
+        cwd: '/test',
+      }),
+    ].join('\n');
+
+    mockReadFile.mockResolvedValue(jsonlContent);
+
+    const result = await readLogs({ from: '2025-01-20', to: '2025-01-23' });
+
+    expect(result.prompts).toHaveLength(2);
+    expect(result.prompts[0]?.content).toBe('Jan 20');
+    expect(result.prompts[1]?.content).toBe('Jan 23');
+  });
+
+  it('validates date range (from must be before to)', async () => {
+    mockExistsSync.mockReturnValue(true);
+    mockGlob.mockResolvedValue(['/mock/.claude/projects/test/log.jsonl']);
+    mockReadFile.mockResolvedValue('');
+
+    const result = await readLogs({ from: '2025-01-25', to: '2025-01-20' });
+
+    expect(result.prompts).toHaveLength(0);
+    const firstWarning = result.warnings[0];
+    expect(firstWarning).toBeDefined();
+    expect(firstWarning).toContain('Invalid date range');
+  });
+
+  it('filters by project name (partial match)', async () => {
+    mockExistsSync.mockReturnValue(true);
+    mockGlob.mockResolvedValue([
+      '/mock/.claude/projects/my-app/log.jsonl',
+      '/mock/.claude/projects/other-app/log.jsonl',
+    ]);
+
+    let callCount = 0;
+    mockReadFile.mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve(
+          JSON.stringify({
+            type: 'user',
+            message: { role: 'user', content: 'From my-app' },
+            timestamp: '2025-01-23T10:00:00.000Z',
+            sessionId: 's1',
+            cwd: '/my-app',
+          }),
+        );
+      }
+      return Promise.resolve(
+        JSON.stringify({
+          type: 'user',
+          message: { role: 'user', content: 'From other-app' },
+          timestamp: '2025-01-23T11:00:00.000Z',
+          sessionId: 's2',
+          cwd: '/other-app',
+        }),
+      );
+    });
+
+    const result = await readLogs({ project: 'my-app' });
+
+    expect(result.prompts).toHaveLength(1);
+    expect(result.prompts[0]?.content).toBe('From my-app');
+  });
+
+  it('combines date and project filters', async () => {
+    mockExistsSync.mockReturnValue(true);
+    mockGlob.mockResolvedValue(['/mock/.claude/projects/my-app/log.jsonl']);
+
+    const jsonlContent = [
+      JSON.stringify({
+        type: 'user',
+        message: { role: 'user', content: 'Jan 23 in my-app' },
+        timestamp: '2025-01-23T10:00:00.000Z',
+        sessionId: 's1',
+        cwd: '/my-app',
+      }),
+      JSON.stringify({
+        type: 'user',
+        message: { role: 'user', content: 'Jan 25 in my-app' },
+        timestamp: '2025-01-25T10:00:00.000Z',
+        sessionId: 's1',
+        cwd: '/my-app',
+      }),
+    ].join('\n');
+
+    mockReadFile.mockResolvedValue(jsonlContent);
+
+    const result = await readLogs({
+      from: '2025-01-20',
+      to: '2025-01-24',
+      project: 'my-app',
+    });
+
+    expect(result.prompts).toHaveLength(1);
+    expect(result.prompts[0]?.content).toBe('Jan 23 in my-app');
+  });
+
+  it('handles invalid date in filter gracefully', async () => {
+    mockExistsSync.mockReturnValue(true);
+    mockGlob.mockResolvedValue(['/mock/.claude/projects/test/log.jsonl']);
+    mockReadFile.mockResolvedValue('');
+
+    const result = await readLogs({ date: 'invalid-date' });
+
+    expect(result.prompts).toHaveLength(0);
+    const firstWarning = result.warnings[0];
+    expect(firstWarning).toBeDefined();
+    expect(firstWarning).toContain('Invalid date');
   });
 });

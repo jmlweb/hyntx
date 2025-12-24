@@ -9,14 +9,25 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import { glob } from 'glob';
-import { parseISO } from 'date-fns';
+import { parseISO, startOfDay, isSameDay, isAfter, isBefore } from 'date-fns';
 import {
   type ClaudeMessage,
   type ExtractedPrompt,
+  type DayGroup,
   type LogReadResult,
 } from '../types/index.js';
 import { CLAUDE_PROJECTS_DIR } from '../utils/paths.js';
 import { validateLogEntry } from './schema-validator.js';
+
+/**
+ * Options for filtering logs.
+ */
+export type ReadLogsOptions = {
+  readonly date?: string;
+  readonly from?: string;
+  readonly to?: string;
+  readonly project?: string;
+};
 
 /**
  * Checks if the Claude projects directory exists.
@@ -50,6 +61,48 @@ function extractProjectName(filePath: string): string {
     return projectHash;
   }
   return basename(filePath, '.jsonl');
+}
+
+/**
+ * Parses date strings into Date objects.
+ * Supports 'today', 'yesterday', and ISO date format (YYYY-MM-DD).
+ *
+ * @param dateStr - Date string to parse
+ * @returns Parsed Date object
+ * @throws Error if date string is invalid
+ *
+ * @example
+ * ```typescript
+ * parseDate('today') // Returns current date at start of day
+ * parseDate('yesterday') // Returns yesterday at start of day
+ * parseDate('2025-01-23') // Returns specific date
+ * ```
+ */
+export function parseDate(dateStr: string): Date {
+  const normalized = dateStr.trim().toLowerCase();
+
+  if (normalized === 'today') {
+    return startOfDay(new Date());
+  }
+
+  if (normalized === 'yesterday') {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    return startOfDay(yesterday);
+  }
+
+  // Try ISO date format (YYYY-MM-DD)
+  try {
+    const parsed = parseISO(dateStr);
+    if (isNaN(parsed.getTime())) {
+      throw new Error(`Invalid date format: ${dateStr}`);
+    }
+    return startOfDay(parsed);
+  } catch {
+    throw new Error(
+      `Invalid date format: ${dateStr}. Expected 'today', 'yesterday', or YYYY-MM-DD`,
+    );
+  }
 }
 
 /**
@@ -179,24 +232,178 @@ async function readJsonlFile(filePath: string): Promise<{
 }
 
 /**
+ * Filters prompts by date range.
+ *
+ * @param prompts - Array of prompts to filter
+ * @param fromDate - Start date (inclusive)
+ * @param toDate - End date (inclusive)
+ * @returns Filtered prompts
+ */
+function filterByDateRange(
+  prompts: ExtractedPrompt[],
+  fromDate: Date,
+  toDate: Date,
+): ExtractedPrompt[] {
+  return prompts.filter((prompt) => {
+    try {
+      const promptDate = parseISO(prompt.timestamp);
+      const promptDay = startOfDay(promptDate);
+
+      // Check if prompt date is within range (inclusive)
+      return (
+        (isSameDay(promptDay, fromDate) || isAfter(promptDay, fromDate)) &&
+        (isSameDay(promptDay, toDate) || isBefore(promptDay, toDate))
+      );
+    } catch {
+      // Invalid timestamp - include it but it will be filtered by date check
+      return false;
+    }
+  });
+}
+
+/**
+ * Filters prompts by single date.
+ *
+ * @param prompts - Array of prompts to filter
+ * @param targetDate - Target date
+ * @returns Filtered prompts
+ */
+function filterByDate(
+  prompts: ExtractedPrompt[],
+  targetDate: Date,
+): ExtractedPrompt[] {
+  return prompts.filter((prompt) => {
+    try {
+      const promptDate = parseISO(prompt.timestamp);
+      return isSameDay(startOfDay(promptDate), targetDate);
+    } catch {
+      return false;
+    }
+  });
+}
+
+/**
+ * Filters prompts by project name (partial match).
+ *
+ * @param prompts - Array of prompts to filter
+ * @param projectName - Project name to filter by (case-insensitive partial match)
+ * @returns Filtered prompts
+ */
+function filterByProject(
+  prompts: ExtractedPrompt[],
+  projectName: string,
+): ExtractedPrompt[] {
+  const normalizedProject = projectName.toLowerCase().trim();
+  return prompts.filter((prompt) =>
+    prompt.project.toLowerCase().includes(normalizedProject),
+  );
+}
+
+/**
+ * Groups prompts by day.
+ *
+ * @param prompts - Array of prompts to group
+ * @returns Array of DayGroup objects, sorted by date
+ *
+ * @example
+ * ```typescript
+ * const groups = groupByDay(prompts);
+ * // [
+ * //   { date: '2025-01-23', prompts: [...], projects: ['project-a'] },
+ * //   { date: '2025-01-24', prompts: [...], projects: ['project-b'] }
+ * // ]
+ * ```
+ */
+export function groupByDay(
+  prompts: readonly ExtractedPrompt[],
+): readonly DayGroup[] {
+  const groups = new Map<
+    string,
+    { prompts: ExtractedPrompt[]; projects: Set<string> }
+  >();
+
+  for (const prompt of prompts) {
+    const date = prompt.date;
+
+    if (!groups.has(date)) {
+      groups.set(date, { prompts: [], projects: new Set() });
+    }
+
+    const group = groups.get(date);
+    if (group) {
+      group.prompts.push(prompt);
+      group.projects.add(prompt.project);
+    }
+  }
+
+  // Convert to DayGroup array and sort by date
+  const result: DayGroup[] = Array.from(groups.entries())
+    .map(([date, { prompts: groupPrompts, projects }]) => {
+      // Sort prompts chronologically within each day
+      const sortedPrompts = groupPrompts.sort((a, b) => {
+        try {
+          const dateA = parseISO(a.timestamp);
+          const dateB = parseISO(b.timestamp);
+          return dateA.getTime() - dateB.getTime();
+        } catch {
+          return 0;
+        }
+      });
+
+      return {
+        date,
+        prompts: sortedPrompts,
+        projects: Array.from(projects).sort(),
+      };
+    })
+    .sort((a, b) => {
+      try {
+        const dateA = parseISO(a.date + 'T00:00:00Z');
+        const dateB = parseISO(b.date + 'T00:00:00Z');
+        return dateA.getTime() - dateB.getTime();
+      } catch {
+        return 0;
+      }
+    });
+
+  return result;
+}
+
+/**
  * Reads all Claude Code logs and extracts user prompts.
  *
  * This function finds all JSONL files in the Claude projects directory,
  * parses them, and extracts user messages sorted chronologically.
+ * Supports filtering by date range, single date, and project name.
  *
+ * @param options - Optional filtering options
  * @returns LogReadResult containing prompts and warnings
  *
  * @example
  * ```typescript
+ * // Read all logs
  * const result = await readLogs();
- * if (result.prompts.length === 0) {
- *   console.log('No prompts found');
- * } else {
- *   console.log(`Found ${result.prompts.length} prompts`);
- * }
+ *
+ * // Filter by date
+ * const today = await readLogs({ date: 'today' });
+ *
+ * // Filter by date range
+ * const range = await readLogs({ from: '2025-01-20', to: '2025-01-25' });
+ *
+ * // Filter by project
+ * const project = await readLogs({ project: 'my-app' });
+ *
+ * // Combine filters
+ * const combined = await readLogs({
+ *   from: '2025-01-20',
+ *   to: '2025-01-25',
+ *   project: 'my-app'
+ * });
  * ```
  */
-export async function readLogs(): Promise<LogReadResult> {
+export async function readLogs(
+  options?: ReadLogsOptions,
+): Promise<LogReadResult> {
   if (!claudeProjectsExist()) {
     return {
       prompts: [],
@@ -225,11 +432,67 @@ export async function readLogs(): Promise<LogReadResult> {
     allWarnings.push(...warnings);
   }
 
+  // Apply filters if provided
+  let filteredPrompts = allPrompts;
+
+  if (options) {
+    // Filter by date range
+    if (options.from && options.to) {
+      try {
+        const fromDate = parseDate(options.from);
+        const toDate = parseDate(options.to);
+
+        // Validate date range
+        if (isAfter(fromDate, toDate)) {
+          return {
+            prompts: [],
+            warnings: [
+              ...allWarnings,
+              `Invalid date range: --from (${options.from}) must be before or equal to --to (${options.to})`,
+            ],
+          };
+        }
+
+        filteredPrompts = filterByDateRange(filteredPrompts, fromDate, toDate);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Invalid date range';
+        return {
+          prompts: [],
+          warnings: [...allWarnings, errorMessage],
+        };
+      }
+    } else if (options.date) {
+      // Filter by single date
+      try {
+        const targetDate = parseDate(options.date);
+        filteredPrompts = filterByDate(filteredPrompts, targetDate);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Invalid date';
+        return {
+          prompts: [],
+          warnings: [...allWarnings, errorMessage],
+        };
+      }
+    }
+
+    // Filter by project
+    if (options.project) {
+      filteredPrompts = filterByProject(filteredPrompts, options.project);
+    }
+  }
+
   // Sort chronologically by timestamp
-  const sortedPrompts = allPrompts.sort((a, b) => {
-    const dateA = parseISO(a.timestamp);
-    const dateB = parseISO(b.timestamp);
-    return dateA.getTime() - dateB.getTime();
+  const sortedPrompts = filteredPrompts.sort((a, b) => {
+    try {
+      const dateA = parseISO(a.timestamp);
+      const dateB = parseISO(b.timestamp);
+      return dateA.getTime() - dateB.getTime();
+    } catch {
+      // Invalid timestamps - keep original order
+      return 0;
+    }
   });
 
   return {
