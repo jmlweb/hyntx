@@ -16,6 +16,7 @@ vi.mock('node:fs', () => ({
   existsSync: vi.fn(),
   readFileSync: vi.fn(),
   writeFileSync: vi.fn(),
+  mkdirSync: vi.fn(),
 }));
 
 // Mock paths module
@@ -32,6 +33,16 @@ vi.mock('../utils/env.js', () => ({
     anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
     google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
   })),
+}));
+
+// Mock logger module
+vi.mock('../utils/logger.js', () => ({
+  logger: {
+    warn: vi.fn(),
+    debug: vi.fn(),
+    error: vi.fn(),
+    collectWarning: vi.fn(),
+  },
 }));
 
 describe('getLastRun', () => {
@@ -101,6 +112,7 @@ describe('saveLastRun', () => {
   it('saves current timestamp to file', () => {
     const mockDate = new Date('2024-06-15T14:00:00.000Z');
     vi.setSystemTime(mockDate);
+    vi.mocked(fs.existsSync).mockReturnValue(true);
 
     saveLastRun();
 
@@ -109,6 +121,69 @@ describe('saveLastRun', () => {
       '2024-06-15T14:00:00.000Z',
       'utf-8',
     );
+  });
+
+  it('creates parent directory if it does not exist', () => {
+    const mockDate = new Date('2024-06-15T14:00:00.000Z');
+    vi.setSystemTime(mockDate);
+    vi.mocked(fs.existsSync).mockReturnValue(false);
+
+    saveLastRun();
+
+    expect(fs.mkdirSync).toHaveBeenCalled();
+    expect(fs.writeFileSync).toHaveBeenCalledWith(
+      '/mock/.hyntx-last-run',
+      '2024-06-15T14:00:00.000Z',
+      'utf-8',
+    );
+  });
+
+  it('handles write errors gracefully and logs warning', async () => {
+    const mockDate = new Date('2024-06-15T14:00:00.000Z');
+    vi.setSystemTime(mockDate);
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(fs.writeFileSync).mockImplementation(() => {
+      throw new Error('Permission denied');
+    });
+
+    const { logger } = await import('../utils/logger.js');
+
+    // Should not throw, but log a warning
+    expect(() => {
+      saveLastRun();
+    }).not.toThrow();
+
+    // Verify logger.warn was called with correct arguments
+    const warnCalls = vi.mocked(logger).warn.mock.calls;
+    expect(warnCalls.length).toBeGreaterThan(0);
+    const lastCall = warnCalls[warnCalls.length - 1];
+    expect(lastCall?.[0]).toContain('Failed to save last run timestamp');
+    expect(lastCall?.[0]).toContain('Permission denied');
+    expect(lastCall?.[1]).toBe('reminder');
+  });
+
+  it('handles mkdir errors gracefully and logs warning', async () => {
+    const mockDate = new Date('2024-06-15T14:00:00.000Z');
+    vi.setSystemTime(mockDate);
+    vi.mocked(fs.existsSync).mockReturnValue(false);
+    vi.mocked(fs.mkdirSync).mockImplementation(() => {
+      throw new Error('Filesystem full');
+    });
+
+    const { logger } = await import('../utils/logger.js');
+
+    // Should not throw, but log a warning
+    expect(() => {
+      saveLastRun();
+    }).not.toThrow();
+
+    // Verify logger.warn was called with correct arguments
+    const warnCalls = vi.mocked(logger).warn.mock.calls;
+    expect(warnCalls.length).toBeGreaterThan(0);
+    const lastCall = warnCalls[warnCalls.length - 1];
+    expect(lastCall?.[0]).toContain('Failed to save last run timestamp');
+    expect(lastCall?.[0]).toContain('Filesystem full');
+    expect(lastCall?.[1]).toBe('reminder');
   });
 });
 

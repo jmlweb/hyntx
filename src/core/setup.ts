@@ -13,7 +13,7 @@ import type {
   ProviderType,
   ShellConfigResult,
 } from '../types/index.js';
-import { ENV_DEFAULTS } from '../types/index.js';
+import { ENV_DEFAULTS, EXIT_CODES } from '../types/index.js';
 import {
   saveConfigToShell,
   getManualInstructions,
@@ -69,12 +69,24 @@ async function configureProvider(
       initial: ENV_DEFAULTS.ollama.model,
     })) as { model?: string };
 
+    // Check if user cancelled (prompts returns empty object on cancel)
+    if (!('model' in response)) {
+      console.log(chalk.yellow('\nSetup cancelled by user.'));
+      process.exit(EXIT_CODES.ERROR);
+    }
+
     const hostResponse = (await prompts({
       type: 'text',
       name: 'host',
       message: 'Ollama host:',
       initial: ENV_DEFAULTS.ollama.host,
     })) as { host?: string };
+
+    // Check if user cancelled (prompts returns empty object on cancel)
+    if (!('host' in hostResponse)) {
+      console.log(chalk.yellow('\nSetup cancelled by user.'));
+      process.exit(EXIT_CODES.ERROR);
+    }
 
     return {
       ...config,
@@ -93,12 +105,24 @@ async function configureProvider(
       initial: ENV_DEFAULTS.anthropic.model,
     })) as { model?: string };
 
+    // Check if user cancelled (prompts returns empty object on cancel)
+    if (!('model' in response)) {
+      console.log(chalk.yellow('\nSetup cancelled by user.'));
+      process.exit(EXIT_CODES.ERROR);
+    }
+
     const apiKeyResponse = (await prompts({
       type: 'password',
       name: 'apiKey',
       message: 'Anthropic API key:',
       validate: (value: string) => value.trim() !== '' || 'API key is required',
     })) as { apiKey?: string };
+
+    // Check if user cancelled (prompts returns empty object on cancel)
+    if (!('apiKey' in apiKeyResponse)) {
+      console.log(chalk.yellow('\nSetup cancelled by user.'));
+      process.exit(EXIT_CODES.ERROR);
+    }
 
     return {
       ...config,
@@ -117,12 +141,24 @@ async function configureProvider(
     initial: ENV_DEFAULTS.google.model,
   })) as { model?: string };
 
+  // Check if user cancelled (prompts returns empty object on cancel)
+  if (!('model' in response)) {
+    console.log(chalk.yellow('\nSetup cancelled by user.'));
+    process.exit(EXIT_CODES.ERROR);
+  }
+
   const apiKeyResponse = (await prompts({
     type: 'password',
     name: 'apiKey',
     message: 'Google API key:',
     validate: (value: string) => value.trim() !== '' || 'API key is required',
   })) as { apiKey?: string };
+
+  // Check if user cancelled (prompts returns empty object on cancel)
+  if (!('apiKey' in apiKeyResponse)) {
+    console.log(chalk.yellow('\nSetup cancelled by user.'));
+    process.exit(EXIT_CODES.ERROR);
+  }
 
   return {
     ...config,
@@ -172,7 +208,7 @@ export async function runSetup(): Promise<EnvConfig> {
 
   if (!providers || providers.length === 0) {
     console.log(chalk.red('No providers selected. Setup cancelled.'));
-    process.exit(1);
+    process.exit(EXIT_CODES.ERROR);
   }
 
   // Initialize config with selected providers
@@ -203,6 +239,12 @@ export async function runSetup(): Promise<EnvConfig> {
     choices: REMINDER_OPTIONS,
     initial: 1, // Default to 7d
   })) as { reminder?: string };
+
+  // Check if user cancelled (prompts returns empty object on cancel)
+  if (!('reminder' in reminderResponse)) {
+    console.log(chalk.yellow('\nSetup cancelled by user.'));
+    process.exit(EXIT_CODES.ERROR);
+  }
 
   const reminder = reminderResponse.reminder;
 
@@ -238,6 +280,12 @@ export async function runSetup(): Promise<EnvConfig> {
     message: `Save configuration to ${configFile}?`,
     initial: true,
   })) as { saveToShell?: boolean };
+
+  // Check if user cancelled (prompts returns empty object on cancel)
+  if (!('saveToShell' in saveToShellResponse)) {
+    console.log(chalk.yellow('\nSetup cancelled by user.'));
+    process.exit(EXIT_CODES.ERROR);
+  }
 
   const saveToShell = saveToShellResponse.saveToShell ?? false;
 

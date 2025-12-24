@@ -153,7 +153,8 @@ describe('setup', () => {
       expect(process.env['HYNTX_SERVICES']).toBe('ollama,anthropic');
     });
 
-    it('should exit with code 1 when no providers selected', async () => {
+    it('should exit with EXIT_CODES.ERROR when no providers selected', async () => {
+      const { EXIT_CODES } = await import('../types/index.js');
       vi.mocked(prompts).mockResolvedValueOnce({ providers: [] });
 
       const mockExit = vi
@@ -162,11 +163,14 @@ describe('setup', () => {
           throw new Error(`process.exit(${String(code)})`);
         });
 
-      await expect(runSetup()).rejects.toThrow('process.exit(1)');
-      expect(mockExit).toHaveBeenCalledWith(1);
+      await expect(runSetup()).rejects.toThrow(
+        `process.exit(${String(EXIT_CODES.ERROR)})`,
+      );
+      expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.ERROR);
     });
 
-    it('should exit with code 1 when providers is undefined', async () => {
+    it('should exit with EXIT_CODES.ERROR when providers is undefined', async () => {
+      const { EXIT_CODES } = await import('../types/index.js');
       vi.mocked(prompts).mockResolvedValueOnce({ providers: undefined });
 
       const mockExit = vi
@@ -175,8 +179,31 @@ describe('setup', () => {
           throw new Error(`process.exit(${String(code)})`);
         });
 
-      await expect(runSetup()).rejects.toThrow('process.exit(1)');
-      expect(mockExit).toHaveBeenCalledWith(1);
+      await expect(runSetup()).rejects.toThrow(
+        `process.exit(${String(EXIT_CODES.ERROR)})`,
+      );
+      expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.ERROR);
+    });
+
+    it('should exit with EXIT_CODES.ERROR when user cancels during saveToShell prompt', async () => {
+      const { EXIT_CODES } = await import('../types/index.js');
+      vi.mocked(prompts)
+        .mockResolvedValueOnce({ providers: ['ollama'] })
+        .mockResolvedValueOnce({ model: 'llama3.2' })
+        .mockResolvedValueOnce({ host: 'http://localhost:11434' })
+        .mockResolvedValueOnce({ reminder: '7d' })
+        .mockResolvedValueOnce({}); // User cancelled - empty response
+
+      const mockExit = vi
+        .spyOn(process, 'exit')
+        .mockImplementation((code?: string | number | null) => {
+          throw new Error(`process.exit(${String(code)})`);
+        });
+
+      await expect(runSetup()).rejects.toThrow(
+        `process.exit(${String(EXIT_CODES.ERROR)})`,
+      );
+      expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.ERROR);
     });
 
     it('should set environment variables for selected providers', async () => {

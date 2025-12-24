@@ -304,8 +304,13 @@ function filterByDateRange(
         (isSameDay(promptDay, fromDate) || isAfter(promptDay, fromDate)) &&
         (isSameDay(promptDay, toDate) || isBefore(promptDay, toDate))
       );
-    } catch {
-      // Invalid timestamp - include it but it will be filtered by date check
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Parse error';
+      logger.debug(
+        `Invalid timestamp in filterByDateRange: ${prompt.timestamp} - ${errorMessage}`,
+        'log-reader',
+      );
       return false;
     }
   });
@@ -326,7 +331,13 @@ function filterByDate(
     try {
       const promptDate = parseISO(prompt.timestamp);
       return isSameDay(startOfDay(promptDate), targetDate);
-    } catch {
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Parse error';
+      logger.debug(
+        `Invalid timestamp in filterByDate: ${prompt.timestamp} - ${errorMessage}`,
+        'log-reader',
+      );
       return false;
     }
   });
@@ -395,7 +406,13 @@ export function groupByDay(
           const dateA = parseISO(a.timestamp);
           const dateB = parseISO(b.timestamp);
           return dateA.getTime() - dateB.getTime();
-        } catch {
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : 'Parse error';
+          logger.debug(
+            `Invalid timestamp in groupByDay sort: ${a.timestamp} or ${b.timestamp} - ${errorMessage}`,
+            'log-reader',
+          );
           return 0;
         }
       });
@@ -411,7 +428,13 @@ export function groupByDay(
         const dateA = parseISO(a.date + 'T00:00:00Z');
         const dateB = parseISO(b.date + 'T00:00:00Z');
         return dateA.getTime() - dateB.getTime();
-      } catch {
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Parse error';
+        logger.debug(
+          `Invalid date in groupByDay sort: ${a.date} or ${b.date} - ${errorMessage}`,
+          'log-reader',
+        );
         return 0;
       }
     });
@@ -467,7 +490,20 @@ export async function readLogs(
   }
 
   const pattern = `${CLAUDE_PROJECTS_DIR}/**/*.jsonl`;
-  const files = await glob(pattern);
+  let files: string[];
+
+  try {
+    files = await glob(pattern);
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
+    const warning = `Failed to search for JSONL files: ${errorMessage}`;
+    logger.error(warning, 'log-reader');
+    return {
+      prompts: [],
+      warnings: [warning],
+    };
+  }
 
   logger.debug(`Found ${String(files.length)} JSONL files`, 'log-reader');
 
@@ -560,8 +596,13 @@ export async function readLogs(
       const dateA = parseISO(a.timestamp);
       const dateB = parseISO(b.timestamp);
       return dateA.getTime() - dateB.getTime();
-    } catch {
-      // Invalid timestamps - keep original order
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Parse error';
+      logger.debug(
+        `Invalid timestamp in readLogs sort: ${a.timestamp} or ${b.timestamp} - ${errorMessage}`,
+        'log-reader',
+      );
       return 0;
     }
   });

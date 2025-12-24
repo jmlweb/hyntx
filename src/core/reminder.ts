@@ -5,12 +5,14 @@
  * periodic reminders to encourage regular prompt analysis.
  */
 
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { differenceInDays, parseISO } from 'date-fns';
 import chalk from 'chalk';
 import prompts from 'prompts';
 import { getEnvConfig } from '../utils/env.js';
 import { LAST_RUN_FILE } from '../utils/paths.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * Valid reminder frequencies.
@@ -58,7 +60,23 @@ export function getLastRun(): string | null {
  */
 export function saveLastRun(): void {
   const now = new Date().toISOString();
-  writeFileSync(LAST_RUN_FILE, now, 'utf-8');
+
+  try {
+    // Ensure parent directory exists
+    const dir = dirname(LAST_RUN_FILE);
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true });
+    }
+
+    writeFileSync(LAST_RUN_FILE, now, 'utf-8');
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
+    logger.warn(
+      `Failed to save last run timestamp to ${LAST_RUN_FILE}: ${errorMessage}`,
+      'reminder',
+    );
+  }
 }
 
 /**

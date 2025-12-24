@@ -294,6 +294,18 @@ describe('readLogs', () => {
     expect(result.warnings[0]).toContain('Permission denied');
   });
 
+  it('handles glob errors gracefully', async () => {
+    mockExistsSync.mockReturnValue(true);
+    mockGlob.mockRejectedValue(new Error('Filesystem error'));
+
+    const result = await readLogs();
+
+    expect(result.prompts).toHaveLength(0);
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toContain('Failed to search for JSONL files');
+    expect(result.warnings[0]).toContain('Filesystem error');
+  });
+
   it('skips assistant and system messages', async () => {
     mockExistsSync.mockReturnValue(true);
     mockGlob.mockResolvedValue(['/mock/.claude/projects/test/log.jsonl']);
