@@ -120,6 +120,12 @@ Set restrictive file permissions (600) on shell config files after writing API k
 
 Move `@types/*` packages from dependencies to devDependencies where they belong.
 
+### 2.5.4. [Add Prettier Formatting and ESLint Fixing to Husky / lint-staged](backlog/add-prettier-eslint-to-husky.md)
+
+**Priority**: P1 | **Dependencies**: none
+
+Configure lint-staged with husky to automatically format code with Prettier and fix ESLint issues on staged files before commits. Ensures consistent code style and prevents formatting-related commit failures.
+
 ---
 
 ## Phase 3: CLI and Providers (P2 - Medium)
@@ -243,15 +249,16 @@ For efficient development, it is recommended to follow this order:
 18. ~~**move-types-to-devdeps.md** - Quick cleanup (P1, no dependencies)~~ ✅
 19. **add-eslint-enforcement-rules.md** - Code quality (P1, no dependencies)
 20. **add-shell-config-permissions.md** - Security improvement (P1, no dependencies)
-21. **reporter-markdown.md** - File output (blocks cli-completo)
-22. **add-provider-retry-logic.md** - Reliability improvement (P2)
-23. **add-provider-rate-limiting.md** - Reliability improvement (P2)
-24. **test-coverage-setup-shell.md** - Test coverage (blocks refactor-shell-config-logic)
-25. **refactor-log-reader-types.md** - Type safety improvements (quick win)
-26. **e2e-testing.md** - E2E testing infrastructure (local-only)
-27. **cli-completo.md** - Complete CLI (requires reporter-markdown)
-28. **error-handling.md** - Complete review (requires all previous)
-29. **refactor-shell-config-logic.md** - Shell config edge case simplification (P4)
+21. **add-prettier-eslint-to-husky.md** - Developer experience (P1, no dependencies)
+22. **reporter-markdown.md** - File output (blocks cli-completo)
+23. **add-provider-retry-logic.md** - Reliability improvement (P2)
+24. **add-provider-rate-limiting.md** - Reliability improvement (P2)
+25. **test-coverage-setup-shell.md** - Test coverage (blocks refactor-shell-config-logic)
+26. **refactor-log-reader-types.md** - Type safety improvements (quick win)
+27. **e2e-testing.md** - E2E testing infrastructure (local-only)
+28. **cli-completo.md** - Complete CLI (requires reporter-markdown)
+29. **error-handling.md** - Complete review (requires all previous)
+30. **refactor-shell-config-logic.md** - Shell config edge case simplification (P4)
 
 ---
 
