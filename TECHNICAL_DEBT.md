@@ -47,7 +47,7 @@ function extractContent(message: ClaudeMessage): string {
 - Potential runtime errors if validation misses edge cases
 - No additional safety net beyond the validation function
 
-**Location**: `src/core/log-reader.ts:143`
+**Location**: `src/core/log-reader.ts:130-146`
 
 **Example**:
 
@@ -81,7 +81,7 @@ function parseLine(line: string): ClaudeMessage | null {
 
 **Locations**:
 
-- `src/core/setup.ts:175` - Uses `process.exit(1)`
+- `src/core/setup.ts:173-176` - Uses `process.exit(1)` when no providers selected
 - `src/core/log-reader.ts` - Multiple catch blocks that silently return null/empty arrays
 - Various other modules use different patterns
 
@@ -124,8 +124,8 @@ try {
 
 **Locations**:
 
-- `src/core/log-reader.ts` - Lines 101, 119, 144, 257, 279, 348, 364, 492
-- `src/utils/shell-config.ts:172` - Directory creation errors ignored
+- `src/core/log-reader.ts` - Lines 119-121 (extractDate), 144 (parseLine), 257-260 (filterByDateRange), 279-281 (filterByDate), 348-350 (groupByDay sort), 364-366 (groupByDay sort), 492-495 (readLogs sort)
+- `src/utils/shell-config.ts:170-174` - Directory creation errors ignored
 
 **Examples**:
 

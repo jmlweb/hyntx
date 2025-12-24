@@ -132,17 +132,17 @@ Implement periodic reminder system to maintain the analysis habit.
 
 Implement report formatting in Markdown to save results to files.
 
-### 17. [Complete CLI with All Options](backlog/cli-completo.md)
+### 17. [Test Coverage for Setup and Shell Config](backlog/test-coverage-setup-shell.md)
 
-**Priority**: P3 | **Dependencies**: cli-entry-basico.md, reminder-system.md, reporter-markdown.md, provider-factory.md, log-reader-completo.md
+**Priority**: P3 | **Dependencies**: setup-inicial.md, utils-completos.md
 
-Extend CLI with all advanced options: date ranges, filters, file output, verbose, dry-run.
+Create comprehensive test suites for `setup.ts` and `shell-config.ts` modules, which currently have no test coverage. Achieve >80% coverage with mocked file system and user input.
 
-### 18. [Complete Error Handling](backlog/error-handling.md)
+### 18. [Refactor Log Reader Type Safety](backlog/refactor-log-reader-types.md)
 
-**Priority**: P3 | **Dependencies**: All previous modules
+**Priority**: P3 | **Dependencies**: log-reader-completo.md
 
-Review and verify complete error handling throughout the system with clear messages and appropriate exit codes.
+Refactor `log-reader.ts` to remove unnecessary defensive code and improve type safety by adding proper runtime type guards.
 
 ### 19. [E2E Testing Infrastructure](backlog/e2e-testing.md)
 
@@ -150,17 +150,17 @@ Review and verify complete error handling throughout the system with clear messa
 
 Implement comprehensive end-to-end testing infrastructure for local development validation. Tests validate complete CLI workflow, environment variable configuration, and custom Claude Code paths. **Note**: These tests are local-only and NOT included in CI/CD pipelines.
 
-### 20. [Test Coverage for Setup and Shell Config](backlog/test-coverage-setup-shell.md)
+### 20. [Complete CLI with All Options](backlog/cli-completo.md)
 
-**Priority**: P3 | **Dependencies**: setup-inicial.md, utils-completos.md
+**Priority**: P3 | **Dependencies**: cli-entry-basico.md, reminder-system.md, reporter-markdown.md, provider-factory.md, log-reader-completo.md
 
-Create comprehensive test suites for `setup.ts` and `shell-config.ts` modules, which currently have no test coverage. Achieve >80% coverage with mocked file system and user input.
+Extend CLI with all advanced options: date ranges, filters, file output, verbose, dry-run.
 
-### 21. [Refactor Log Reader Type Safety](backlog/refactor-log-reader-types.md)
+### 21. [Complete Error Handling](backlog/error-handling.md)
 
-**Priority**: P3 | **Dependencies**: log-reader-completo.md
+**Priority**: P3 | **Dependencies**: All previous modules
 
-Refactor `log-reader.ts` to remove unnecessary defensive code and improve type safety by adding proper runtime type guards.
+Review and verify complete error handling throughout the system with clear messages and appropriate exit codes.
 
 ### 22. [Refactor Shell Config Edge Case Logic](backlog/refactor-shell-config-logic.md)
 
@@ -190,13 +190,13 @@ For efficient development, it is recommended to follow this order:
 13. ~~**provider-google.md** - Third provider~~ ✅
 14. ~~**provider-factory.md** - Multi-provider support~~ ✅
 15. ~~**reminder-system.md** - Reminder system~~ ✅
-16. **reporter-markdown.md** - File output
-17. **cli-completo.md** - Complete CLI
-18. **error-handling.md** - Complete review
+16. **reporter-markdown.md** - File output (blocks cli-completo)
+17. **test-coverage-setup-shell.md** - Test coverage for setup/shell-config (blocks refactor-shell-config-logic)
+18. **refactor-log-reader-types.md** - Type safety improvements (no blockers, quick win)
 19. **e2e-testing.md** - E2E testing infrastructure (local-only)
-20. **test-coverage-setup-shell.md** - Test coverage for setup/shell-config
-21. **refactor-log-reader-types.md** - Type safety improvements
-22. **refactor-shell-config-logic.md** - Shell config edge case simplification
+20. **cli-completo.md** - Complete CLI (requires reporter-markdown)
+21. **error-handling.md** - Complete review (requires all previous)
+22. **refactor-shell-config-logic.md** - Shell config edge case simplification (P4, requires test-coverage)
 
 ---
 

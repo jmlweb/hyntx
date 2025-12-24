@@ -59,11 +59,9 @@ Achieve comprehensive test coverage for setup and shell configuration modules, r
 #### Mocking Strategy
 
 ```typescript
-// Mock inquirer for user input
-vi.mock('@inquirer/prompts', () => ({
-  checkbox: vi.fn(),
-  input: vi.fn(),
-  confirm: vi.fn(),
+// Mock prompts for user input
+vi.mock('prompts', () => ({
+  default: vi.fn(),
 }));
 
 // Mock shell-config module

@@ -77,7 +77,7 @@ function isClaudeMessage(value: unknown): value is ClaudeMessage {
 
 ### 3. Improve parseLine Type Safety
 
-**Current code** (`src/core/log-reader.ts:143`):
+**Current code** (`src/core/log-reader.ts:130-146`):
 
 ```typescript
 function parseLine(line: string): ClaudeMessage | null {
