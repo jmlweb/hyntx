@@ -172,7 +172,7 @@ describe('generateEnvExports', () => {
 
 describe('updateShellConfig', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it('creates new config file when it does not exist', () => {

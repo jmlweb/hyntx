@@ -108,7 +108,7 @@ These tasks improve code quality, security, and enforce documented conventions.
 
 Add missing ESLint rules to enforce documented conventions: no-default-export, no-enums (prefer const maps), no-param-reassign.
 
-### 2.5.2. [Add Shell Config Permissions](backlog/add-shell-config-permissions.md)
+### ~~2.5.2. [Add Shell Config Permissions](backlog/add-shell-config-permissions.md)~~ ✅ COMPLETED
 
 **Priority**: P1 | **Dependencies**: none
 
@@ -248,7 +248,7 @@ For efficient development, it is recommended to follow this order:
 17. ~~**fix-node-version-inconsistency.md** - Documentation fix (P0, no dependencies)~~ ✅
 18. ~~**move-types-to-devdeps.md** - Quick cleanup (P1, no dependencies)~~ ✅
 19. ~~**add-eslint-enforcement-rules.md** - Code quality (P1, no dependencies)~~ ✅
-20. **add-shell-config-permissions.md** - Security improvement (P1, no dependencies)
+20. ~~**add-shell-config-permissions.md** - Security improvement (P1, no dependencies)~~ ✅
 21. **add-prettier-eslint-to-husky.md** - Developer experience (P1, no dependencies)
 22. **reporter-markdown.md** - File output (blocks cli-completo)
 23. **add-provider-retry-logic.md** - Reliability improvement (P2)
