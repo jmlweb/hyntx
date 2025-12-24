@@ -181,10 +181,13 @@ Where `<project-hash>` is the encoded path:
 
 ### 11.3 Implementation
 
-> **Tareas de implementación**:
->
-> - Lectura básica: Ver [log-reader-basico.md](../backlog/log-reader-basico.md)
-> - Lectura completa con filtros: Ver [log-reader-completo.md](../backlog/log-reader-completo.md)
+✅ **Basic Log Reading Implemented** - `src/core/log-reader.ts` provides:
+
+- `claudeProjectsExist()` - Check if Claude projects directory exists
+- `readLogs()` - Read all JSONL files and extract user prompts
+- `getProjects()` - List all project directories
+
+> **Pending**: Complete log reading with filters - see [log-reader-completo.md](../backlog/log-reader-completo.md)
 
 ---
 

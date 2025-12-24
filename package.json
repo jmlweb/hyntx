@@ -48,5 +48,9 @@
   },
   "files": [
     "dist"
-  ]
+  ],
+  "dependencies": {
+    "date-fns": "^4.1.0",
+    "glob": "^13.0.0"
+  }
 }

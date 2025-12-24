@@ -24,7 +24,7 @@ Implement schema validation to handle log format changes gracefully.
 
 Implement all system utilities: environment variable management and path constants. Required early for setup and log reading.
 
-### 4. [Basic JSONL Log Reading](backlog/log-reader-basico.md)
+### ~~4. [Basic JSONL Log Reading](backlog/log-reader-basico.md)~~ ✅ COMPLETED
 
 **Priority**: P0 | **Dependencies**: tipos-base.md, schema-validator.md, utils-completos.md (partial - paths.ts)
 
@@ -141,7 +141,7 @@ For efficient development, it is recommended to follow this order:
 1. ~~**tipos-base.md** - Fundamental base~~ ✅
 2. ~~**schema-validator.md** - Simple, no complex dependencies~~ ✅
 3. ~~**utils-completos.md** - Required early for paths and shell-config~~ ✅
-4. **log-reader-basico.md** - Basic core functionality
+4. ~~**log-reader-basico.md** - Basic core functionality~~ ✅
 5. **setup-inicial.md** - Initial configuration
 6. **log-reader-completo.md** - Extends the basic
 7. **sanitizer.md** - Independent, required before providers
