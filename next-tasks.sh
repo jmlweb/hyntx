@@ -45,6 +45,7 @@ echo "Max tasks: $MAX_TASKS"
 echo "Delay between tasks: ${DELAY}s"
 echo "Working directory: $(pwd)"
 echo "Claude command: $(command -v claude)"
+
 echo "----------------------------------------"
 
 COMPLETED=0
@@ -59,32 +60,15 @@ for i in $(seq 1 $MAX_TASKS); do
 
   # Execute claude in non-interactive mode with /next-task
   # Output directly to terminal (not captured) for real-time display
-  # Use tools and environment variables to disable buffering for real-time output
   echo "Executing: claude -p \"/next-task\""
+  echo ""  # Blank line before claude output
   
-  # Set environment variables to force unbuffered output (for Python/Node.js)
-  export PYTHONUNBUFFERED=1
-  export NODE_NO_WARNINGS=1
+  # Execute claude directly - the CLI handles its own output buffering
+  # Using --output-format stream-json would give structured output but we want human-readable
+  claude -p "/next-task" 2>&1
+  EXIT_CODE=$?
   
-  # Try to disable buffering for real-time output
-  # Method 1: Use stdbuf if available (Linux - disables line buffering)
-  if command -v stdbuf &> /dev/null; then
-    stdbuf -oL -eL claude -p "/next-task"
-    EXIT_CODE=$?
-  # Method 2: Use unbuffer if available (macOS/BSD - install with: brew install expect)
-  # Note: unbuffer comes with the expect package
-  elif command -v unbuffer &> /dev/null; then
-    unbuffer claude -p "/next-task"
-    EXIT_CODE=$?
-  # Method 3: Execute directly (claude should detect TTY and output in real-time)
-  # This works when script is run from terminal (not piped/redirected)
-  else
-    # Execute directly - claude should handle TTY detection
-    # If running from terminal, output should be real-time
-    # Environment variables above help with Python/Node.js buffering
-    claude -p "/next-task"
-    EXIT_CODE=$?
-  fi
+  echo ""  # Blank line after claude output
 
   if [ $EXIT_CODE -eq 0 ]; then
     COMPLETED=$((COMPLETED + 1))
