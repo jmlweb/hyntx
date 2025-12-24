@@ -150,6 +150,24 @@ Review and verify complete error handling throughout the system with clear messa
 
 Implement comprehensive end-to-end testing infrastructure for local development validation. Tests validate complete CLI workflow, environment variable configuration, and custom Claude Code paths. **Note**: These tests are local-only and NOT included in CI/CD pipelines.
 
+### 20. [Test Coverage for Setup and Shell Config](backlog/test-coverage-setup-shell.md)
+
+**Priority**: P3 | **Dependencies**: setup-inicial.md, utils-completos.md
+
+Create comprehensive test suites for `setup.ts` and `shell-config.ts` modules, which currently have no test coverage. Achieve >80% coverage with mocked file system and user input.
+
+### 21. [Refactor Log Reader Type Safety](backlog/refactor-log-reader-types.md)
+
+**Priority**: P3 | **Dependencies**: log-reader-completo.md
+
+Refactor `log-reader.ts` to remove unnecessary defensive code and improve type safety by adding proper runtime type guards.
+
+### 22. [Refactor Shell Config Edge Case Logic](backlog/refactor-shell-config-logic.md)
+
+**Priority**: P4 | **Dependencies**: utils-completos.md, test-coverage-setup-shell.md
+
+Simplify complex edge case handling logic in `updateShellConfig()` function with proper marker validation and clearer string manipulation.
+
 ---
 
 ## Recommended Implementation Order
@@ -176,6 +194,9 @@ For efficient development, it is recommended to follow this order:
 17. **cli-completo.md** - Complete CLI
 18. **error-handling.md** - Complete review
 19. **e2e-testing.md** - E2E testing infrastructure (local-only)
+20. **test-coverage-setup-shell.md** - Test coverage for setup/shell-config
+21. **refactor-log-reader-types.md** - Type safety improvements
+22. **refactor-shell-config-logic.md** - Shell config edge case simplification
 
 ---
 
