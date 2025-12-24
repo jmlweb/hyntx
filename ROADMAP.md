@@ -66,7 +66,7 @@ Implement base provider interface and Ollama provider (local, offline-first).
 
 Implement analysis system with intelligent batching to handle large volumes of prompts.
 
-### 10. [Terminal Reporter](backlog/reporter-terminal.md)
+### ~~10. [Terminal Reporter](backlog/reporter-terminal.md)~~ ✅ COMPLETED
 
 **Priority**: P1 | **Dependencies**: tipos-base.md
 
@@ -153,7 +153,7 @@ For efficient development, it is recommended to follow this order:
 7. ~~**sanitizer.md** - Independent, required before providers~~ ✅
 8. ~~**provider-base-ollama.md** - First functional provider~~ ✅
 9. ~~**analyzer-batching.md** - Orchestrates analysis~~ ✅
-10. **reporter-terminal.md** - Shows results
+10. ~~**reporter-terminal.md** - Shows results~~ ✅
 11. **cli-entry-basico.md** - Basic functional CLI
 12. **provider-anthropic.md** - Second provider
 13. **provider-google.md** - Third provider
