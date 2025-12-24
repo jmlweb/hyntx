@@ -120,7 +120,7 @@ Set restrictive file permissions (600) on shell config files after writing API k
 
 Move `@types/*` packages from dependencies to devDependencies where they belong.
 
-### 2.5.4. [Add Prettier Formatting and ESLint Fixing to Husky / lint-staged](backlog/add-prettier-eslint-to-husky.md)
+### ~~2.5.4. [Add Prettier Formatting and ESLint Fixing to Husky / lint-staged](backlog/add-prettier-eslint-to-husky.md)~~ ✅ COMPLETED
 
 **Priority**: P1 | **Dependencies**: none
 
@@ -249,7 +249,7 @@ For efficient development, it is recommended to follow this order:
 18. ~~**move-types-to-devdeps.md** - Quick cleanup (P1, no dependencies)~~ ✅
 19. ~~**add-eslint-enforcement-rules.md** - Code quality (P1, no dependencies)~~ ✅
 20. ~~**add-shell-config-permissions.md** - Security improvement (P1, no dependencies)~~ ✅
-21. **add-prettier-eslint-to-husky.md** - Developer experience (P1, no dependencies)
+21. ~~**add-prettier-eslint-to-husky.md** - Developer experience (P1, no dependencies)~~ ✅
 22. **reporter-markdown.md** - File output (blocks cli-completo)
 23. **add-provider-retry-logic.md** - Reliability improvement (P2)
 24. **add-provider-rate-limiting.md** - Reliability improvement (P2)
