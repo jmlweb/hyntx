@@ -20,6 +20,6 @@
     "isolatedModules": true,
     "resolveJsonModule": true
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "tests/**/*", "vitest.config.e2e.ts"],
   "exclude": ["node_modules", "dist"]
 }

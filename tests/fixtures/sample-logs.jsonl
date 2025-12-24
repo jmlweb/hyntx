@@ -1,0 +1,12 @@
+{"type":"user","message":{"role":"user","content":"fix auth bug"},"timestamp":"2025-01-20T10:00:00.000Z","sessionId":"session-001","cwd":"/Users/test/project"}
+{"type":"assistant","message":{"role":"assistant","content":"I'll help you fix the authentication bug. Can you provide more details about the issue?"},"timestamp":"2025-01-20T10:00:05.000Z","sessionId":"session-001","cwd":"/Users/test/project"}
+{"type":"user","message":{"role":"user","content":"users can't log in with valid credentials"},"timestamp":"2025-01-20T10:01:00.000Z","sessionId":"session-001","cwd":"/Users/test/project"}
+{"type":"assistant","message":{"role":"assistant","content":"Let me check the authentication flow in your code."},"timestamp":"2025-01-20T10:01:05.000Z","sessionId":"session-001","cwd":"/Users/test/project"}
+{"type":"user","message":{"role":"user","content":"Add unit tests for the payment module"},"timestamp":"2025-01-20T11:00:00.000Z","sessionId":"session-002","cwd":"/Users/test/project"}
+{"type":"assistant","message":{"role":"assistant","content":"I'll create comprehensive unit tests for the payment module."},"timestamp":"2025-01-20T11:00:05.000Z","sessionId":"session-002","cwd":"/Users/test/project"}
+{"type":"user","message":{"role":"user","content":"optimize database queries"},"timestamp":"2025-01-20T14:00:00.000Z","sessionId":"session-003","cwd":"/Users/test/project"}
+{"type":"assistant","message":{"role":"assistant","content":"I'll analyze your database queries and suggest optimizations."},"timestamp":"2025-01-20T14:00:05.000Z","sessionId":"session-003","cwd":"/Users/test/project"}
+{"type":"user","message":{"role":"user","content":"The user dashboard is loading slowly. Can you help optimize the SQL queries in src/db/users.ts? I'm seeing N+1 query problems in the getUserStats function."},"timestamp":"2025-01-20T15:00:00.000Z","sessionId":"session-004","cwd":"/Users/test/project"}
+{"type":"assistant","message":{"role":"assistant","content":"I'll help optimize the SQL queries. Let me examine the getUserStats function."},"timestamp":"2025-01-20T15:00:05.000Z","sessionId":"session-004","cwd":"/Users/test/project"}
+{"type":"user","message":{"role":"user","content":"make it faster"},"timestamp":"2025-01-20T16:00:00.000Z","sessionId":"session-005","cwd":"/Users/test/project"}
+{"type":"assistant","message":{"role":"assistant","content":"What specific part would you like me to optimize?"},"timestamp":"2025-01-20T16:00:05.000Z","sessionId":"session-005","cwd":"/Users/test/project"}

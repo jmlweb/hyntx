@@ -1,0 +1,129 @@
+{
+  "successResponse": {
+    "patterns": [
+      {
+        "id": "missing_context",
+        "name": "Missing Technical Context",
+        "frequency": 0.6,
+        "severity": "medium",
+        "examples": [
+          "fix auth bug",
+          "optimize database queries",
+          "make it faster"
+        ],
+        "suggestion": "Include specific file paths, error messages, or technical details to provide better context",
+        "beforeAfter": {
+          "before": "fix auth bug",
+          "after": "Fix authentication bug in src/auth/login.ts where JWT validation fails with 'invalid signature' error"
+        }
+      },
+      {
+        "id": "vague_requirements",
+        "name": "Vague Requirements",
+        "frequency": 0.4,
+        "severity": "low",
+        "examples": ["make it faster", "improve performance"],
+        "suggestion": "Specify what needs to be optimized and the target metrics",
+        "beforeAfter": {
+          "before": "make it faster",
+          "after": "Optimize the user dashboard load time from 3s to under 1s by improving SQL query performance"
+        }
+      }
+    ],
+    "stats": {
+      "totalPrompts": 5,
+      "promptsWithIssues": 3,
+      "overallScore": 6.5
+    },
+    "topSuggestion": "Add specific file paths and error details to provide better context for debugging tasks"
+  },
+  "emptyResponse": {
+    "patterns": [],
+    "stats": {
+      "totalPrompts": 0,
+      "promptsWithIssues": 0,
+      "overallScore": 0
+    },
+    "topSuggestion": "No prompts to analyze"
+  },
+  "perfectPromptsResponse": {
+    "patterns": [],
+    "stats": {
+      "totalPrompts": 10,
+      "promptsWithIssues": 0,
+      "overallScore": 10
+    },
+    "topSuggestion": "Your prompts are clear and well-structured! Keep up the good work."
+  },
+  "highSeverityResponse": {
+    "patterns": [
+      {
+        "id": "security_risk",
+        "name": "Potential Security Risk",
+        "frequency": 0.3,
+        "severity": "high",
+        "examples": [
+          "disable authentication for testing",
+          "store password in plaintext"
+        ],
+        "suggestion": "Never disable security features or store sensitive data insecurely, even for testing",
+        "beforeAfter": {
+          "before": "disable authentication for testing",
+          "after": "Create a test user account with proper authentication for integration testing"
+        }
+      }
+    ],
+    "stats": {
+      "totalPrompts": 10,
+      "promptsWithIssues": 3,
+      "overallScore": 4.5
+    },
+    "topSuggestion": "Review security practices in your prompts - avoid requesting insecure implementations"
+  },
+  "multiplePatterns": {
+    "patterns": [
+      {
+        "id": "missing_context",
+        "name": "Missing Technical Context",
+        "frequency": 0.5,
+        "severity": "medium",
+        "examples": ["fix bug", "update feature"],
+        "suggestion": "Add file paths and error details",
+        "beforeAfter": {
+          "before": "fix bug",
+          "after": "Fix null pointer exception in UserService.java line 42"
+        }
+      },
+      {
+        "id": "incomplete_requirements",
+        "name": "Incomplete Requirements",
+        "frequency": 0.3,
+        "severity": "medium",
+        "examples": ["add validation", "implement feature"],
+        "suggestion": "Specify acceptance criteria and edge cases",
+        "beforeAfter": {
+          "before": "add validation",
+          "after": "Add email validation to registration form: check format, domain exists, and no duplicates"
+        }
+      },
+      {
+        "id": "no_test_mention",
+        "name": "No Test Requirements",
+        "frequency": 0.7,
+        "severity": "low",
+        "examples": ["implement login", "create API endpoint"],
+        "suggestion": "Mention testing requirements upfront",
+        "beforeAfter": {
+          "before": "create API endpoint",
+          "after": "Create /api/users endpoint with input validation and unit tests"
+        }
+      }
+    ],
+    "stats": {
+      "totalPrompts": 20,
+      "promptsWithIssues": 15,
+      "overallScore": 5.8
+    },
+    "topSuggestion": "Include test requirements and specify edge cases in your feature requests"
+  }
+}
