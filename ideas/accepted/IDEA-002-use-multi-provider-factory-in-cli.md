@@ -72,8 +72,8 @@ This is a minimal change that unlocks all the multi-provider functionality that'
 
 ## Validation Notes
 
-{To be filled during validation process}
+Accepted. High impact + low effort = P1 priority. Critical fix to enable all configured providers in CLI.
 
 ## Related Tasks
 
-{Links to backlog tasks created from this idea - filled by feed-backlog}
+- [integrate-multi-provider-factory.md](../../backlog/integrate-multi-provider-factory.md) - P1, Phase 3

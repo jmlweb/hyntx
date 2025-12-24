@@ -96,4 +96,4 @@ Accepted during revalidation on 2025-12-24. High-value feature that addresses mu
 
 ## Related Tasks
 
-{Links to backlog tasks created from this idea - filled by feed-backlog}
+- [add-project-config-file.md](../../backlog/add-project-config-file.md) - P1, Phase 4

@@ -76,4 +76,4 @@ Accepted during revalidation on 2025-12-24. Complements existing `cli-completo.m
 
 ## Related Tasks
 
-{Links to backlog tasks created from this idea - filled by feed-backlog}
+- [add-verbose-debug-mode.md](../../backlog/add-verbose-debug-mode.md) - P2, Phase 3

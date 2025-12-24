@@ -105,4 +105,4 @@ Accepted during revalidation on 2025-12-24. Focused, actionable improvement that
 
 ## Related Tasks
 
-{Links to backlog tasks created from this idea - filled by feed-backlog}
+- [add-config-health-check.md](../../backlog/add-config-health-check.md) - P2, Phase 3

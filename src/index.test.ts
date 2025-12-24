@@ -38,12 +38,8 @@ vi.mock('./core/reporter.js', () => ({
   printReport: vi.fn(),
 }));
 
-vi.mock('./providers/ollama.js', () => ({
-  OllamaProvider: vi.fn().mockImplementation(() => ({
-    name: 'Ollama',
-    isAvailable: vi.fn(),
-    analyze: vi.fn(),
-  })),
+vi.mock('./providers/index.js', () => ({
+  getAvailableProvider: vi.fn(),
 }));
 
 import ora from 'ora';
@@ -52,7 +48,7 @@ import { claudeProjectsExist, readLogs } from './core/log-reader.js';
 import { runSetup } from './core/setup.js';
 import { analyzePrompts } from './core/analyzer.js';
 import { printReport } from './core/reporter.js';
-import { OllamaProvider } from './providers/ollama.js';
+import { getAvailableProvider } from './providers/index.js';
 import { EXIT_CODES } from './types/index.js';
 import type {
   EnvConfig,
@@ -67,7 +63,7 @@ const mockReadLogs = vi.mocked(readLogs);
 const mockRunSetup = vi.mocked(runSetup);
 const mockAnalyzePrompts = vi.mocked(analyzePrompts);
 const mockPrintReport = vi.mocked(printReport);
-const mockOllamaProvider = vi.mocked(OllamaProvider);
+const mockGetAvailableProvider = vi.mocked(getAvailableProvider);
 
 describe('parseArguments', () => {
   const originalArgv = process.argv;
@@ -358,12 +354,12 @@ describe('connectProviderWithSpinner', () => {
     mockError.mockRestore();
   });
 
-  it('exits with PROVIDER_UNAVAILABLE when Ollama not configured', async () => {
+  it('exits with PROVIDER_UNAVAILABLE when no services configured', async () => {
     const config: EnvConfig = {
-      services: ['anthropic'],
+      services: [],
       reminder: '7d',
       ollama: { model: 'llama3.2', host: 'http://localhost:11434' },
-      anthropic: { model: 'claude-3-5-haiku-latest', apiKey: 'key' },
+      anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
       google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
     };
     mockGetEnvConfig.mockReturnValue(config);
@@ -373,7 +369,7 @@ describe('connectProviderWithSpinner', () => {
     expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.PROVIDER_UNAVAILABLE);
   });
 
-  it('exits with PROVIDER_UNAVAILABLE when Ollama not available', async () => {
+  it('exits with PROVIDER_UNAVAILABLE when no providers available', async () => {
     const config: EnvConfig = {
       services: ['ollama'],
       reminder: '7d',
@@ -383,17 +379,13 @@ describe('connectProviderWithSpinner', () => {
     };
     mockGetEnvConfig.mockReturnValue(config);
 
-    const mockProvider = {
-      name: 'Ollama',
-      isAvailable: vi.fn().mockResolvedValue(false),
-      analyze: vi.fn(),
-    } as unknown as OllamaProvider;
-    mockOllamaProvider.mockImplementation(() => mockProvider);
+    mockGetAvailableProvider.mockRejectedValue(
+      new Error('No providers are currently available.'),
+    );
 
     await index.connectProviderWithSpinner();
 
-    // eslint-disable-next-line @typescript-eslint/unbound-method
-    expect(mockProvider.isAvailable).toHaveBeenCalled();
+    expect(mockGetAvailableProvider).toHaveBeenCalled();
     expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.PROVIDER_UNAVAILABLE);
   });
 
@@ -407,22 +399,21 @@ describe('connectProviderWithSpinner', () => {
     };
     mockGetEnvConfig.mockReturnValue(config);
 
-    const mockProvider = {
+    const mockProvider: AnalysisProvider = {
       name: 'Ollama',
       isAvailable: vi.fn().mockResolvedValue(true),
       analyze: vi.fn(),
-    } as unknown as OllamaProvider;
-    mockOllamaProvider.mockImplementation(() => mockProvider);
+    };
+    mockGetAvailableProvider.mockResolvedValue(mockProvider);
 
     const result = await index.connectProviderWithSpinner();
 
     expect(result).toBe(mockProvider);
-    // eslint-disable-next-line @typescript-eslint/unbound-method
-    expect(mockProvider.isAvailable).toHaveBeenCalled();
-    expect(ora).toHaveBeenCalledWith('Connecting to Ollama...');
+    expect(mockGetAvailableProvider).toHaveBeenCalled();
+    expect(ora).toHaveBeenCalledWith('Connecting to provider...');
   });
 
-  it('exits with ERROR when connection throws', async () => {
+  it('exits with PROVIDER_UNAVAILABLE when getAvailableProvider throws', async () => {
     const config: EnvConfig = {
       services: ['ollama'],
       reminder: '7d',
@@ -432,16 +423,11 @@ describe('connectProviderWithSpinner', () => {
     };
     mockGetEnvConfig.mockReturnValue(config);
 
-    const mockProvider = {
-      name: 'Ollama',
-      isAvailable: vi.fn().mockRejectedValue(new Error('Connection error')),
-      analyze: vi.fn(),
-    } as unknown as OllamaProvider;
-    mockOllamaProvider.mockImplementation(() => mockProvider);
+    mockGetAvailableProvider.mockRejectedValue(new Error('Connection error'));
 
     await index.connectProviderWithSpinner();
 
-    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.ERROR);
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.PROVIDER_UNAVAILABLE);
   });
 });
 
@@ -479,7 +465,7 @@ describe('analyzeWithProgress', () => {
     mockAnalyzePrompts.mockResolvedValue(mockResult);
 
     const result = await index.analyzeWithProgress(
-      mockProvider as OllamaProvider,
+      mockProvider,
       prompts,
       '2025-01-20',
     );
@@ -510,11 +496,7 @@ describe('analyzeWithProgress', () => {
 
     mockAnalyzePrompts.mockResolvedValue(mockResult);
 
-    await index.analyzeWithProgress(
-      mockProvider as OllamaProvider,
-      prompts,
-      '2025-01-20',
-    );
+    await index.analyzeWithProgress(mockProvider, prompts, '2025-01-20');
 
     // Get the onProgress callback - typing isn't perfect here but it's a test
     const onProgressCall = mockAnalyzePrompts.mock.calls[0]?.[0] as
@@ -542,11 +524,7 @@ describe('analyzeWithProgress', () => {
 
     mockAnalyzePrompts.mockRejectedValue(new Error('Analysis error'));
 
-    await index.analyzeWithProgress(
-      mockProvider as OllamaProvider,
-      prompts,
-      '2025-01-20',
-    );
+    await index.analyzeWithProgress(mockProvider, prompts, '2025-01-20');
 
     expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.ERROR);
   });

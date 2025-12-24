@@ -83,4 +83,4 @@ Accepted during revalidation on 2025-12-24. Directly addresses TECHNICAL_DEBT.md
 
 ## Related Tasks
 
-{Links to backlog tasks created from this idea - filled by feed-backlog}
+- [add-centralized-logging.md](../../backlog/add-centralized-logging.md) - P1, Phase 3

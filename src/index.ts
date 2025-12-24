@@ -16,10 +16,10 @@ import { claudeProjectsExist, readLogs } from './core/log-reader.js';
 import { runSetup } from './core/setup.js';
 import { analyzePrompts } from './core/analyzer.js';
 import { printReport } from './core/reporter.js';
-import { OllamaProvider } from './providers/ollama.js';
+import { getAvailableProvider } from './providers/index.js';
 import { CLAUDE_PROJECTS_DIR } from './utils/paths.js';
 import { EXIT_CODES } from './types/index.js';
-import type { AnalysisResult } from './types/index.js';
+import type { AnalysisProvider, AnalysisResult } from './types/index.js';
 
 // =============================================================================
 // Types
@@ -195,53 +195,45 @@ export async function readLogsWithSpinner(
 }
 
 /**
- * Connects to the Ollama provider with availability check.
+ * Connects to an available provider with automatic fallback.
  *
- * @returns OllamaProvider instance
+ * Uses the multi-provider factory to get the first available provider
+ * from the configured services list, with fallback support.
+ *
+ * @returns Available provider instance
  */
-export async function connectProviderWithSpinner(): Promise<OllamaProvider> {
+export async function connectProviderWithSpinner(): Promise<AnalysisProvider> {
   const config = getEnvConfig();
 
-  // Check if Ollama is configured
-  if (!config.services.includes('ollama')) {
-    console.error(chalk.red('Error: Ollama provider not configured'));
-    console.error(
-      chalk.dim('\nRun setup again to configure Ollama as a provider.'),
-    );
+  // Check if any providers are configured
+  if (config.services.length === 0) {
+    console.error(chalk.red('Error: No providers configured'));
+    console.error(chalk.dim('\nRun setup to configure at least one provider.'));
     process.exit(EXIT_CODES.PROVIDER_UNAVAILABLE);
   }
 
-  const spinner = ora('Connecting to Ollama...').start();
+  const spinner = ora('Connecting to provider...').start();
 
   try {
-    const provider = new OllamaProvider(config.ollama);
-
-    const isAvailable = await provider.isAvailable();
-
-    if (!isAvailable) {
-      spinner.fail(chalk.red('Ollama service not available'));
-      console.error(
-        chalk.dim(
-          `\nMake sure Ollama is running: ${chalk.bold('ollama serve')}`,
-        ),
+    const provider = await getAvailableProvider(config, (from, to) => {
+      spinner.text = chalk.yellow(
+        `Primary provider ${from} unavailable, falling back to ${to}...`,
       );
-      console.error(
-        chalk.dim(
-          `And the model "${config.ollama.model}" is installed: ${chalk.bold(`ollama pull ${config.ollama.model}`)}`,
-        ),
-      );
-      process.exit(EXIT_CODES.PROVIDER_UNAVAILABLE);
-    }
+    });
 
-    spinner.succeed(
-      chalk.green(`Connected to Ollama (${config.ollama.model})`),
-    );
+    spinner.succeed(chalk.green(`Connected to ${provider.name}`));
 
     return provider;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    spinner.fail(chalk.red(`Failed to connect: ${errorMessage}`));
-    process.exit(EXIT_CODES.ERROR);
+    spinner.fail(chalk.red('No providers available'));
+    console.error(chalk.dim(`\n${errorMessage}`));
+    console.error(
+      chalk.dim(
+        '\nCheck your provider configuration and ensure at least one provider is running.',
+      ),
+    );
+    process.exit(EXIT_CODES.PROVIDER_UNAVAILABLE);
   }
 }
 
@@ -254,7 +246,7 @@ export async function connectProviderWithSpinner(): Promise<OllamaProvider> {
  * @returns Analysis result
  */
 export async function analyzeWithProgress(
-  provider: OllamaProvider,
+  provider: AnalysisProvider,
   prompts: readonly string[],
   date: string,
 ): Promise<AnalysisResult> {

@@ -168,6 +168,36 @@ Add retry logic with exponential backoff for transient network failures in cloud
 
 Add rate limiting for Anthropic and Google API calls to prevent 429 errors during batch processing.
 
+### 14.3. [Add JSON Output Format](backlog/add-json-output-format.md)
+
+**Priority**: P1 | **Dependencies**: reporter-terminal.md, cli-entry-basico.md | **Source**: IDEA-001
+
+Implement `--format json` flag for machine-readable output. Enables automation, CI/CD integration, and data processing workflows.
+
+### ~~14.4. [Integrate Multi-Provider Factory in CLI](backlog/integrate-multi-provider-factory.md)~~ ✅ COMPLETED
+
+**Priority**: P1 | **Dependencies**: provider-factory.md, cli-entry-basico.md | **Source**: IDEA-002
+
+Replace hardcoded `OllamaProvider` in CLI with `getAvailableProvider()` factory to enable all configured providers with automatic fallback.
+
+### 14.5. [Add Verbose/Debug Mode](backlog/add-verbose-debug-mode.md)
+
+**Priority**: P2 | **Dependencies**: cli-entry-basico.md | **Source**: IDEA-003
+
+Add `--verbose` flag for detailed operational logging to stderr for troubleshooting.
+
+### 14.6. [Add Centralized Logging System](backlog/add-centralized-logging.md)
+
+**Priority**: P1 | **Dependencies**: cli-entry-basico.md | **Source**: IDEA-004
+
+Implement unified logging interface with warning collection, replacing silent error swallowing and scattered console calls.
+
+### 14.7. [Add Configuration Health Check](backlog/add-config-health-check.md)
+
+**Priority**: P2 | **Dependencies**: cli-entry-basico.md, provider-factory.md | **Source**: IDEA-006
+
+Add `--check-config` flag to validate configuration and test provider connectivity before running analysis.
+
 ---
 
 ## Phase 4: Advanced Features (P3 - Low)
@@ -221,6 +251,12 @@ Review and verify complete error handling throughout the system with clear messa
 **Priority**: P4 | **Dependencies**: utils-completos.md, test-coverage-setup-shell.md
 
 Simplify complex edge case handling logic in `updateShellConfig()` function with proper marker validation and clearer string manipulation.
+
+### 23. [Add Project-Specific Configuration File Support](backlog/add-project-config-file.md)
+
+**Priority**: P1 | **Dependencies**: cli-entry-basico.md, provider-factory.md | **Source**: IDEA-007
+
+Add `.hyntxrc.json` support for per-project configuration overrides and project context for better analysis.
 
 ---
 
