@@ -96,7 +96,7 @@ These tasks complete the basic CLI and add support for multiple providers.
 
 Implement the basic CLI entry point that integrates all components for minimum viable functionality.
 
-### 12. [Anthropic Provider](backlog/provider-anthropic.md)
+### ~~12. [Anthropic Provider](backlog/provider-anthropic.md)~~ ✅ COMPLETED
 
 **Priority**: P2 | **Dependencies**: tipos-base.md, provider-base-ollama.md
 
@@ -168,7 +168,7 @@ For efficient development, it is recommended to follow this order:
 9. ~~**analyzer-batching.md** - Orchestrates analysis~~ ✅
 10. ~~**reporter-terminal.md** - Shows results~~ ✅
 11. ~~**cli-entry-basico.md** - Basic functional CLI~~ ✅
-12. **provider-anthropic.md** - Second provider
+12. ~~**provider-anthropic.md** - Second provider~~ ✅
 13. **provider-google.md** - Third provider
 14. **provider-factory.md** - Multi-provider support
 15. **reminder-system.md** - Reminder system
