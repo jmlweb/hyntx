@@ -13,12 +13,13 @@ import {
   type AnalysisResult,
   type AnthropicConfig,
 } from '../types/index.js';
+import { isTransientError, withRetry } from '../utils/retry.js';
 import { SYSTEM_PROMPT, buildUserPrompt, parseResponse } from './base.js';
 
 /**
  * Maximum number of retry attempts for network errors.
  */
-const MAX_RETRIES = 2;
+const MAX_RETRIES = 3;
 
 /**
  * Timeout for availability check (5 seconds).
@@ -33,7 +34,12 @@ const ANALYSIS_TIMEOUT_MS = 60000;
 /**
  * Base delay for exponential backoff (1 second).
  */
-const BASE_RETRY_DELAY_MS = 1000;
+const BASE_DELAY_MS = 1000;
+
+/**
+ * Maximum delay cap for exponential backoff (30 seconds).
+ */
+const MAX_DELAY_MS = 30000;
 
 /**
  * Anthropic API base URL.
@@ -135,98 +141,62 @@ export class AnthropicProvider implements AnalysisProvider {
 
     const userPrompt = buildUserPrompt(prompts, date);
 
-    let lastError: Error | undefined;
-
-    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-      try {
+    return withRetry(
+      async () => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => {
           controller.abort();
         }, ANALYSIS_TIMEOUT_MS);
 
-        const response = await fetch(`${API_BASE_URL}/v1/messages`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': this.config.apiKey,
-            'anthropic-version': API_VERSION,
-          },
-          body: JSON.stringify({
-            model: this.config.model,
-            max_tokens: MAX_TOKENS,
-            system: SYSTEM_PROMPT,
-            messages: [{ role: 'user', content: userPrompt }],
-          }),
-          signal: controller.signal,
-        });
+        try {
+          const response = await fetch(`${API_BASE_URL}/v1/messages`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': this.config.apiKey,
+              'anthropic-version': API_VERSION,
+            },
+            body: JSON.stringify({
+              model: this.config.model,
+              max_tokens: MAX_TOKENS,
+              system: SYSTEM_PROMPT,
+              messages: [{ role: 'user', content: userPrompt }],
+            }),
+            signal: controller.signal,
+          });
 
-        clearTimeout(timeoutId);
+          if (!response.ok) {
+            const status = String(response.status);
+            const errorBody = await response.text();
+            throw new Error(
+              `Anthropic API request failed: ${status} ${response.statusText} - ${errorBody}`,
+            );
+          }
 
-        if (!response.ok) {
-          const status = String(response.status);
-          const errorBody = await response.text();
-          throw new Error(
-            `Anthropic API request failed: ${status} ${response.statusText} - ${errorBody}`,
+          const data = (await response.json()) as {
+            content?: { type: string; text?: string }[];
+          };
+
+          // Extract text from the response content
+          const textContent = data.content?.find(
+            (block) => block.type === 'text',
           );
+          if (!textContent?.text) {
+            throw new Error('Invalid response format from Anthropic API');
+          }
+
+          // Parse and validate the response
+          return parseResponse(textContent.text, date);
+        } finally {
+          clearTimeout(timeoutId);
         }
-
-        const data = (await response.json()) as {
-          content?: { type: string; text?: string }[];
-        };
-
-        // Extract text from the response content
-        const textContent = data.content?.find(
-          (block) => block.type === 'text',
-        );
-        if (!textContent?.text) {
-          throw new Error('Invalid response format from Anthropic API');
-        }
-
-        // Parse and validate the response
-        return parseResponse(textContent.text, date);
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-
-        // Don't retry parse errors - they won't succeed on retry
-        if (
-          lastError.message.includes('parse') ||
-          lastError.message.includes('schema')
-        ) {
-          throw lastError;
-        }
-
-        // Don't retry auth errors
-        if (
-          lastError.message.includes('401') ||
-          lastError.message.includes('403')
-        ) {
-          throw lastError;
-        }
-
-        // If this was the last attempt, throw the error
-        if (attempt === MAX_RETRIES) {
-          break;
-        }
-
-        // Exponential backoff: 1s, 2s, 4s, ...
-        const delay = BASE_RETRY_DELAY_MS * Math.pow(2, attempt);
-        await sleep(delay);
-      }
-    }
-
-    const attempts = String(MAX_RETRIES + 1);
-    throw new Error(
-      `Anthropic analysis failed after ${attempts} attempts: ${lastError?.message ?? 'Unknown error'}`,
+      },
+      {
+        maxRetries: MAX_RETRIES,
+        baseDelayMs: BASE_DELAY_MS,
+        maxDelayMs: MAX_DELAY_MS,
+        isRetryable: isTransientError,
+      },
     );
   }
-}
-
-/**
- * Sleep utility for retry backoff.
- *
- * @param ms - Milliseconds to sleep
- * @returns Promise that resolves after the delay
- */
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

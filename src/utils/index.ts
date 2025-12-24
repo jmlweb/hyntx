@@ -6,3 +6,9 @@
 
 export { getEnvConfig, isFirstRun, parseServices } from './env.js';
 export { CLAUDE_PROJECTS_DIR, LAST_RUN_FILE } from './paths.js';
+export {
+  withRetry,
+  isTransientError,
+  sleep,
+  type RetryOptions,
+} from './retry.js';

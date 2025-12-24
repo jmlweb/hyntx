@@ -149,28 +149,28 @@ for i in $(seq 1 $MAX_TASKS); do
     echo ""
     echo "🔄 Syncing with remote repository..."
     
-    # Pull latest changes
-    if command -v ggpull &> /dev/null; then
-      echo "Executing: ggpull"
-      ggpull
+    # Pull latest changes (using git pull --rebase, equivalent to ggpull alias)
+    if command -v git &> /dev/null; then
+      echo "Executing: git pull --rebase"
+      git pull --rebase
       PULL_EXIT_CODE=$?
       if [ $PULL_EXIT_CODE -ne 0 ]; then
-        echo "⚠️  Warning: ggpull failed (exit code: $PULL_EXIT_CODE)" >&2
+        echo "⚠️  Warning: git pull --rebase failed (exit code: $PULL_EXIT_CODE)" >&2
       fi
     else
-      echo "⚠️  Warning: 'ggpull' command not found, skipping pull" >&2
+      echo "⚠️  Warning: 'git' command not found, skipping pull" >&2
     fi
     
-    # Push local changes
-    if command -v ggpush &> /dev/null; then
-      echo "Executing: ggpush"
-      ggpush
+    # Push local changes (using git push, equivalent to ggpush alias)
+    if command -v git &> /dev/null; then
+      echo "Executing: git push"
+      git push
       PUSH_EXIT_CODE=$?
       if [ $PUSH_EXIT_CODE -ne 0 ]; then
-        echo "⚠️  Warning: ggpush failed (exit code: $PUSH_EXIT_CODE)" >&2
+        echo "⚠️  Warning: git push failed (exit code: $PUSH_EXIT_CODE)" >&2
       fi
     else
-      echo "⚠️  Warning: 'ggpush' command not found, skipping push" >&2
+      echo "⚠️  Warning: 'git' command not found, skipping push" >&2
     fi
   else
     echo ""

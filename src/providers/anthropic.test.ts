@@ -293,10 +293,11 @@ describe('AnthropicProvider', () => {
 
       await expect(
         provider.analyze(['test prompt'], '2025-01-15'),
-      ).rejects.toThrow('Anthropic analysis failed after 3 attempts');
+      ).rejects.toThrow('Network error');
 
-      expect(global.fetch).toHaveBeenCalledTimes(3);
-    }, 10000);
+      // 1 initial attempt + 3 retries = 4 total attempts
+      expect(global.fetch).toHaveBeenCalledTimes(4);
+    }, 15000);
 
     it('should handle JSON response in markdown code block', async () => {
       const markdownResponse = {
