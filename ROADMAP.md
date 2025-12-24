@@ -162,7 +162,7 @@ Implement provider factory with automatic selection and fallback between provide
 
 Add retry logic with exponential backoff for transient network failures in cloud providers.
 
-### 14.2. [Add Provider Rate Limiting](backlog/add-provider-rate-limiting.md)
+### ~~14.2. [Add Provider Rate Limiting](backlog/add-provider-rate-limiting.md)~~ ✅ COMPLETED
 
 **Priority**: P2 | **Dependencies**: provider-factory.md
 
@@ -287,8 +287,8 @@ For efficient development, it is recommended to follow this order:
 20. ~~**add-shell-config-permissions.md** - Security improvement (P1, no dependencies)~~ ✅
 21. ~~**add-prettier-eslint-to-husky.md** - Developer experience (P1, no dependencies)~~ ✅
 22. **reporter-markdown.md** - File output (blocks cli-completo)
-23. **add-provider-retry-logic.md** - Reliability improvement (P2)
-24. **add-provider-rate-limiting.md** - Reliability improvement (P2)
+23. ~~**add-provider-retry-logic.md** - Reliability improvement (P2)~~ ✅
+24. ~~**add-provider-rate-limiting.md** - Reliability improvement (P2)~~ ✅
 25. **test-coverage-setup-shell.md** - Test coverage (blocks refactor-shell-config-logic)
 26. **refactor-log-reader-types.md** - Type safety improvements (quick win)
 27. **e2e-testing.md** - E2E testing infrastructure (local-only)

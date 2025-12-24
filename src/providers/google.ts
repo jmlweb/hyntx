@@ -13,6 +13,11 @@ import {
   type AnalysisResult,
   type GoogleConfig,
 } from '../types/index.js';
+import {
+  createRateLimiter,
+  DEFAULT_RATE_LIMITS,
+  type RateLimiter,
+} from '../utils/rate-limiter.js';
 import { isTransientError, withRetry } from '../utils/retry.js';
 import { SYSTEM_PROMPT, buildUserPrompt, parseResponse } from './base.js';
 
@@ -53,6 +58,7 @@ const API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 export class GoogleProvider implements AnalysisProvider {
   public readonly name = 'Google';
   private readonly config: GoogleConfig;
+  private readonly rateLimiter: RateLimiter;
 
   /**
    * Creates a new GoogleProvider instance.
@@ -61,6 +67,9 @@ export class GoogleProvider implements AnalysisProvider {
    */
   constructor(config: GoogleConfig) {
     this.config = config;
+    this.rateLimiter = createRateLimiter({
+      requestsPerMinute: DEFAULT_RATE_LIMITS.google,
+    });
   }
 
   /**
@@ -119,6 +128,7 @@ export class GoogleProvider implements AnalysisProvider {
   /**
    * Analyzes prompts using the Google Gemini API.
    * Implements retry logic with exponential backoff for network errors.
+   * Rate limited to prevent 429 errors during batch processing.
    *
    * @param prompts - Array of prompt strings to analyze
    * @param date - Date context for the analysis
@@ -135,72 +145,74 @@ export class GoogleProvider implements AnalysisProvider {
 
     const userPrompt = buildUserPrompt(prompts, date);
 
-    return withRetry(
-      async () => {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => {
-          controller.abort();
-        }, ANALYSIS_TIMEOUT_MS);
+    return this.rateLimiter.throttle(() =>
+      withRetry(
+        async () => {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => {
+            controller.abort();
+          }, ANALYSIS_TIMEOUT_MS);
 
-        try {
-          const url = `${API_BASE_URL}/models/${this.config.model}:generateContent?key=${this.config.apiKey}`;
+          try {
+            const url = `${API_BASE_URL}/models/${this.config.model}:generateContent?key=${this.config.apiKey}`;
 
-          const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              contents: [
-                {
-                  role: 'user',
-                  parts: [{ text: userPrompt }],
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                contents: [
+                  {
+                    role: 'user',
+                    parts: [{ text: userPrompt }],
+                  },
+                ],
+                systemInstruction: {
+                  parts: [{ text: SYSTEM_PROMPT }],
                 },
-              ],
-              systemInstruction: {
-                parts: [{ text: SYSTEM_PROMPT }],
-              },
-              generationConfig: {
-                responseMimeType: 'application/json',
-              },
-            }),
-            signal: controller.signal,
-          });
+                generationConfig: {
+                  responseMimeType: 'application/json',
+                },
+              }),
+              signal: controller.signal,
+            });
 
-          if (!response.ok) {
-            const status = String(response.status);
-            const errorBody = await response.text();
-            throw new Error(
-              `Google API request failed: ${status} ${response.statusText} - ${errorBody}`,
-            );
+            if (!response.ok) {
+              const status = String(response.status);
+              const errorBody = await response.text();
+              throw new Error(
+                `Google API request failed: ${status} ${response.statusText} - ${errorBody}`,
+              );
+            }
+
+            const data = (await response.json()) as {
+              candidates?: {
+                content?: {
+                  parts?: { text?: string }[];
+                };
+              }[];
+            };
+
+            // Extract text from the response content
+            const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!textContent) {
+              throw new Error('Invalid response format from Google API');
+            }
+
+            // Parse and validate the response
+            return parseResponse(textContent, date);
+          } finally {
+            clearTimeout(timeoutId);
           }
-
-          const data = (await response.json()) as {
-            candidates?: {
-              content?: {
-                parts?: { text?: string }[];
-              };
-            }[];
-          };
-
-          // Extract text from the response content
-          const textContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (!textContent) {
-            throw new Error('Invalid response format from Google API');
-          }
-
-          // Parse and validate the response
-          return parseResponse(textContent, date);
-        } finally {
-          clearTimeout(timeoutId);
-        }
-      },
-      {
-        maxRetries: MAX_RETRIES,
-        baseDelayMs: BASE_DELAY_MS,
-        maxDelayMs: MAX_DELAY_MS,
-        isRetryable: isTransientError,
-      },
+        },
+        {
+          maxRetries: MAX_RETRIES,
+          baseDelayMs: BASE_DELAY_MS,
+          maxDelayMs: MAX_DELAY_MS,
+          isRetryable: isTransientError,
+        },
+      ),
     );
   }
 }

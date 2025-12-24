@@ -13,6 +13,11 @@ import {
   type AnalysisResult,
   type AnthropicConfig,
 } from '../types/index.js';
+import {
+  createRateLimiter,
+  DEFAULT_RATE_LIMITS,
+  type RateLimiter,
+} from '../utils/rate-limiter.js';
 import { isTransientError, withRetry } from '../utils/retry.js';
 import { SYSTEM_PROMPT, buildUserPrompt, parseResponse } from './base.js';
 
@@ -63,6 +68,7 @@ const MAX_TOKENS = 4096;
 export class AnthropicProvider implements AnalysisProvider {
   public readonly name = 'Anthropic';
   private readonly config: AnthropicConfig;
+  private readonly rateLimiter: RateLimiter;
 
   /**
    * Creates a new AnthropicProvider instance.
@@ -71,6 +77,9 @@ export class AnthropicProvider implements AnalysisProvider {
    */
   constructor(config: AnthropicConfig) {
     this.config = config;
+    this.rateLimiter = createRateLimiter({
+      requestsPerMinute: DEFAULT_RATE_LIMITS.anthropic,
+    });
   }
 
   /**
@@ -125,6 +134,7 @@ export class AnthropicProvider implements AnalysisProvider {
   /**
    * Analyzes prompts using the Anthropic Claude API.
    * Implements retry logic with exponential backoff for network errors.
+   * Rate limited to prevent 429 errors during batch processing.
    *
    * @param prompts - Array of prompt strings to analyze
    * @param date - Date context for the analysis
@@ -141,62 +151,64 @@ export class AnthropicProvider implements AnalysisProvider {
 
     const userPrompt = buildUserPrompt(prompts, date);
 
-    return withRetry(
-      async () => {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => {
-          controller.abort();
-        }, ANALYSIS_TIMEOUT_MS);
+    return this.rateLimiter.throttle(() =>
+      withRetry(
+        async () => {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => {
+            controller.abort();
+          }, ANALYSIS_TIMEOUT_MS);
 
-        try {
-          const response = await fetch(`${API_BASE_URL}/v1/messages`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-api-key': this.config.apiKey,
-              'anthropic-version': API_VERSION,
-            },
-            body: JSON.stringify({
-              model: this.config.model,
-              max_tokens: MAX_TOKENS,
-              system: SYSTEM_PROMPT,
-              messages: [{ role: 'user', content: userPrompt }],
-            }),
-            signal: controller.signal,
-          });
+          try {
+            const response = await fetch(`${API_BASE_URL}/v1/messages`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': this.config.apiKey,
+                'anthropic-version': API_VERSION,
+              },
+              body: JSON.stringify({
+                model: this.config.model,
+                max_tokens: MAX_TOKENS,
+                system: SYSTEM_PROMPT,
+                messages: [{ role: 'user', content: userPrompt }],
+              }),
+              signal: controller.signal,
+            });
 
-          if (!response.ok) {
-            const status = String(response.status);
-            const errorBody = await response.text();
-            throw new Error(
-              `Anthropic API request failed: ${status} ${response.statusText} - ${errorBody}`,
+            if (!response.ok) {
+              const status = String(response.status);
+              const errorBody = await response.text();
+              throw new Error(
+                `Anthropic API request failed: ${status} ${response.statusText} - ${errorBody}`,
+              );
+            }
+
+            const data = (await response.json()) as {
+              content?: { type: string; text?: string }[];
+            };
+
+            // Extract text from the response content
+            const textContent = data.content?.find(
+              (block) => block.type === 'text',
             );
+            if (!textContent?.text) {
+              throw new Error('Invalid response format from Anthropic API');
+            }
+
+            // Parse and validate the response
+            return parseResponse(textContent.text, date);
+          } finally {
+            clearTimeout(timeoutId);
           }
-
-          const data = (await response.json()) as {
-            content?: { type: string; text?: string }[];
-          };
-
-          // Extract text from the response content
-          const textContent = data.content?.find(
-            (block) => block.type === 'text',
-          );
-          if (!textContent?.text) {
-            throw new Error('Invalid response format from Anthropic API');
-          }
-
-          // Parse and validate the response
-          return parseResponse(textContent.text, date);
-        } finally {
-          clearTimeout(timeoutId);
-        }
-      },
-      {
-        maxRetries: MAX_RETRIES,
-        baseDelayMs: BASE_DELAY_MS,
-        maxDelayMs: MAX_DELAY_MS,
-        isRetryable: isTransientError,
-      },
+        },
+        {
+          maxRetries: MAX_RETRIES,
+          baseDelayMs: BASE_DELAY_MS,
+          maxDelayMs: MAX_DELAY_MS,
+          isRetryable: isTransientError,
+        },
+      ),
     );
   }
 }
