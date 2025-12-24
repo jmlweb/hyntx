@@ -18,7 +18,7 @@ Define all TypeScript interfaces and types necessary for the system. Fundamental
 
 Implement schema validation to handle log format changes gracefully.
 
-### 3. [Complete Utilities](backlog/utils-completos.md)
+### ~~3. [Complete Utilities](backlog/utils-completos.md)~~ ✅ COMPLETED
 
 **Priority**: P3 | **Dependencies**: tipos-base.md
 
@@ -158,7 +158,7 @@ For efficient development, it is recommended to follow this order:
 
 1. ~~**tipos-base.md** - Fundamental base~~ ✅
 2. ~~**schema-validator.md** - Simple, no complex dependencies~~ ✅
-3. **utils-completos.md** - Required early for paths and shell-config (can be done partially as needed)
+3. ~~**utils-completos.md** - Required early for paths and shell-config~~ ✅
 4. **log-reader-basico.md** - Basic core functionality
 5. **setup-inicial.md** - Initial configuration
 6. **log-reader-completo.md** - Extends the basic
