@@ -15,11 +15,15 @@ import { isFirstRun, getEnvConfig } from './utils/env.js';
 import { claudeProjectsExist, readLogs } from './core/log-reader.js';
 import { runSetup } from './core/setup.js';
 import { analyzePrompts } from './core/analyzer.js';
-import { printReport } from './core/reporter.js';
+import { printReport, formatJson } from './core/reporter.js';
 import { getAvailableProvider } from './providers/index.js';
 import { CLAUDE_PROJECTS_DIR } from './utils/paths.js';
 import { EXIT_CODES } from './types/index.js';
-import type { AnalysisProvider, AnalysisResult } from './types/index.js';
+import type {
+  AnalysisProvider,
+  AnalysisResult,
+  JsonErrorResponse,
+} from './types/index.js';
 
 // =============================================================================
 // Types
@@ -32,6 +36,8 @@ type ParsedArgs = {
   readonly date: string;
   readonly help: boolean;
   readonly version: boolean;
+  readonly format?: 'terminal' | 'json';
+  readonly compact?: boolean;
 };
 
 // =============================================================================
@@ -65,6 +71,14 @@ export function parseArguments(): ParsedArgs {
           type: 'string',
           default: 'today',
         },
+        format: {
+          type: 'string',
+          default: 'terminal',
+        },
+        compact: {
+          type: 'boolean',
+          default: false,
+        },
         help: {
           type: 'boolean',
           short: 'h',
@@ -83,6 +97,8 @@ export function parseArguments(): ParsedArgs {
       date: values.date || 'today',
       help: values.help || false,
       version: values.version || false,
+      format: (values.format || 'terminal') as 'terminal' | 'json',
+      compact: values.compact || false,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -98,9 +114,11 @@ export function showHelp(): void {
 ${chalk.bold('Usage:')} hyntx [options]
 
 ${chalk.bold('Options:')}
-  --date <date>     Date to analyze (today, yesterday, YYYY-MM-DD) [default: today]
-  -h, --help        Show help
-  --version         Show version
+  --date <date>        Date to analyze (today, yesterday, YYYY-MM-DD) [default: today]
+  --format <type>      Output format: terminal, json [default: terminal]
+  --compact            Compact JSON output (only with --format json)
+  -h, --help           Show help
+  --version            Show version
 
 ${chalk.bold('Exit codes:')}
   ${String(EXIT_CODES.SUCCESS)} - Success
@@ -109,9 +127,11 @@ ${chalk.bold('Exit codes:')}
   ${String(EXIT_CODES.PROVIDER_UNAVAILABLE)} - Provider unavailable
 
 ${chalk.bold('Examples:')}
-  hyntx                      # Analyze today's prompts
-  hyntx --date yesterday     # Analyze yesterday
-  hyntx --date 2025-01-20    # Specific date
+  hyntx                           # Analyze today's prompts (terminal format)
+  hyntx --date yesterday          # Analyze yesterday
+  hyntx --date 2025-01-20         # Specific date
+  hyntx --format json             # Output as formatted JSON
+  hyntx --format json --compact   # Output as compact JSON
 `;
 
   console.log(helpText);
@@ -128,11 +148,15 @@ export function showVersion(): void {
 
 /**
  * Checks if this is the first run and runs setup if needed.
+ *
+ * @param isJsonMode - Whether JSON output mode is active
  */
-export async function checkAndRunSetup(): Promise<void> {
+export async function checkAndRunSetup(isJsonMode: boolean): Promise<void> {
   if (isFirstRun()) {
-    const spinner = ora('Running first-time setup...').start();
-    spinner.stop(); // Stop before interactive prompts
+    if (!isJsonMode) {
+      const spinner = ora('Running first-time setup...').start();
+      spinner.stop(); // Stop before interactive prompts
+    }
 
     await runSetup();
   }
@@ -142,46 +166,70 @@ export async function checkAndRunSetup(): Promise<void> {
  * Reads logs for the specified date with a spinner.
  *
  * @param date - Date to read logs for
+ * @param isJsonMode - Whether JSON output mode is active
  * @returns Array of prompt strings
  */
 export async function readLogsWithSpinner(
   date: string,
+  isJsonMode: boolean,
 ): Promise<readonly string[]> {
   // Check if Claude projects directory exists
   if (!claudeProjectsExist()) {
-    console.error(chalk.red('Error: Claude Code logs directory not found'));
-    console.error(chalk.dim(`Expected location: ${CLAUDE_PROJECTS_DIR}`));
-    console.error(
-      chalk.dim(
-        '\nMake sure Claude Code is installed and has been used at least once.',
-      ),
-    );
+    if (isJsonMode) {
+      const errorResponse: JsonErrorResponse = {
+        error: 'Claude Code logs directory not found',
+        code: 'NO_DATA',
+      };
+      console.log(JSON.stringify(errorResponse));
+    } else {
+      console.error(chalk.red('Error: Claude Code logs directory not found'));
+      console.error(chalk.dim(`Expected location: ${CLAUDE_PROJECTS_DIR}`));
+      console.error(
+        chalk.dim(
+          '\nMake sure Claude Code is installed and has been used at least once.',
+        ),
+      );
+    }
     process.exit(EXIT_CODES.NO_DATA);
   }
 
-  const spinner = ora(`Reading Claude Code logs for ${date}...`).start();
+  const spinner = isJsonMode
+    ? null
+    : ora(`Reading Claude Code logs for ${date}...`).start();
 
   try {
     const result = await readLogs({ date });
 
     if (result.prompts.length === 0) {
-      spinner.fail(chalk.yellow(`No prompts found for ${date}`));
-      console.error(
-        chalk.dim(
-          '\nTry a different date or check that Claude Code has been used recently.',
-        ),
-      );
+      if (isJsonMode) {
+        const errorResponse: JsonErrorResponse = {
+          error: `No prompts found for ${date}`,
+          code: 'NO_DATA',
+        };
+        console.log(JSON.stringify(errorResponse));
+      } else {
+        spinner?.fail(chalk.yellow(`No prompts found for ${date}`));
+        console.error(
+          chalk.dim(
+            '\nTry a different date or check that Claude Code has been used recently.',
+          ),
+        );
+      }
       process.exit(EXIT_CODES.NO_DATA);
     }
 
-    spinner.succeed(
-      chalk.green(`Found ${String(result.prompts.length)} prompts for ${date}`),
-    );
+    if (!isJsonMode) {
+      spinner?.succeed(
+        chalk.green(
+          `Found ${String(result.prompts.length)} prompts for ${date}`,
+        ),
+      );
 
-    // Show warnings if any (but don't fail)
-    if (result.warnings.length > 0) {
-      for (const warning of result.warnings) {
-        console.warn(chalk.yellow(`Warning: ${warning}`));
+      // Show warnings if any (but don't fail)
+      if (result.warnings.length > 0) {
+        for (const warning of result.warnings) {
+          console.warn(chalk.yellow(`Warning: ${warning}`));
+        }
       }
     }
 
@@ -189,7 +237,15 @@ export async function readLogsWithSpinner(
     return result.prompts.map((p) => p.content);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    spinner.fail(chalk.red(`Failed to read logs: ${errorMessage}`));
+    if (isJsonMode) {
+      const errorResponse: JsonErrorResponse = {
+        error: `Failed to read logs: ${errorMessage}`,
+        code: 'ERROR',
+      };
+      console.log(JSON.stringify(errorResponse));
+    } else {
+      spinner?.fail(chalk.red(`Failed to read logs: ${errorMessage}`));
+    }
     process.exit(EXIT_CODES.ERROR);
   }
 }
@@ -200,39 +256,64 @@ export async function readLogsWithSpinner(
  * Uses the multi-provider factory to get the first available provider
  * from the configured services list, with fallback support.
  *
+ * @param isJsonMode - Whether JSON output mode is active
  * @returns Available provider instance
  */
-export async function connectProviderWithSpinner(): Promise<AnalysisProvider> {
+export async function connectProviderWithSpinner(
+  isJsonMode: boolean,
+): Promise<AnalysisProvider> {
   const config = getEnvConfig();
 
   // Check if any providers are configured
   if (config.services.length === 0) {
-    console.error(chalk.red('Error: No providers configured'));
-    console.error(chalk.dim('\nRun setup to configure at least one provider.'));
+    if (isJsonMode) {
+      const errorResponse: JsonErrorResponse = {
+        error: 'No providers configured',
+        code: 'PROVIDER_UNAVAILABLE',
+      };
+      console.log(JSON.stringify(errorResponse));
+    } else {
+      console.error(chalk.red('Error: No providers configured'));
+      console.error(
+        chalk.dim('\nRun setup to configure at least one provider.'),
+      );
+    }
     process.exit(EXIT_CODES.PROVIDER_UNAVAILABLE);
   }
 
-  const spinner = ora('Connecting to provider...').start();
+  const spinner = isJsonMode ? null : ora('Connecting to provider...').start();
 
   try {
     const provider = await getAvailableProvider(config, (from, to) => {
-      spinner.text = chalk.yellow(
-        `Primary provider ${from} unavailable, falling back to ${to}...`,
-      );
+      if (!isJsonMode && spinner) {
+        spinner.text = chalk.yellow(
+          `Primary provider ${from} unavailable, falling back to ${to}...`,
+        );
+      }
     });
 
-    spinner.succeed(chalk.green(`Connected to ${provider.name}`));
+    if (!isJsonMode) {
+      spinner?.succeed(chalk.green(`Connected to ${provider.name}`));
+    }
 
     return provider;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    spinner.fail(chalk.red('No providers available'));
-    console.error(chalk.dim(`\n${errorMessage}`));
-    console.error(
-      chalk.dim(
-        '\nCheck your provider configuration and ensure at least one provider is running.',
-      ),
-    );
+    if (isJsonMode) {
+      const errorResponse: JsonErrorResponse = {
+        error: errorMessage,
+        code: 'PROVIDER_UNAVAILABLE',
+      };
+      console.log(JSON.stringify(errorResponse));
+    } else {
+      spinner?.fail(chalk.red('No providers available'));
+      console.error(chalk.dim(`\n${errorMessage}`));
+      console.error(
+        chalk.dim(
+          '\nCheck your provider configuration and ensure at least one provider is running.',
+        ),
+      );
+    }
     process.exit(EXIT_CODES.PROVIDER_UNAVAILABLE);
   }
 }
@@ -243,14 +324,18 @@ export async function connectProviderWithSpinner(): Promise<AnalysisProvider> {
  * @param provider - Analysis provider
  * @param prompts - Array of prompt strings
  * @param date - Date context
+ * @param isJsonMode - Whether JSON output mode is active
  * @returns Analysis result
  */
 export async function analyzeWithProgress(
   provider: AnalysisProvider,
   prompts: readonly string[],
   date: string,
+  isJsonMode: boolean,
 ): Promise<AnalysisResult> {
-  const spinner = ora(`Analyzing ${String(prompts.length)} prompts...`).start();
+  const spinner = isJsonMode
+    ? null
+    : ora(`Analyzing ${String(prompts.length)} prompts...`).start();
 
   try {
     const result = await analyzePrompts({
@@ -258,18 +343,28 @@ export async function analyzeWithProgress(
       prompts,
       date,
       onProgress: (current, total) => {
-        if (total > 1) {
+        if (!isJsonMode && spinner && total > 1) {
           spinner.text = `Analyzing ${String(prompts.length)} prompts (batch ${String(current + 1)}/${String(total)})...`;
         }
       },
     });
 
-    spinner.succeed(chalk.green('Analysis complete'));
+    if (!isJsonMode) {
+      spinner?.succeed(chalk.green('Analysis complete'));
+    }
 
     return result;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    spinner.fail(chalk.red(`Analysis failed: ${errorMessage}`));
+    if (isJsonMode) {
+      const errorResponse: JsonErrorResponse = {
+        error: `Analysis failed: ${errorMessage}`,
+        code: 'ERROR',
+      };
+      console.log(JSON.stringify(errorResponse));
+    } else {
+      spinner?.fail(chalk.red(`Analysis failed: ${errorMessage}`));
+    }
     process.exit(EXIT_CODES.ERROR);
   }
 }
@@ -278,19 +373,38 @@ export async function analyzeWithProgress(
  * Displays analysis results.
  *
  * @param result - Analysis result
+ * @param format - Output format
+ * @param compact - Whether to use compact JSON (only relevant for JSON format)
  */
-export function displayResults(result: AnalysisResult): void {
-  console.log(''); // Blank line before report
-  printReport(result);
+export function displayResults(
+  result: AnalysisResult,
+  format: 'terminal' | 'json',
+  compact: boolean,
+): void {
+  if (format === 'json') {
+    console.log(formatJson(result, compact));
+  } else {
+    console.log(''); // Blank line before report
+    printReport(result);
+  }
 }
 
 /**
  * Handles errors and exits with appropriate code.
  *
  * @param error - Error to handle
+ * @param isJsonMode - Whether JSON output mode is active
  */
-export function handleError(error: Error): void {
-  console.error(chalk.red(`\nError: ${error.message}`));
+export function handleError(error: Error, isJsonMode: boolean): void {
+  if (isJsonMode) {
+    const errorResponse: JsonErrorResponse = {
+      error: error.message,
+      code: 'ERROR',
+    };
+    console.log(JSON.stringify(errorResponse));
+  } else {
+    console.error(chalk.red(`\nError: ${error.message}`));
+  }
   process.exit(EXIT_CODES.ERROR);
 }
 
@@ -302,9 +416,12 @@ export function handleError(error: Error): void {
  * Main entry point for the CLI.
  */
 export async function main(): Promise<void> {
+  let isJsonMode = false;
+
   try {
     // Parse arguments
     const args = parseArguments();
+    isJsonMode = args.format === 'json';
 
     // Handle --help
     if (args.help) {
@@ -317,24 +434,32 @@ export async function main(): Promise<void> {
     }
 
     // Check for first run and run setup if needed
-    await checkAndRunSetup();
+    await checkAndRunSetup(isJsonMode);
 
     // Read logs
-    const prompts = await readLogsWithSpinner(args.date);
+    const prompts = await readLogsWithSpinner(args.date, isJsonMode);
 
     // Connect to provider
-    const provider = await connectProviderWithSpinner();
+    const provider = await connectProviderWithSpinner(isJsonMode);
 
     // Analyze prompts
-    const result = await analyzeWithProgress(provider, prompts, args.date);
+    const result = await analyzeWithProgress(
+      provider,
+      prompts,
+      args.date,
+      isJsonMode,
+    );
 
     // Display results
-    displayResults(result);
+    displayResults(result, args.format ?? 'terminal', args.compact ?? false);
 
     // Exit successfully
     process.exit(EXIT_CODES.SUCCESS);
   } catch (error) {
-    handleError(error instanceof Error ? error : new Error(String(error)));
+    handleError(
+      error instanceof Error ? error : new Error(String(error)),
+      isJsonMode,
+    );
   }
 }
 

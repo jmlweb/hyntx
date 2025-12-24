@@ -269,6 +269,14 @@ export type CliOptions = {
 export type OutputFormat = 'terminal' | 'markdown' | 'json';
 
 /**
+ * JSON error response structure.
+ */
+export type JsonErrorResponse = {
+  readonly error: string;
+  readonly code: string;
+};
+
+/**
  * Report context for formatting.
  */
 export type ReportContext = {

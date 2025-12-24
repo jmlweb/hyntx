@@ -298,3 +298,21 @@ export function printReport(
   // Single console.log for entire output
   console.log(output.join('\n'));
 }
+
+/**
+ * Formats an analysis result as JSON.
+ *
+ * @param result - Analysis result to format
+ * @param compact - Whether to output compact JSON (single line, no indentation). Default: false (pretty-printed with 2-space indentation)
+ * @returns JSON string representation of the analysis result
+ *
+ * @example
+ * // Pretty-printed (default)
+ * formatJson(result) // Returns multi-line JSON with 2-space indentation
+ *
+ * // Compact
+ * formatJson(result, true) // Returns single-line JSON
+ */
+export function formatJson(result: AnalysisResult, compact = false): string {
+  return compact ? JSON.stringify(result) : JSON.stringify(result, null, 2);
+}

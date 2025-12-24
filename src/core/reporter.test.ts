@@ -13,6 +13,7 @@ import {
   formatStats,
   formatPattern,
   formatTopSuggestion,
+  formatJson,
 } from './reporter.js';
 import type {
   AnalysisResult,
@@ -571,5 +572,311 @@ describe('printReport', () => {
 
     // Should call console.log exactly once (buffered output)
     expect(consoleSpy).toHaveBeenCalledOnce();
+  });
+});
+
+describe('formatJson', () => {
+  const createAnalysisResult = (
+    overrides?: Partial<AnalysisResult>,
+  ): AnalysisResult => ({
+    date: '2025-01-15',
+    patterns: [],
+    stats: {
+      totalPrompts: 100,
+      promptsWithIssues: 20,
+      overallScore: 8,
+    },
+    topSuggestion: 'Keep up the good work!',
+    ...overrides,
+  });
+
+  const createPattern = (id: string): AnalysisPattern => ({
+    id,
+    name: `Pattern ${id}`,
+    frequency: 5,
+    severity: 'medium',
+    examples: [`Example for ${id}`],
+    suggestion: `Fix ${id}`,
+    beforeAfter: {
+      before: `Before ${id}`,
+      after: `After ${id}`,
+    },
+  });
+
+  it('should produce valid JSON', () => {
+    const result = createAnalysisResult();
+    const json = formatJson(result);
+
+    // Should be parseable
+    const parsed = JSON.parse(json) as AnalysisResult;
+    expect(parsed).toBeTruthy();
+  });
+
+  it('should produce formatted JSON by default', () => {
+    const result = createAnalysisResult();
+    const json = formatJson(result);
+
+    // Should contain newlines (formatted)
+    expect(json).toContain('\n');
+    // Should contain indentation (2 spaces)
+    expect(json).toContain('  ');
+  });
+
+  it('should produce compact JSON when compact=true', () => {
+    const result = createAnalysisResult();
+    const json = formatJson(result, true);
+
+    // Should not contain newlines (compact)
+    expect(json).not.toContain('\n');
+    // Should not contain extra spaces
+    expect(json).not.toContain('  ');
+  });
+
+  it('should include all AnalysisResult fields', () => {
+    const result = createAnalysisResult({
+      date: '2025-12-31',
+      patterns: [createPattern('p1')],
+      stats: {
+        totalPrompts: 50,
+        promptsWithIssues: 10,
+        overallScore: 9,
+      },
+      topSuggestion: 'Custom suggestion',
+    });
+
+    const json = formatJson(result);
+    const parsed = JSON.parse(json) as AnalysisResult;
+
+    expect(parsed.date).toBe('2025-12-31');
+    expect(parsed.patterns).toHaveLength(1);
+    expect(parsed.stats.totalPrompts).toBe(50);
+    expect(parsed.stats.promptsWithIssues).toBe(10);
+    expect(parsed.stats.overallScore).toBe(9);
+    expect(parsed.topSuggestion).toBe('Custom suggestion');
+  });
+
+  it('should include all pattern fields', () => {
+    const pattern = createPattern('test');
+    const result = createAnalysisResult({
+      patterns: [pattern],
+    });
+
+    const json = formatJson(result);
+    const parsed = JSON.parse(json) as AnalysisResult;
+
+    const parsedPattern = parsed.patterns[0];
+    expect(parsedPattern?.id).toBe('test');
+    expect(parsedPattern?.name).toBe('Pattern test');
+    expect(parsedPattern?.frequency).toBe(5);
+    expect(parsedPattern?.severity).toBe('medium');
+    expect(parsedPattern?.examples).toEqual(['Example for test']);
+    expect(parsedPattern?.suggestion).toBe('Fix test');
+    expect(parsedPattern?.beforeAfter.before).toBe('Before test');
+    expect(parsedPattern?.beforeAfter.after).toBe('After test');
+  });
+
+  it('should handle empty patterns array', () => {
+    const result = createAnalysisResult({
+      patterns: [],
+    });
+
+    const json = formatJson(result);
+    const parsed = JSON.parse(json) as AnalysisResult;
+
+    expect(parsed.patterns).toEqual([]);
+  });
+
+  it('should handle multiple patterns', () => {
+    const result = createAnalysisResult({
+      patterns: [createPattern('p1'), createPattern('p2'), createPattern('p3')],
+    });
+
+    const json = formatJson(result);
+    const parsed = JSON.parse(json) as AnalysisResult;
+
+    expect(parsed.patterns).toHaveLength(3);
+    expect(parsed.patterns[0]?.id).toBe('p1');
+    expect(parsed.patterns[1]?.id).toBe('p2');
+    expect(parsed.patterns[2]?.id).toBe('p3');
+  });
+
+  it('should preserve pattern severity types', () => {
+    const result = createAnalysisResult({
+      patterns: [
+        { ...createPattern('high'), severity: 'high' },
+        { ...createPattern('medium'), severity: 'medium' },
+        { ...createPattern('low'), severity: 'low' },
+      ],
+    });
+
+    const json = formatJson(result);
+    const parsed = JSON.parse(json) as AnalysisResult;
+
+    expect(parsed.patterns[0]?.severity).toBe('high');
+    expect(parsed.patterns[1]?.severity).toBe('medium');
+    expect(parsed.patterns[2]?.severity).toBe('low');
+  });
+
+  it('should handle empty strings in fields', () => {
+    const result = createAnalysisResult({
+      date: '',
+      topSuggestion: '',
+      patterns: [
+        {
+          id: '',
+          name: '',
+          frequency: 0,
+          severity: 'low',
+          examples: [],
+          suggestion: '',
+          beforeAfter: {
+            before: '',
+            after: '',
+          },
+        },
+      ],
+    });
+
+    const json = formatJson(result);
+    const parsed = JSON.parse(json) as AnalysisResult;
+
+    expect(parsed.date).toBe('');
+    expect(parsed.topSuggestion).toBe('');
+    expect(parsed.patterns[0]?.id).toBe('');
+  });
+
+  it('should handle zero values in stats', () => {
+    const result = createAnalysisResult({
+      stats: {
+        totalPrompts: 0,
+        promptsWithIssues: 0,
+        overallScore: 0,
+      },
+    });
+
+    const json = formatJson(result);
+    const parsed = JSON.parse(json) as AnalysisResult;
+
+    expect(parsed.stats.totalPrompts).toBe(0);
+    expect(parsed.stats.promptsWithIssues).toBe(0);
+    expect(parsed.stats.overallScore).toBe(0);
+  });
+
+  it('should handle special characters in strings', () => {
+    const result = createAnalysisResult({
+      topSuggestion: 'Test with "quotes" and \n newlines',
+      patterns: [
+        {
+          id: 'special',
+          name: 'Pattern with \t tabs',
+          frequency: 1,
+          severity: 'low',
+          examples: ['Example with \\ backslash'],
+          suggestion: "Single 'quotes' test",
+          beforeAfter: {
+            before: 'Before with {braces}',
+            after: 'After with [brackets]',
+          },
+        },
+      ],
+    });
+
+    const json = formatJson(result);
+    // Should be valid JSON despite special characters
+    const parsed = JSON.parse(json) as AnalysisResult;
+
+    expect(parsed.topSuggestion).toContain('quotes');
+    expect(parsed.patterns[0]?.name).toContain('tabs');
+  });
+
+  it('should produce consistent output for same input', () => {
+    const result = createAnalysisResult();
+
+    const json1 = formatJson(result);
+    const json2 = formatJson(result);
+
+    expect(json1).toBe(json2);
+  });
+
+  it('should produce different output for compact vs formatted', () => {
+    const result = createAnalysisResult();
+
+    const formatted = formatJson(result, false);
+    const compact = formatJson(result, true);
+
+    expect(formatted).not.toBe(compact);
+    expect(formatted.length).toBeGreaterThan(compact.length);
+  });
+
+  it('should parse correctly after formatting (round trip test)', () => {
+    const original = createAnalysisResult({
+      date: '2025-01-20',
+      patterns: [createPattern('test1'), createPattern('test2')],
+      stats: {
+        totalPrompts: 75,
+        promptsWithIssues: 15,
+        overallScore: 7,
+      },
+      topSuggestion: 'Round trip test',
+    });
+
+    const json = formatJson(original);
+    const parsed = JSON.parse(json) as AnalysisResult;
+
+    // Deep equality check
+    expect(parsed).toEqual(original);
+  });
+
+  it('should handle large numbers in stats', () => {
+    const result = createAnalysisResult({
+      stats: {
+        totalPrompts: 999999,
+        promptsWithIssues: 123456,
+        overallScore: 10,
+      },
+    });
+
+    const json = formatJson(result);
+    const parsed = JSON.parse(json) as AnalysisResult;
+
+    expect(parsed.stats.totalPrompts).toBe(999999);
+    expect(parsed.stats.promptsWithIssues).toBe(123456);
+  });
+
+  it('should handle long strings in examples', () => {
+    const longString = 'a'.repeat(1000);
+    const result = createAnalysisResult({
+      patterns: [
+        {
+          ...createPattern('long'),
+          examples: [longString],
+        },
+      ],
+    });
+
+    const json = formatJson(result);
+    const parsed = JSON.parse(json) as AnalysisResult;
+
+    expect(parsed.patterns[0]?.examples[0]).toBe(longString);
+  });
+
+  it('should handle Unicode characters', () => {
+    const result = createAnalysisResult({
+      topSuggestion: 'Test with emojis 🔴 🟡 🟢',
+      patterns: [
+        {
+          ...createPattern('unicode'),
+          name: 'Pattern with 中文',
+          suggestion: 'Fix with 日本語',
+        },
+      ],
+    });
+
+    const json = formatJson(result);
+    const parsed = JSON.parse(json) as AnalysisResult;
+
+    expect(parsed.topSuggestion).toContain('🔴');
+    expect(parsed.patterns[0]?.name).toContain('中文');
+    expect(parsed.patterns[0]?.suggestion).toContain('日本語');
   });
 });

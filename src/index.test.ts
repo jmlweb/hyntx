@@ -36,6 +36,9 @@ vi.mock('./core/analyzer.js', () => ({
 
 vi.mock('./core/reporter.js', () => ({
   printReport: vi.fn(),
+  formatJson: vi.fn((result, compact) =>
+    compact ? JSON.stringify(result) : JSON.stringify(result, null, 2),
+  ),
 }));
 
 vi.mock('./providers/index.js', () => ({
@@ -47,7 +50,7 @@ import { isFirstRun, getEnvConfig } from './utils/env.js';
 import { claudeProjectsExist, readLogs } from './core/log-reader.js';
 import { runSetup } from './core/setup.js';
 import { analyzePrompts } from './core/analyzer.js';
-import { printReport } from './core/reporter.js';
+import { printReport, formatJson } from './core/reporter.js';
 import { getAvailableProvider } from './providers/index.js';
 import { EXIT_CODES } from './types/index.js';
 import type {
@@ -63,6 +66,7 @@ const mockReadLogs = vi.mocked(readLogs);
 const mockRunSetup = vi.mocked(runSetup);
 const mockAnalyzePrompts = vi.mocked(analyzePrompts);
 const mockPrintReport = vi.mocked(printReport);
+const mockFormatJson = vi.mocked(formatJson);
 const mockGetAvailableProvider = vi.mocked(getAvailableProvider);
 
 describe('parseArguments', () => {
@@ -83,6 +87,8 @@ describe('parseArguments', () => {
       date: 'today',
       help: false,
       version: false,
+      format: 'terminal',
+      compact: false,
     });
   });
 
@@ -117,7 +123,27 @@ describe('parseArguments', () => {
       date: '2025-01-20',
       help: false,
       version: false,
+      format: 'terminal',
+      compact: false,
     });
+  });
+
+  it('parses --format json argument', () => {
+    process.argv = ['node', 'index.js', '--format', 'json'];
+    const result = index.parseArguments();
+    expect(result.format).toBe('json');
+  });
+
+  it('parses --compact argument', () => {
+    process.argv = ['node', 'index.js', '--compact'];
+    const result = index.parseArguments();
+    expect(result.compact).toBe(true);
+  });
+
+  it('defaults to terminal format', () => {
+    process.argv = ['node', 'index.js'];
+    const result = index.parseArguments();
+    expect(result.format).toBe('terminal');
   });
 
   it('throws error for unknown arguments in strict mode', () => {
@@ -200,7 +226,7 @@ describe('checkAndRunSetup', () => {
       google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
     });
 
-    await index.checkAndRunSetup();
+    await index.checkAndRunSetup(false);
 
     expect(mockIsFirstRun).toHaveBeenCalled();
     expect(mockRunSetup).toHaveBeenCalled();
@@ -210,7 +236,7 @@ describe('checkAndRunSetup', () => {
   it('skips setup when not first run', async () => {
     mockIsFirstRun.mockReturnValue(false);
 
-    await index.checkAndRunSetup();
+    await index.checkAndRunSetup(false);
 
     expect(mockIsFirstRun).toHaveBeenCalled();
     expect(mockRunSetup).not.toHaveBeenCalled();
@@ -247,7 +273,7 @@ describe('readLogsWithSpinner', () => {
   it('exits with NO_DATA when Claude projects directory does not exist', async () => {
     mockClaudeProjectsExist.mockReturnValue(false);
 
-    await index.readLogsWithSpinner('today');
+    await index.readLogsWithSpinner('today', false);
 
     expect(mockClaudeProjectsExist).toHaveBeenCalled();
     expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.NO_DATA);
@@ -260,7 +286,7 @@ describe('readLogsWithSpinner', () => {
       warnings: [],
     });
 
-    await index.readLogsWithSpinner('2025-01-01');
+    await index.readLogsWithSpinner('2025-01-01', false);
 
     expect(mockReadLogs).toHaveBeenCalledWith({ date: '2025-01-01' });
     expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.NO_DATA);
@@ -288,7 +314,7 @@ describe('readLogsWithSpinner', () => {
       warnings: [],
     });
 
-    const result = await index.readLogsWithSpinner('today');
+    const result = await index.readLogsWithSpinner('today', false);
 
     expect(result).toEqual(['Test prompt 1', 'Test prompt 2']);
     expect(ora).toHaveBeenCalledWith(
@@ -311,7 +337,7 @@ describe('readLogsWithSpinner', () => {
       warnings: ['Warning 1', 'Warning 2'],
     });
 
-    const result = await index.readLogsWithSpinner('today');
+    const result = await index.readLogsWithSpinner('today', false);
 
     expect(result).toEqual(['Test prompt']);
     expect(mockWarn).toHaveBeenCalledWith(
@@ -326,7 +352,7 @@ describe('readLogsWithSpinner', () => {
     mockClaudeProjectsExist.mockReturnValue(true);
     mockReadLogs.mockRejectedValue(new Error('Read error'));
 
-    await index.readLogsWithSpinner('today');
+    await index.readLogsWithSpinner('today', false);
 
     expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.ERROR);
   });
@@ -364,7 +390,7 @@ describe('connectProviderWithSpinner', () => {
     };
     mockGetEnvConfig.mockReturnValue(config);
 
-    await index.connectProviderWithSpinner();
+    await index.connectProviderWithSpinner(false);
 
     expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.PROVIDER_UNAVAILABLE);
   });
@@ -383,7 +409,7 @@ describe('connectProviderWithSpinner', () => {
       new Error('No providers are currently available.'),
     );
 
-    await index.connectProviderWithSpinner();
+    await index.connectProviderWithSpinner(false);
 
     expect(mockGetAvailableProvider).toHaveBeenCalled();
     expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.PROVIDER_UNAVAILABLE);
@@ -406,7 +432,7 @@ describe('connectProviderWithSpinner', () => {
     };
     mockGetAvailableProvider.mockResolvedValue(mockProvider);
 
-    const result = await index.connectProviderWithSpinner();
+    const result = await index.connectProviderWithSpinner(false);
 
     expect(result).toBe(mockProvider);
     expect(mockGetAvailableProvider).toHaveBeenCalled();
@@ -425,7 +451,7 @@ describe('connectProviderWithSpinner', () => {
 
     mockGetAvailableProvider.mockRejectedValue(new Error('Connection error'));
 
-    await index.connectProviderWithSpinner();
+    await index.connectProviderWithSpinner(false);
 
     expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.PROVIDER_UNAVAILABLE);
   });
@@ -468,6 +494,7 @@ describe('analyzeWithProgress', () => {
       mockProvider,
       prompts,
       '2025-01-20',
+      false,
     );
 
     expect(result).toBe(mockResult);
@@ -496,7 +523,7 @@ describe('analyzeWithProgress', () => {
 
     mockAnalyzePrompts.mockResolvedValue(mockResult);
 
-    await index.analyzeWithProgress(mockProvider, prompts, '2025-01-20');
+    await index.analyzeWithProgress(mockProvider, prompts, '2025-01-20', false);
 
     // Get the onProgress callback - typing isn't perfect here but it's a test
     const onProgressCall = mockAnalyzePrompts.mock.calls[0]?.[0] as
@@ -524,7 +551,7 @@ describe('analyzeWithProgress', () => {
 
     mockAnalyzePrompts.mockRejectedValue(new Error('Analysis error'));
 
-    await index.analyzeWithProgress(mockProvider, prompts, '2025-01-20');
+    await index.analyzeWithProgress(mockProvider, prompts, '2025-01-20', false);
 
     expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.ERROR);
   });
@@ -541,7 +568,7 @@ describe('displayResults', () => {
     mockLog.mockClear();
   });
 
-  it('calls printReport with result', () => {
+  it('calls printReport with result for terminal format', () => {
     const mockResult: AnalysisResult = {
       date: '2025-01-20',
       patterns: [],
@@ -549,10 +576,70 @@ describe('displayResults', () => {
       topSuggestion: 'Great job!',
     };
 
-    index.displayResults(mockResult);
+    index.displayResults(mockResult, 'terminal', false);
 
     expect(mockPrintReport).toHaveBeenCalledWith(mockResult);
     expect(mockLog).toHaveBeenCalledWith(''); // Blank line
+  });
+
+  it('outputs JSON when format is json', () => {
+    const mockResult: AnalysisResult = {
+      date: '2025-01-20',
+      patterns: [],
+      stats: { totalPrompts: 2, promptsWithIssues: 0, overallScore: 10 },
+      topSuggestion: 'Great job!',
+    };
+
+    index.displayResults(mockResult, 'json', false);
+
+    expect(mockFormatJson).toHaveBeenCalledWith(mockResult, false);
+    expect(mockLog).toHaveBeenCalled();
+
+    // Verify that the output is valid JSON
+    const outputCall = mockLog.mock.calls[0];
+    if (outputCall?.[0]) {
+      const output = String(outputCall[0]);
+      expect(() => {
+        JSON.parse(output);
+      }).not.toThrow();
+    }
+  });
+
+  it('outputs compact JSON when compact flag is true', () => {
+    const mockResult: AnalysisResult = {
+      date: '2025-01-20',
+      patterns: [],
+      stats: { totalPrompts: 2, promptsWithIssues: 0, overallScore: 10 },
+      topSuggestion: 'Great job!',
+    };
+
+    index.displayResults(mockResult, 'json', true);
+
+    expect(mockFormatJson).toHaveBeenCalledWith(mockResult, true);
+    expect(mockLog).toHaveBeenCalled();
+
+    // Verify that the output is compact (no newlines except at the end)
+    const outputCall = mockLog.mock.calls[0];
+    if (outputCall?.[0]) {
+      const output = String(outputCall[0]);
+      const lines = output.split('\n');
+      // Compact JSON should be on a single line (or very few lines)
+      expect(lines.length).toBeLessThan(5);
+    }
+  });
+
+  it('does not call printReport when format is json', () => {
+    const mockResult: AnalysisResult = {
+      date: '2025-01-20',
+      patterns: [],
+      stats: { totalPrompts: 2, promptsWithIssues: 0, overallScore: 10 },
+      topSuggestion: 'Great job!',
+    };
+
+    index.displayResults(mockResult, 'json', false);
+
+    expect(mockPrintReport).not.toHaveBeenCalled();
+    expect(mockFormatJson).toHaveBeenCalled();
   });
 });
 
@@ -581,7 +668,7 @@ describe('handleError', () => {
   it('exits with ERROR code', () => {
     const error = new Error('Test error');
 
-    index.handleError(error);
+    index.handleError(error, false);
 
     expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.ERROR);
   });

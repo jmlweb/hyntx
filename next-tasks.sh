@@ -1,5 +1,10 @@
 #!/bin/bash
 # next-tasks.sh - Execute multiple /next-task commands with clean context between each
+#
+# Usage: ./next-tasks.sh [MAX_TASKS] [DELAY] [TASK_TIMEOUT]
+#   MAX_TASKS: Maximum number of tasks to execute (default: 10)
+#   DELAY: Delay in seconds between tasks (default: 2)
+#   TASK_TIMEOUT: Timeout in seconds for each task (default: 1800 = 30 minutes)
 
 # Don't use set -e so we can handle errors ourselves
 # set -e
@@ -7,6 +12,7 @@
 # Validate inputs
 MAX_TASKS=${1:-10}
 DELAY=${2:-2}
+TASK_TIMEOUT=${3:-1800}  # Default: 30 minutes (1800 seconds)
 
 # Validate MAX_TASKS is a positive integer
 if ! [[ "$MAX_TASKS" =~ ^[1-9][0-9]*$ ]]; then
@@ -17,6 +23,12 @@ fi
 # Validate DELAY is a non-negative number
 if ! [[ "$DELAY" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
   echo "Error: DELAY must be a non-negative number (got: $DELAY)" >&2
+  exit 1
+fi
+
+# Validate TASK_TIMEOUT is a positive integer
+if ! [[ "$TASK_TIMEOUT" =~ ^[1-9][0-9]*$ ]]; then
+  echo "Error: TASK_TIMEOUT must be a positive integer in seconds (got: $TASK_TIMEOUT)" >&2
   exit 1
 fi
 
@@ -38,11 +50,61 @@ if [ ! -f "AGENTS.md" ]; then
   fi
 fi
 
+# Function to execute command with timeout
+# Uses 'timeout' command if available, otherwise implements manual timeout
+execute_with_timeout() {
+  local timeout_seconds=$1
+  shift
+  local cmd=("$@")
+  
+  # Try to find timeout command (timeout or gtimeout on macOS)
+  local timeout_cmd=""
+  if command -v timeout &> /dev/null; then
+    timeout_cmd="timeout"
+  elif command -v gtimeout &> /dev/null; then
+    timeout_cmd="gtimeout"
+  fi
+  
+  if [ -n "$timeout_cmd" ]; then
+    # Use system timeout command
+    "$timeout_cmd" "$timeout_seconds" "${cmd[@]}"
+    return $?
+  else
+    # Manual timeout implementation using background process
+    "${cmd[@]}" &
+    local cmd_pid=$!
+    local elapsed=0
+    local check_interval=1
+    
+    while kill -0 $cmd_pid 2>/dev/null; do
+      sleep $check_interval
+      elapsed=$((elapsed + check_interval))
+      
+      if [ $elapsed -ge $timeout_seconds ]; then
+        echo "" >&2
+        echo "⏱️  Timeout reached (${timeout_seconds}s). Terminating task..." >&2
+        kill -TERM $cmd_pid 2>/dev/null
+        sleep 2
+        # Force kill if still running
+        if kill -0 $cmd_pid 2>/dev/null; then
+          kill -KILL $cmd_pid 2>/dev/null
+        fi
+        wait $cmd_pid 2>/dev/null
+        return 124  # Exit code 124 indicates timeout (matches GNU timeout)
+      fi
+    done
+    
+    wait $cmd_pid
+    return $?
+  fi
+}
+
 echo "========================================"
 echo "  Automated Task Execution"
 echo "========================================"
 echo "Max tasks: $MAX_TASKS"
 echo "Delay between tasks: ${DELAY}s"
+echo "Task timeout: ${TASK_TIMEOUT}s ($(($TASK_TIMEOUT / 60)) minutes)"
 echo "Working directory: $(pwd)"
 echo "Claude command: $(command -v claude)"
 
@@ -60,15 +122,23 @@ for i in $(seq 1 $MAX_TASKS); do
 
   # Execute claude in non-interactive mode with /next-task
   # Output directly to terminal (not captured) for real-time display
-  echo "Executing: claude -p \"/next-task\""
+  echo "Executing: claude -p \"/next-task\" (timeout: ${TASK_TIMEOUT}s)"
   echo ""  # Blank line before claude output
   
-  # Execute claude directly - the CLI handles its own output buffering
+  # Execute claude with timeout - the CLI handles its own output buffering
   # Using --output-format stream-json would give structured output but we want human-readable
-  claude -p "/next-task" 2>&1
+  execute_with_timeout $TASK_TIMEOUT claude -p "/next-task" 2>&1
   EXIT_CODE=$?
   
   echo ""  # Blank line after claude output
+
+  # Handle timeout exit code (124 is standard for timeout command)
+  if [ $EXIT_CODE -eq 124 ]; then
+    echo ""
+    echo "⏱️  Task $i timed out after ${TASK_TIMEOUT}s"
+    echo "Breaking execution loop..."
+    break
+  fi
 
   if [ $EXIT_CODE -eq 0 ]; then
     COMPLETED=$((COMPLETED + 1))

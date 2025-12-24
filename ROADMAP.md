@@ -168,7 +168,7 @@ Add retry logic with exponential backoff for transient network failures in cloud
 
 Add rate limiting for Anthropic and Google API calls to prevent 429 errors during batch processing.
 
-### 14.3. [Add JSON Output Format](backlog/add-json-output-format.md)
+### ~~14.3. [Add JSON Output Format](backlog/add-json-output-format.md)~~ ✅ COMPLETED
 
 **Priority**: P1 | **Dependencies**: reporter-terminal.md, cli-entry-basico.md | **Source**: IDEA-001
 
