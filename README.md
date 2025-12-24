@@ -4,7 +4,7 @@
 
 [![npm version](https://img.shields.io/npm/v/hyntx.svg)](https://www.npmjs.com/package/hyntx)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D22.0.0-brightgreen.svg)](https://nodejs.org/)
 
 > **🚧 NOT READY FOR USE**: Hyntx is currently **under active development** and **not yet ready for production use**. The tool is not functional at this time. This README describes the planned features and functionality. For the current development status, implementation progress, and what's actually working, please see the [ROADMAP.md](ROADMAP.md).
 
@@ -317,7 +317,7 @@ Hyntx takes your privacy seriously:
 
 ## Requirements
 
-- **Node.js**: 18.0.0 or higher
+- **Node.js**: 22.0.0 or higher
 - **Claude Code**: Must have Claude Code installed and used
 - **AI Provider**: Ollama (local) or Anthropic/Google API key
 

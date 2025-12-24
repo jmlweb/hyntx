@@ -18,7 +18,7 @@ Perform a dummy deployment to npm to reserve the `hyntx` package name and preven
 
 Remove `cli-progress` and `@types/cli-progress` which are not used in the codebase. The analyzer uses callback-based progress instead.
 
-### 0.2. [Fix Node Version Inconsistency](backlog/fix-node-version-inconsistency.md)
+### ~~0.2. [Fix Node Version Inconsistency](backlog/fix-node-version-inconsistency.md)~~ ✅ COMPLETED
 
 **Priority**: P0 | **Dependencies**: none
 
@@ -239,7 +239,7 @@ For efficient development, it is recommended to follow this order:
 14. ~~**provider-factory.md** - Multi-provider support~~ ✅
 15. ~~**reminder-system.md** - Reminder system~~ ✅
 16. ~~**remove-unused-dependencies.md** - Quick cleanup (P0, no dependencies)~~ ✅
-17. **fix-node-version-inconsistency.md** - Documentation fix (P0, no dependencies)
+17. ~~**fix-node-version-inconsistency.md** - Documentation fix (P0, no dependencies)~~ ✅
 18. **move-types-to-devdeps.md** - Quick cleanup (P1, no dependencies)
 19. **add-eslint-enforcement-rules.md** - Code quality (P1, no dependencies)
 20. **add-shell-config-permissions.md** - Security improvement (P1, no dependencies)

@@ -21,7 +21,7 @@ Node.js CLI that retrospectively analyzes prompts sent to Claude Code, detects i
 
 ### 1.3 Tech Stack
 
-- Runtime: Node.js >= 18
+- Runtime: Node.js >= 22
 - Language: TypeScript
 - Build: tsup
 - Distribution: npm/npx
