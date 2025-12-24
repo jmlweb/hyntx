@@ -517,6 +517,162 @@ open coverage/index.html
 
 ---
 
+## E2E Testing
+
+End-to-end tests validate the complete application workflow from log reading to report generation. These tests are local-only and excluded from CI/CD to avoid dependency on real Claude Code logs.
+
+### Test Structure
+
+```text
+tests/
+├── e2e/                           # E2E tests (local-only)
+│   ├── core.e2e.test.ts          # Core module integration
+│   ├── providers.e2e.test.ts     # Provider selection & fallback
+│   ├── cli.e2e.test.ts           # CLI workflow
+│   └── edge-cases.e2e.test.ts    # Edge cases & error handling
+├── helpers/                       # Test utilities
+│   └── test-utils.ts             # Mock data generators
+└── fixtures/                      # Test data
+    ├── sample-logs.jsonl         # Sample log entries
+    └── mock-responses.json       # Mock provider responses
+```
+
+### Running E2E Tests
+
+```bash
+# Run all E2E tests
+pnpm test:e2e
+
+# Run E2E tests in watch mode
+pnpm test:e2e:watch
+
+# Run both unit and E2E tests
+pnpm test:all
+```
+
+### E2E Test Isolation
+
+E2E tests use temporary directories and environment variables to ensure complete isolation:
+
+- **Custom Claude Projects Directory**: Set via `HYNTX_CLAUDE_PROJECTS_DIR` env variable
+- **Mocked Provider Responses**: All API calls are mocked to avoid real provider calls
+- **Temporary File System**: Tests create and cleanup temp directories automatically
+- **Module Reset**: Each test resets modules to prevent state leakage
+
+### Example E2E Test
+
+```typescript
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  createTempDir,
+  cleanupTempDir,
+  createMockProjectsDir,
+  createUserMessage,
+  createMockProviderResponse,
+  createMockAnalysis,
+} from '../helpers/test-utils.js';
+
+describe('Full Analysis Workflow', () => {
+  let tempDir: string;
+  let projectsDir: string;
+  const originalEnv = process.env;
+
+  beforeEach(async () => {
+    vi.resetModules();
+    process.env = { ...originalEnv };
+    tempDir = createTempDir();
+  });
+
+  afterEach(() => {
+    cleanupTempDir(tempDir);
+    process.env = originalEnv;
+    vi.restoreAllMocks();
+  });
+
+  it('should analyze prompts end-to-end', async () => {
+    // Create mock project structure
+    projectsDir = createMockProjectsDir(tempDir, {
+      'test-project': [
+        createUserMessage('fix bug', '2025-01-20T10:00:00.000Z'),
+        createUserMessage('add tests', '2025-01-20T11:00:00.000Z'),
+      ],
+    });
+
+    // Set custom projects directory
+    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
+    process.env.HYNTX_SERVICES = 'ollama';
+
+    // Mock provider response
+    const mockAnalysis = createMockAnalysis();
+    const mockResponse = createMockProviderResponse(mockAnalysis);
+    vi.spyOn(global, 'fetch').mockResolvedValue(mockResponse);
+
+    // Import after setting env variables
+    const { readLogs } = await import('../../src/core/log-reader.js');
+    const { analyzePrompts } = await import('../../src/core/analyzer.js');
+
+    // Execute workflow
+    const logResult = await readLogs({ date: '2025-01-20' });
+    const analysis = await analyzePrompts(logResult.prompts, '2025-01-20');
+
+    // Verify results
+    expect(analysis.patterns).toBeDefined();
+    expect(analysis.stats.totalPrompts).toBe(2);
+  });
+});
+```
+
+### Test Helpers
+
+The `tests/helpers/test-utils.ts` module provides utilities for:
+
+#### Directory Management
+
+```typescript
+const tempDir = createTempDir(); // Creates temp directory
+cleanupTempDir(tempDir); // Cleanup after test
+```
+
+#### Mock Data Generation
+
+```typescript
+// Create user message
+const message = createUserMessage('content', '2025-01-20T10:00:00.000Z');
+
+// Create conversation
+const conversation = createConversation(5); // 5 turns
+
+// Create multi-day logs
+const logs = createMultiDayLogs(7, 10); // 7 days, 10 per day
+```
+
+#### Mock Project Structure
+
+```typescript
+const projectsDir = createMockProjectsDir(tempDir, {
+  'project-1': [createUserMessage('test', '2025-01-20T10:00:00.000Z')],
+  'project-2': [createUserMessage('test', '2025-01-20T11:00:00.000Z')],
+});
+```
+
+#### Mock Provider Responses
+
+```typescript
+const analysis = createMockAnalysis({ stats: { totalPrompts: 10 } });
+const response = createMockProviderResponse(analysis);
+vi.spyOn(global, 'fetch').mockResolvedValue(response);
+```
+
+### Important Notes
+
+- **Local Only**: E2E tests are excluded from CI/CD pipelines
+- **No Real APIs**: All provider calls are mocked
+- **Isolation**: Tests use `vi.resetModules()` to ensure clean state
+- **Cleanup**: Always cleanup temp directories in `afterEach`
+- **Environment**: Reset `process.env` after each test
+
+---
+
 ## CI Integration
 
 ### GitHub Actions Example
@@ -547,3 +703,5 @@ jobs:
         with:
           files: coverage/lcov.info
 ```
+
+Note: E2E tests are NOT run in CI. They are for local development only.

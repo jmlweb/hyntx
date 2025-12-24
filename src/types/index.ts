@@ -35,6 +35,12 @@ export type ClaudeMessage = {
 };
 
 /**
+ * Log entry type alias for JSONL files.
+ * Used in test utilities and log parsing.
+ */
+export type LogEntry = ClaudeMessage;
+
+/**
  * Data extracted from Claude Code messages.
  * Contains the sanitized prompt and metadata.
  */
@@ -114,6 +120,12 @@ export type AnalysisResult = {
   readonly stats: AnalysisStats;
   readonly topSuggestion: string;
 };
+
+/**
+ * Prompt analysis without the date field.
+ * Used for raw provider responses before date context is added.
+ */
+export type PromptAnalysis = Omit<AnalysisResult, 'date'>;
 
 // =============================================================================
 // Provider Types

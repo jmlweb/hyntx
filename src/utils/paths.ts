@@ -18,8 +18,12 @@ const HOME = homedir();
  * Contains JSONL log files organized by project hash.
  *
  * Structure: ~/.claude/projects/<project-hash>/*.jsonl
+ *
+ * Can be overridden via HYNTX_CLAUDE_PROJECTS_DIR environment variable.
+ * This is useful for testing or custom Claude Code installations.
  */
-export const CLAUDE_PROJECTS_DIR = join(HOME, '.claude', 'projects');
+export const CLAUDE_PROJECTS_DIR =
+  process.env['HYNTX_CLAUDE_PROJECTS_DIR'] ?? join(HOME, '.claude', 'projects');
 
 /**
  * Path to Hyntx last run timestamp file.

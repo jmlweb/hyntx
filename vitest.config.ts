@@ -5,10 +5,11 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
+    exclude: ['node_modules/', 'dist/', 'tests/e2e/**/*.test.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
-      exclude: ['node_modules/', 'dist/', '**/*.config.*'],
+      exclude: ['node_modules/', 'dist/', '**/*.config.*', 'tests/e2e/**'],
     },
     testTimeout: 10000,
     passWithNoTests: true,
