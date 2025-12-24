@@ -120,7 +120,7 @@ Implement provider factory with automatic selection and fallback between provide
 
 These tasks add advanced features and complete the system.
 
-### 15. [Reminder System](backlog/reminder-system.md)
+### ~~15. [Reminder System](backlog/reminder-system.md)~~ ✅ COMPLETED
 
 **Priority**: P3 | **Dependencies**: tipos-base.md, utils-completos.md
 
@@ -189,7 +189,7 @@ For efficient development, it is recommended to follow this order:
 12. ~~**provider-anthropic.md** - Second provider~~ ✅
 13. ~~**provider-google.md** - Third provider~~ ✅
 14. ~~**provider-factory.md** - Multi-provider support~~ ✅
-15. **reminder-system.md** - Reminder system
+15. ~~**reminder-system.md** - Reminder system~~ ✅
 16. **reporter-markdown.md** - File output
 17. **cli-completo.md** - Complete CLI
 18. **error-handling.md** - Complete review

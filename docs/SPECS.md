@@ -173,7 +173,23 @@ The CLI supports date filtering, project filtering, output formats, and debuggin
 
 ## 9. Reminder System (src/core/reminder.ts)
 
-> **Tarea de implementación**: Ver [reminder-system.md](../backlog/reminder-system.md)
+✅ **Implemented** - Reminder system is implemented in `src/core/reminder.ts`.
+
+**Functions**:
+
+- `getLastRun()` - Reads last execution timestamp from `~/.hyntx-last-run`
+- `saveLastRun()` - Saves current timestamp in ISO format
+- `getDaysElapsed()` - Calculates days since last run
+- `shouldShowReminder()` - Checks if reminder should be shown based on config
+- `showReminder()` - Shows interactive reminder prompt
+- `checkReminder()` - Main function to check and handle reminders
+
+**Features**:
+
+- Supports configurable frequencies (7d, 14d, 30d, never)
+- Interactive prompt with continue, postpone, or disable options
+- Handles first-run case (never executed before)
+- Graceful handling of corrupted or invalid state files
 
 ---
 
