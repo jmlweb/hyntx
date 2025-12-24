@@ -123,6 +123,29 @@ function extractDate(timestamp: string): string {
 }
 
 /**
+ * Type guard to validate that a value conforms to the ClaudeMessage structure.
+ * Provides runtime validation to ensure type safety after JSON parsing.
+ *
+ * @param value - Unknown value to validate
+ * @returns true if value is a valid ClaudeMessage
+ */
+export function isClaudeMessage(value: unknown): value is ClaudeMessage {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const obj = value as Record<string, unknown>;
+
+  return (
+    typeof obj['timestamp'] === 'string' &&
+    typeof obj['type'] === 'string' &&
+    typeof obj['message'] === 'object' &&
+    obj['message'] !== null &&
+    typeof (obj['message'] as Record<string, unknown>)['content'] === 'string'
+  );
+}
+
+/**
  * Parses a single JSONL line into a ClaudeMessage.
  *
  * @param line - A single line from the JSONL file
@@ -156,7 +179,13 @@ function parseLine(
       return null;
     }
 
-    return parsed as ClaudeMessage;
+    // Use type guard for runtime safety after schema validation
+    if (!isClaudeMessage(parsed)) {
+      logger.debug('Type guard validation failed', context);
+      return null;
+    }
+
+    return parsed;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Parse error';
     logger.debug(`JSON parse failed: ${errorMessage}`, context);
@@ -176,22 +205,14 @@ function isUserMessage(message: ClaudeMessage): boolean {
 
 /**
  * Extracts the content from a message.
- * Handles both string content and array of blocks content.
+ * The type guard guarantees content is always a string.
  *
  * @param message - The Claude message
  * @returns The extracted text content
  */
 function extractContent(message: ClaudeMessage): string {
-  const content = message.message.content;
-
-  if (typeof content === 'string') {
-    return content;
-  }
-
-  // Content is always a string based on schema, but we handle edge cases
-  // The schema validator ensures content is a string
-
-  return '';
+  // isClaudeMessage type guard guarantees content is a string
+  return message.message.content;
 }
 
 /**

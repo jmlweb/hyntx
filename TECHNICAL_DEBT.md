@@ -4,71 +4,7 @@ This document tracks technical debt issues in the current codebase. These are pr
 
 ---
 
-## 1. Unnecessary Defensive Code in extractContent
-
-**Problem**: The `extractContent()` function in `log-reader.ts` includes defensive code to handle non-string content, but the schema validator guarantees that content is always a string. This creates unnecessary code that may hide real type issues if schema validation fails.
-
-**Impact**:
-
-- Unnecessary runtime checks that add complexity
-- May mask bugs if schema validation has issues
-- Creates confusion about whether the type guarantee is reliable
-
-**Location**: `src/core/log-reader.ts:166-177`
-
-**Example**:
-
-```typescript
-function extractContent(message: ClaudeMessage): string {
-  const content = message.message.content;
-
-  if (typeof content === 'string') {
-    return content;
-  }
-
-  // Content is always a string based on schema, but we handle edge cases
-  // The schema validator ensures content is a string
-
-  return '';
-}
-```
-
-**Recommendation**: Remove the defensive check and trust the schema validator. If schema validation fails, it should be caught earlier in the pipeline, not silently handled here.
-
----
-
-## 2. Type Assertion Without Runtime Validation
-
-**Problem**: In `parseLine()`, after validation passes, the code uses a type assertion (`parsed as ClaudeMessage`) without additional runtime validation. If the validation logic has bugs or edge cases, this could lead to runtime errors.
-
-**Impact**:
-
-- Type safety is only as strong as the validation logic
-- Potential runtime errors if validation misses edge cases
-- No additional safety net beyond the validation function
-
-**Location**: `src/core/log-reader.ts:130-146`
-
-**Example**:
-
-```typescript
-function parseLine(line: string): ClaudeMessage | null {
-  // ... validation ...
-  const validation = validateLogEntry(parsed);
-
-  if (!validation.isValid) {
-    return null;
-  }
-
-  return parsed as ClaudeMessage; // Type assertion without additional checks
-}
-```
-
-**Recommendation**: Consider adding a runtime type guard function that validates the structure matches `ClaudeMessage` before the assertion, or ensure the validation function is comprehensive enough to guarantee type safety.
-
----
-
-## 3. Inconsistent Error Handling Patterns
+## 1. Inconsistent Error Handling Patterns
 
 **Problem**: The codebase uses multiple different error handling strategies inconsistently: `process.exit(1)`, thrown errors, and silent error swallowing. There's no unified error handling strategy.
 
@@ -112,7 +48,7 @@ try {
 
 ---
 
-## 4. Silent Error Swallowing
+## 2. Silent Error Swallowing
 
 **Problem**: Multiple catch blocks throughout the codebase catch errors but don't log or report them, making debugging difficult when issues occur.
 
@@ -159,7 +95,7 @@ try {
 
 ---
 
-## 5. Complex Shell Config Edge Case Logic
+## 3. Complex Shell Config Edge Case Logic
 
 **Problem**: The malformed block handling logic in `updateShellConfig()` is complex and handles edge cases where only one marker (start or end) is present. The logic for determining start and end indices when markers are missing could have edge cases with overlapping or incorrectly positioned markers.
 
@@ -209,5 +145,5 @@ try {
 
 These technical debt items should be prioritized based on:
 
-1. **High Priority**: Error handling (#3, #4) - affects reliability and debugging
-2. **Low Priority**: Code quality improvements (#1, #2, #5) - improve code but don't block functionality
+1. **High Priority**: Error handling (#1, #2) - affects reliability and debugging
+2. **Low Priority**: Code quality improvements (#3) - improves code but doesn't block functionality

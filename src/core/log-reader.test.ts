@@ -12,6 +12,7 @@ import {
   getProjects,
   parseDate,
   groupByDay,
+  isClaudeMessage,
 } from './log-reader.js';
 import { CLAUDE_PROJECTS_DIR } from '../utils/paths.js';
 
@@ -570,6 +571,150 @@ describe('groupByDay', () => {
 
     expect(groups[0]?.date).toBe('2025-01-23');
     expect(groups[1]?.date).toBe('2025-01-25');
+  });
+});
+
+describe('isClaudeMessage type guard', () => {
+  it('returns true for valid ClaudeMessage objects', () => {
+    const validMessage = {
+      type: 'user',
+      message: { role: 'user', content: 'Hello' },
+      timestamp: '2025-01-23T10:00:00.000Z',
+      sessionId: 'session-1',
+      cwd: '/test',
+    };
+
+    expect(isClaudeMessage(validMessage)).toBe(true);
+  });
+
+  it('returns false for null', () => {
+    expect(isClaudeMessage(null)).toBe(false);
+  });
+
+  it('returns false for undefined', () => {
+    expect(isClaudeMessage(undefined)).toBe(false);
+  });
+
+  it('returns false for primitive values', () => {
+    expect(isClaudeMessage('string')).toBe(false);
+    expect(isClaudeMessage(123)).toBe(false);
+    expect(isClaudeMessage(true)).toBe(false);
+  });
+
+  it('returns false for objects missing timestamp', () => {
+    const noTimestamp = {
+      type: 'user',
+      message: { role: 'user', content: 'Hello' },
+      sessionId: 'session-1',
+    };
+
+    expect(isClaudeMessage(noTimestamp)).toBe(false);
+  });
+
+  it('returns false for objects with non-string timestamp', () => {
+    const invalidTimestamp = {
+      type: 'user',
+      message: { role: 'user', content: 'Hello' },
+      timestamp: 12345,
+      sessionId: 'session-1',
+    };
+
+    expect(isClaudeMessage(invalidTimestamp)).toBe(false);
+  });
+
+  it('returns false for objects missing type', () => {
+    const noType = {
+      message: { role: 'user', content: 'Hello' },
+      timestamp: '2025-01-23T10:00:00.000Z',
+      sessionId: 'session-1',
+    };
+
+    expect(isClaudeMessage(noType)).toBe(false);
+  });
+
+  it('returns false for objects with non-string type', () => {
+    const invalidType = {
+      type: 123,
+      message: { role: 'user', content: 'Hello' },
+      timestamp: '2025-01-23T10:00:00.000Z',
+      sessionId: 'session-1',
+    };
+
+    expect(isClaudeMessage(invalidType)).toBe(false);
+  });
+
+  it('returns false for objects missing message', () => {
+    const noMessage = {
+      type: 'user',
+      timestamp: '2025-01-23T10:00:00.000Z',
+      sessionId: 'session-1',
+    };
+
+    expect(isClaudeMessage(noMessage)).toBe(false);
+  });
+
+  it('returns false for objects with null message', () => {
+    const nullMessage = {
+      type: 'user',
+      message: null,
+      timestamp: '2025-01-23T10:00:00.000Z',
+      sessionId: 'session-1',
+    };
+
+    expect(isClaudeMessage(nullMessage)).toBe(false);
+  });
+
+  it('returns false for objects with non-object message', () => {
+    const invalidMessage = {
+      type: 'user',
+      message: 'not an object',
+      timestamp: '2025-01-23T10:00:00.000Z',
+      sessionId: 'session-1',
+    };
+
+    expect(isClaudeMessage(invalidMessage)).toBe(false);
+  });
+
+  it('returns false for objects missing message.content', () => {
+    const noContent = {
+      type: 'user',
+      message: { role: 'user' },
+      timestamp: '2025-01-23T10:00:00.000Z',
+      sessionId: 'session-1',
+    };
+
+    expect(isClaudeMessage(noContent)).toBe(false);
+  });
+
+  it('returns false for objects with non-string message.content', () => {
+    const invalidContent = {
+      type: 'user',
+      message: { role: 'user', content: 123 },
+      timestamp: '2025-01-23T10:00:00.000Z',
+      sessionId: 'session-1',
+    };
+
+    expect(isClaudeMessage(invalidContent)).toBe(false);
+  });
+
+  it('returns true for empty string content', () => {
+    const emptyContent = {
+      type: 'user',
+      message: { role: 'user', content: '' },
+      timestamp: '2025-01-23T10:00:00.000Z',
+      sessionId: 'session-1',
+    };
+
+    expect(isClaudeMessage(emptyContent)).toBe(true);
+  });
+
+  it('returns false for arrays', () => {
+    expect(isClaudeMessage([])).toBe(false);
+    expect(isClaudeMessage([1, 2, 3])).toBe(false);
+  });
+
+  it('returns false for empty object', () => {
+    expect(isClaudeMessage({})).toBe(false);
   });
 });
 
