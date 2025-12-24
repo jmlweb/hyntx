@@ -36,6 +36,7 @@ Reserve the `hyntx` package name on npm registry to ensure it's available when t
    - Enable two-factor authentication (recommended)
 
 2. **Package Name Verification**:
+
    ```bash
    npm view hyntx
    # Should return 404 if name is available
@@ -62,21 +63,24 @@ Reserve the `hyntx` package name on npm registry to ensure it's available when t
    - Keep only `dist/`, `README.md`, `LICENSE`, `package.json`
 
 3. **Build Package**:
+
    ```bash
    pnpm build
    # Verify dist/index.js exists and has shebang
    ```
 
 4. **Verify Package Contents**:
+
    ```bash
    pnpm size
    # Check package size
-   
+
    npm pack --dry-run
    # Preview what will be published
    ```
 
 5. **Test Local Installation**:
+
    ```bash
    npm link
    # Test executable
@@ -86,23 +90,25 @@ Reserve the `hyntx` package name on npm registry to ensure it's available when t
    ```
 
 6. **Publish to npm**:
+
    ```bash
    # Ensure version is appropriate (0.0.1 is fine for dummy deployment)
    npm version 0.0.1 --no-git-tag-version
-   
+
    # Publish as public package
    pnpm publish --access public
    ```
 
 7. **Post-Publish Verification**:
+
    ```bash
    # Verify package exists
    npm view hyntx
-   
+
    # Test installation from npm
    npm install -g hyntx
    hyntx --version  # or --help
-   
+
    # Uninstall
    npm uninstall -g hyntx
    ```
@@ -116,6 +122,7 @@ Reserve the `hyntx` package name on npm registry to ensure it's available when t
 ### Package Contents
 
 For dummy deployment, the package should include:
+
 - ✅ `dist/index.js` - Built executable (even if minimal)
 - ✅ `package.json` - Package metadata
 - ✅ `README.md` - Basic description
@@ -179,4 +186,3 @@ For dummy deployment, the package should include:
 - `docs/RELEASE.md` - Comprehensive release documentation
 - [npm Publishing Guide](https://docs.npmjs.com/packages-and-modules/contributing-packages-to-the-registry)
 - [npm Package Name Best Practices](https://docs.npmjs.com/cli/v10/using-npm/package-name-guidelines)
-

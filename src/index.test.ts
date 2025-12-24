@@ -54,7 +54,11 @@ import { analyzePrompts } from './core/analyzer.js';
 import { printReport } from './core/reporter.js';
 import { OllamaProvider } from './providers/ollama.js';
 import { EXIT_CODES } from './types/index.js';
-import type { EnvConfig, AnalysisResult, AnalysisProvider } from './types/index.js';
+import type {
+  EnvConfig,
+  AnalysisResult,
+  AnalysisProvider,
+} from './types/index.js';
 
 const mockIsFirstRun = vi.mocked(isFirstRun);
 const mockGetEnvConfig = vi.mocked(getEnvConfig);
@@ -132,18 +136,23 @@ describe('parseArguments', () => {
 });
 
 describe('showHelp', () => {
-  let mockExit: ReturnType<typeof vi.spyOn>;
-  let mockLog: ReturnType<typeof vi.spyOn>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockExit: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockLog: any;
 
   beforeEach(() => {
-    mockExit = vi.spyOn(process, 'exit').mockImplementation((() => {
+    mockExit = vi.spyOn(process, 'exit').mockImplementation(() => {
       // Do nothing - prevent actual exit
-    }) as unknown as (code?: number) => never);
+      return undefined as never;
+    });
     mockLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
   });
 
   afterEach(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     mockExit.mockRestore();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     mockLog.mockRestore();
   });
 
@@ -154,18 +163,23 @@ describe('showHelp', () => {
 });
 
 describe('showVersion', () => {
-  let mockExit: ReturnType<typeof vi.spyOn>;
-  let mockLog: ReturnType<typeof vi.spyOn>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockExit: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockLog: any;
 
   beforeEach(() => {
-    mockExit = vi.spyOn(process, 'exit').mockImplementation((() => {
+    mockExit = vi.spyOn(process, 'exit').mockImplementation(() => {
       // Do nothing - prevent actual exit
-    }) as unknown as (code?: number) => never);
+      return undefined as never;
+    });
     mockLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
   });
 
   afterEach(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     mockExit.mockRestore();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     mockLog.mockRestore();
   });
 
@@ -208,22 +222,29 @@ describe('checkAndRunSetup', () => {
 });
 
 describe('readLogsWithSpinner', () => {
-  let mockExit: ReturnType<typeof vi.spyOn>;
-  let mockError: ReturnType<typeof vi.spyOn>;
-  let mockWarn: ReturnType<typeof vi.spyOn>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockExit: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockError: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockWarn: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockExit = vi.spyOn(process, 'exit').mockImplementation((() => {
+    mockExit = vi.spyOn(process, 'exit').mockImplementation(() => {
       // Do nothing - prevent actual exit
-    }) as unknown as (code?: number) => never);
+      return undefined as never;
+    });
     mockError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     mockWarn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   });
 
   afterEach(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     mockExit.mockRestore();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     mockError.mockRestore();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     mockWarn.mockRestore();
   });
 
@@ -316,19 +337,24 @@ describe('readLogsWithSpinner', () => {
 });
 
 describe('connectProviderWithSpinner', () => {
-  let mockExit: ReturnType<typeof vi.spyOn>;
-  let mockError: ReturnType<typeof vi.spyOn>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockExit: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockError: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockExit = vi.spyOn(process, 'exit').mockImplementation((() => {
+    mockExit = vi.spyOn(process, 'exit').mockImplementation(() => {
       // Do nothing - prevent actual exit
-    }) as unknown as (code?: number) => never);
+      return undefined as never;
+    });
     mockError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
   });
 
   afterEach(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     mockExit.mockRestore();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     mockError.mockRestore();
   });
 
@@ -420,16 +446,19 @@ describe('connectProviderWithSpinner', () => {
 });
 
 describe('analyzeWithProgress', () => {
-  let mockExit: ReturnType<typeof vi.spyOn>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockExit: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockExit = vi.spyOn(process, 'exit').mockImplementation((() => {
+    mockExit = vi.spyOn(process, 'exit').mockImplementation(() => {
       // Do nothing - prevent actual exit
-    }) as unknown as (code?: number) => never);
+      return undefined as never;
+    });
   });
 
   afterEach(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     mockExit.mockRestore();
   });
 
@@ -524,9 +553,7 @@ describe('analyzeWithProgress', () => {
 });
 
 describe('displayResults', () => {
-  const mockLog = vi
-    .spyOn(console, 'log')
-    .mockImplementation(() => undefined);
+  const mockLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -552,19 +579,24 @@ describe('displayResults', () => {
 });
 
 describe('handleError', () => {
-  let mockExit: ReturnType<typeof vi.spyOn>;
-  let mockError: ReturnType<typeof vi.spyOn>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockExit: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockError: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockExit = vi.spyOn(process, 'exit').mockImplementation((() => {
+    mockExit = vi.spyOn(process, 'exit').mockImplementation(() => {
       // Do nothing - prevent actual exit
-    }) as unknown as (code?: number) => never);
+      return undefined as never;
+    });
     mockError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
   });
 
   afterEach(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     mockExit.mockRestore();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     mockError.mockRestore();
   });
 

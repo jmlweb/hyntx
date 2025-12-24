@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 /**
  * Hyntx - CLI Entry Point
  *
@@ -8,6 +6,9 @@
  */
 
 import { parseArgs } from 'node:util';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import chalk from 'chalk';
 import ora from 'ora';
 import { isFirstRun, getEnvConfig } from './utils/env.js';
@@ -38,9 +39,13 @@ type ParsedArgs = {
 // =============================================================================
 
 /**
- * Package version (hardcoded for now, can be loaded from package.json).
+ * Package version loaded from package.json.
  */
-const VERSION = '0.0.1';
+const currentDir = dirname(fileURLToPath(import.meta.url));
+const packageJson = JSON.parse(
+  readFileSync(join(currentDir, '../package.json'), 'utf-8'),
+) as { version: string };
+const VERSION = packageJson.version;
 
 // =============================================================================
 // Helper Functions
@@ -145,9 +150,7 @@ export async function readLogsWithSpinner(
   // Check if Claude projects directory exists
   if (!claudeProjectsExist()) {
     console.error(chalk.red('Error: Claude Code logs directory not found'));
-    console.error(
-      chalk.dim(`Expected location: ${CLAUDE_PROJECTS_DIR}`),
-    );
+    console.error(chalk.dim(`Expected location: ${CLAUDE_PROJECTS_DIR}`));
     console.error(
       chalk.dim(
         '\nMake sure Claude Code is installed and has been used at least once.',
@@ -162,9 +165,7 @@ export async function readLogsWithSpinner(
     const result = await readLogs({ date });
 
     if (result.prompts.length === 0) {
-      spinner.fail(
-        chalk.yellow(`No prompts found for ${date}`),
-      );
+      spinner.fail(chalk.yellow(`No prompts found for ${date}`));
       console.error(
         chalk.dim(
           '\nTry a different date or check that Claude Code has been used recently.',
@@ -174,9 +175,7 @@ export async function readLogsWithSpinner(
     }
 
     spinner.succeed(
-      chalk.green(
-        `Found ${String(result.prompts.length)} prompts for ${date}`,
-      ),
+      chalk.green(`Found ${String(result.prompts.length)} prompts for ${date}`),
     );
 
     // Show warnings if any (but don't fail)
@@ -235,9 +234,7 @@ export async function connectProviderWithSpinner(): Promise<OllamaProvider> {
     }
 
     spinner.succeed(
-      chalk.green(
-        `Connected to Ollama (${config.ollama.model})`,
-      ),
+      chalk.green(`Connected to Ollama (${config.ollama.model})`),
     );
 
     return provider;
@@ -261,9 +258,7 @@ export async function analyzeWithProgress(
   prompts: readonly string[],
   date: string,
 ): Promise<AnalysisResult> {
-  const spinner = ora(
-    `Analyzing ${String(prompts.length)} prompts...`,
-  ).start();
+  const spinner = ora(`Analyzing ${String(prompts.length)} prompts...`).start();
 
   try {
     const result = await analyzePrompts({
@@ -352,6 +347,9 @@ export async function main(): Promise<void> {
 }
 
 // Run main function if this is the main module
-if (import.meta.url === `file://${process.argv[1]}`) {
+const isMainModule =
+  process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+
+if (isMainModule) {
   void main();
 }
