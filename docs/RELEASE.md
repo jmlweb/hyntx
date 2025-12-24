@@ -86,7 +86,7 @@ jobs:
         run: pnpm format:check
 
       - name: Run tests
-        run: pnpm test:run
+        run: pnpm test
 
       - name: Build
         run: pnpm build
@@ -142,7 +142,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run tests
-        run: pnpm test:run
+        run: pnpm test
 
       - name: Build
         run: pnpm build
@@ -275,7 +275,7 @@ npm login
 
 # 3. Run quality checks
 pnpm check
-pnpm test:run
+pnpm test
 pnpm build
 
 # 4. Update version in package.json
@@ -559,7 +559,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - run: pnpm test:run
+      - run: pnpm test
 
       - run: pnpm dlx semantic-release
         env:
@@ -1287,7 +1287,7 @@ Since Hyntx uses ESM (`"type": "module"`), ensure:
 
 ### Pre-Release
 
-- [ ] All tests passing (`pnpm test:run`)
+- [ ] All tests passing (`pnpm test`)
 - [ ] Quality checks passing (`pnpm check`)
 - [ ] Build succeeds (`pnpm build`)
 - [ ] Package size verified (`pnpm size`)

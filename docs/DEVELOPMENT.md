@@ -313,8 +313,8 @@ pnpm add -D vitest @vitest/coverage-v8
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest",
-    "test:run": "vitest run",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "check": "pnpm typecheck && pnpm lint && pnpm format:check",
     "prepare": "pnpm build"
@@ -421,11 +421,12 @@ This file pins the project to Node.js 22.x LTS. When using nvm with automatic sw
 
 ## Quick Reference
 
-| Command         | Description                            |
-| --------------- | -------------------------------------- |
-| `pnpm dev`      | Watch mode with rebuild                |
-| `pnpm build`    | Production build                       |
-| `pnpm start`    | Run CLI                                |
-| `pnpm check`    | Run all checks (types + lint + format) |
-| `pnpm test`     | Run tests in watch mode                |
-| `pnpm test:run` | Run tests once                         |
+| Command           | Description                            |
+| ----------------- | -------------------------------------- |
+| `pnpm dev`        | Watch mode with rebuild                |
+| `pnpm build`      | Production build                       |
+| `pnpm start`      | Run CLI                                |
+| `pnpm check`      | Run all checks (types + lint + format) |
+| `pnpm test`       | Run tests in watch mode                |
+| `pnpm test`       | Run tests once                         |
+| `pnpm test:watch` | Run tests in watch mode                |

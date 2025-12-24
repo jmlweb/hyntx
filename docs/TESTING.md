@@ -37,7 +37,7 @@ hyntx/
 pnpm test
 
 # Single run
-pnpm test:run
+pnpm test
 
 # With coverage
 pnpm test:coverage
@@ -696,7 +696,7 @@ jobs:
           cache: pnpm
 
       - run: pnpm install
-      - run: pnpm test:run
+      - run: pnpm test
       - run: pnpm test:coverage
 
       - uses: codecov/codecov-action@v4

@@ -146,7 +146,7 @@ Despite the failing tests, the E2E testing infrastructure provides:
 
 ```bash
 # Run all unit tests (E2E excluded)
-pnpm test:run
+pnpm test
 
 # Run E2E tests only
 pnpm test:e2e
