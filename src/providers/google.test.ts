@@ -1,25 +1,25 @@
 /**
- * Tests for Anthropic provider implementation.
+ * Tests for Google provider implementation.
  */
 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/require-await */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { AnthropicProvider } from './anthropic.js';
-import { type AnthropicConfig } from '../types/index.js';
+import { GoogleProvider } from './google.js';
+import { type GoogleConfig } from '../types/index.js';
 
-describe('AnthropicProvider', () => {
-  const mockConfig: AnthropicConfig = {
-    model: 'claude-3-5-haiku-latest',
+describe('GoogleProvider', () => {
+  const mockConfig: GoogleConfig = {
+    model: 'gemini-2.0-flash-exp',
     apiKey: 'test-api-key',
   };
 
-  let provider: AnthropicProvider;
+  let provider: GoogleProvider;
   let originalFetch: typeof global.fetch;
 
   beforeEach(() => {
-    provider = new AnthropicProvider(mockConfig);
+    provider = new GoogleProvider(mockConfig);
     originalFetch = global.fetch;
   });
 
@@ -30,16 +30,16 @@ describe('AnthropicProvider', () => {
 
   describe('constructor', () => {
     it('should create provider with correct name', () => {
-      expect(provider.name).toBe('Anthropic');
+      expect(provider.name).toBe('Google');
     });
 
     it('should store config', () => {
-      const customConfig: AnthropicConfig = {
-        model: 'claude-3-opus-latest',
+      const customConfig: GoogleConfig = {
+        model: 'gemini-1.5-pro',
         apiKey: 'custom-key',
       };
-      const customProvider = new AnthropicProvider(customConfig);
-      expect(customProvider.name).toBe('Anthropic');
+      const customProvider = new GoogleProvider(customConfig);
+      expect(customProvider.name).toBe('Google');
     });
   });
 
@@ -53,13 +53,11 @@ describe('AnthropicProvider', () => {
       const result = await provider.isAvailable();
       expect(result).toBe(true);
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://api.anthropic.com/v1/messages',
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=test-api-key',
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
-            'x-api-key': 'test-api-key',
-            'anthropic-version': '2023-06-01',
           }),
         }),
       );
@@ -106,8 +104,8 @@ describe('AnthropicProvider', () => {
     });
 
     it('should return false when no API key is configured', async () => {
-      const noKeyProvider = new AnthropicProvider({
-        model: 'claude-3-5-haiku-latest',
+      const noKeyProvider = new GoogleProvider({
+        model: 'gemini-2.0-flash-exp',
         apiKey: '',
       });
 
@@ -134,31 +132,36 @@ describe('AnthropicProvider', () => {
 
   describe('analyze', () => {
     const mockValidResponse = {
-      content: [
+      candidates: [
         {
-          type: 'text',
-          text: JSON.stringify({
-            patterns: [
+          content: {
+            parts: [
               {
-                id: 'test-pattern',
-                name: 'Test Pattern',
-                frequency: 3,
-                severity: 'medium',
-                examples: ['example 1', 'example 2'],
-                suggestion: 'Test suggestion',
-                beforeAfter: {
-                  before: 'before text',
-                  after: 'after text',
-                },
+                text: JSON.stringify({
+                  patterns: [
+                    {
+                      id: 'test-pattern',
+                      name: 'Test Pattern',
+                      frequency: 3,
+                      severity: 'medium',
+                      examples: ['example 1', 'example 2'],
+                      suggestion: 'Test suggestion',
+                      beforeAfter: {
+                        before: 'before text',
+                        after: 'after text',
+                      },
+                    },
+                  ],
+                  stats: {
+                    totalPrompts: 5,
+                    promptsWithIssues: 3,
+                    overallScore: 75,
+                  },
+                  topSuggestion: 'Top suggestion',
+                }),
               },
             ],
-            stats: {
-              totalPrompts: 5,
-              promptsWithIssues: 3,
-              overallScore: 75,
-            },
-            topSuggestion: 'Top suggestion',
-          }),
+          },
         },
       ],
     };
@@ -179,13 +182,11 @@ describe('AnthropicProvider', () => {
       expect(result.topSuggestion).toBe('Top suggestion');
 
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://api.anthropic.com/v1/messages',
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=test-api-key',
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
-            'x-api-key': 'test-api-key',
-            'anthropic-version': '2023-06-01',
           }),
           body: expect.stringContaining('prompt 1'),
         }),
@@ -208,31 +209,37 @@ describe('AnthropicProvider', () => {
 
       await expect(
         provider.analyze(['test prompt'], '2025-01-15'),
-      ).rejects.toThrow('Anthropic API request failed: 500');
+      ).rejects.toThrow('Google API request failed: 500');
     }, 10000);
 
-    it('should throw error for invalid response format', async () => {
+    it('should throw error for invalid response format (empty candidates)', async () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({ content: [] }),
+        json: async () => ({ candidates: [] }),
       });
 
       await expect(
         provider.analyze(['test prompt'], '2025-01-15'),
-      ).rejects.toThrow('Invalid response format from Anthropic API');
+      ).rejects.toThrow('Invalid response format from Google API');
     });
 
-    it('should throw error for non-text response', async () => {
+    it('should throw error for response without text', async () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
-          content: [{ type: 'image', text: 'something' }],
+          candidates: [
+            {
+              content: {
+                parts: [{}],
+              },
+            },
+          ],
         }),
       });
 
       await expect(
         provider.analyze(['test prompt'], '2025-01-15'),
-      ).rejects.toThrow('Invalid response format from Anthropic API');
+      ).rejects.toThrow('Invalid response format from Google API');
     });
 
     it('should retry on network error', async () => {
@@ -293,28 +300,33 @@ describe('AnthropicProvider', () => {
 
       await expect(
         provider.analyze(['test prompt'], '2025-01-15'),
-      ).rejects.toThrow('Anthropic analysis failed after 3 attempts');
+      ).rejects.toThrow('Google analysis failed after 3 attempts');
 
       expect(global.fetch).toHaveBeenCalledTimes(3);
     }, 10000);
 
     it('should handle JSON response in markdown code block', async () => {
       const markdownResponse = {
-        content: [
+        candidates: [
           {
-            type: 'text',
-            text:
-              '```json\n' +
-              JSON.stringify({
-                patterns: [],
-                stats: {
-                  totalPrompts: 2,
-                  promptsWithIssues: 0,
-                  overallScore: 100,
+            content: {
+              parts: [
+                {
+                  text:
+                    '```json\n' +
+                    JSON.stringify({
+                      patterns: [],
+                      stats: {
+                        totalPrompts: 2,
+                        promptsWithIssues: 0,
+                        overallScore: 100,
+                      },
+                      topSuggestion: 'No issues found',
+                    }) +
+                    '\n```',
                 },
-                topSuggestion: 'No issues found',
-              }) +
-              '\n```',
+              ],
+            },
           },
         ],
       };
@@ -328,7 +340,7 @@ describe('AnthropicProvider', () => {
       expect(result.stats.overallScore).toBe(100);
     });
 
-    it('should include system prompt in request', async () => {
+    it('should include system instruction in request', async () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => mockValidResponse,
@@ -339,14 +351,16 @@ describe('AnthropicProvider', () => {
       const mockFn = global.fetch as ReturnType<typeof vi.fn>;
       const callArgs = mockFn.mock.calls[0] as [string, RequestInit];
       const requestBody = JSON.parse(callArgs[1].body as string) as {
-        system: string;
-        messages: { role: string }[];
+        systemInstruction: { parts: { text: string }[] };
+        contents: { role: string; parts: { text: string }[] }[];
       };
-      expect(requestBody.system).toContain('prompt quality analyzer');
-      expect(requestBody.messages[0]?.role).toBe('user');
+      expect(requestBody.systemInstruction.parts[0]?.text).toContain(
+        'prompt quality analyzer',
+      );
+      expect(requestBody.contents[0]?.role).toBe('user');
     });
 
-    it('should use configured model', async () => {
+    it('should configure responseMimeType for JSON', async () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => mockValidResponse,
@@ -357,9 +371,30 @@ describe('AnthropicProvider', () => {
       const mockFn = global.fetch as ReturnType<typeof vi.fn>;
       const callArgs = mockFn.mock.calls[0] as [string, RequestInit];
       const requestBody = JSON.parse(callArgs[1].body as string) as {
-        model: string;
+        generationConfig: { responseMimeType: string };
       };
-      expect(requestBody.model).toBe('claude-3-5-haiku-latest');
+      expect(requestBody.generationConfig.responseMimeType).toBe(
+        'application/json',
+      );
+    });
+
+    it('should use configured model in URL', async () => {
+      const customProvider = new GoogleProvider({
+        model: 'gemini-1.5-pro',
+        apiKey: 'test-key',
+      });
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => mockValidResponse,
+      });
+
+      await customProvider.analyze(['test prompt'], '2025-01-15');
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('models/gemini-1.5-pro:generateContent'),
+        expect.anything(),
+      );
     });
   });
 });
