@@ -7,10 +7,12 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import {
   detectShellConfigFile,
+  findMarkerPositions,
   generateEnvExports,
-  updateShellConfig,
-  saveConfigToShell,
   getManualInstructions,
+  removeMalformedMarkers,
+  saveConfigToShell,
+  updateShellConfig,
 } from './shell-config.js';
 import type { EnvConfig } from '../types/index.js';
 
@@ -87,6 +89,156 @@ describe('detectShellConfigFile', () => {
 
     expect(result.shellType).toBe('bash');
     expect(result.configFile).toBe('/mock/home/.bashrc');
+  });
+});
+
+describe('findMarkerPositions', () => {
+  const startMarker = '# >>> hyntx config >>>';
+  const endMarker = '# <<< hyntx config <<<';
+
+  it('returns valid with no markers', () => {
+    const result = findMarkerPositions('# just some content\n');
+
+    expect(result.isValid).toBe(true);
+    expect(result.startIndex).toBe(-1);
+    expect(result.endIndex).toBe(-1);
+    expect(result.issue).toBeUndefined();
+  });
+
+  it('returns valid with both markers in correct order', () => {
+    const content = `# before\n${startMarker}\n  export FOO=bar\n${endMarker}\n# after\n`;
+    const result = findMarkerPositions(content);
+
+    expect(result.isValid).toBe(true);
+    expect(result.startIndex).toBe(content.indexOf(startMarker));
+    expect(result.endIndex).toBe(content.indexOf(endMarker));
+    expect(result.issue).toBeUndefined();
+  });
+
+  it('returns invalid with only start marker (missing_end)', () => {
+    const content = `# before\n${startMarker}\n  export FOO=bar\n# after\n`;
+    const result = findMarkerPositions(content);
+
+    expect(result.isValid).toBe(false);
+    expect(result.issue).toBe('missing_end');
+    expect(result.startIndex).toBe(content.indexOf(startMarker));
+    expect(result.endIndex).toBe(-1);
+  });
+
+  it('returns invalid with only end marker (missing_start)', () => {
+    const content = `# before\n  export FOO=bar\n${endMarker}\n# after\n`;
+    const result = findMarkerPositions(content);
+
+    expect(result.isValid).toBe(false);
+    expect(result.issue).toBe('missing_start');
+    expect(result.startIndex).toBe(-1);
+    expect(result.endIndex).toBe(content.indexOf(endMarker));
+  });
+
+  it('returns invalid with markers in wrong order', () => {
+    const content = `# before\n${endMarker}\n  export FOO=bar\n${startMarker}\n# after\n`;
+    const result = findMarkerPositions(content);
+
+    expect(result.isValid).toBe(false);
+    expect(result.issue).toBe('wrong_order');
+    expect(result.startIndex).toBe(content.indexOf(startMarker));
+    expect(result.endIndex).toBe(content.indexOf(endMarker));
+  });
+
+  it('handles empty content', () => {
+    const result = findMarkerPositions('');
+
+    expect(result.isValid).toBe(true);
+    expect(result.startIndex).toBe(-1);
+    expect(result.endIndex).toBe(-1);
+  });
+});
+
+describe('removeMalformedMarkers', () => {
+  const startMarker = '# >>> hyntx config >>>';
+  const endMarker = '# <<< hyntx config <<<';
+
+  it('removes only start marker when missing end', () => {
+    const content = `# before\n${startMarker}\n  export FOO=bar\n# after\n`;
+    const positions = {
+      startIndex: content.indexOf(startMarker),
+      endIndex: -1,
+      isValid: false as const,
+      issue: 'missing_end' as const,
+    };
+
+    const result = removeMalformedMarkers(content, positions);
+
+    expect(result).not.toContain(startMarker);
+    expect(result).toContain('# before');
+    expect(result).toContain('export FOO=bar');
+    expect(result).toContain('# after');
+  });
+
+  it('removes only end marker when missing start', () => {
+    const content = `# before\n  export FOO=bar\n${endMarker}\n# after\n`;
+    const positions = {
+      startIndex: -1,
+      endIndex: content.indexOf(endMarker),
+      isValid: false as const,
+      issue: 'missing_start' as const,
+    };
+
+    const result = removeMalformedMarkers(content, positions);
+
+    expect(result).not.toContain(endMarker);
+    expect(result).toContain('# before');
+    expect(result).toContain('export FOO=bar');
+    expect(result).toContain('# after');
+  });
+
+  it('removes both markers and content between when in wrong order', () => {
+    const content = `# before\n${endMarker}\n  export OLD=value\n${startMarker}\n# after\n`;
+    const positions = {
+      startIndex: content.indexOf(startMarker),
+      endIndex: content.indexOf(endMarker),
+      isValid: false as const,
+      issue: 'wrong_order' as const,
+    };
+
+    const result = removeMalformedMarkers(content, positions);
+
+    expect(result).not.toContain(startMarker);
+    expect(result).not.toContain(endMarker);
+    expect(result).not.toContain('export OLD=value');
+    expect(result).toContain('# before');
+    expect(result).toContain('# after');
+  });
+
+  it('handles marker at start of file', () => {
+    const content = `${startMarker}\n  export FOO=bar\n# after\n`;
+    const positions = {
+      startIndex: 0,
+      endIndex: -1,
+      isValid: false as const,
+      issue: 'missing_end' as const,
+    };
+
+    const result = removeMalformedMarkers(content, positions);
+
+    expect(result).not.toContain(startMarker);
+    expect(result).toContain('export FOO=bar');
+    expect(result).toContain('# after');
+  });
+
+  it('handles marker at end of file without trailing newline', () => {
+    const content = `# before\n${endMarker}`;
+    const positions = {
+      startIndex: -1,
+      endIndex: content.indexOf(endMarker),
+      isValid: false as const,
+      issue: 'missing_start' as const,
+    };
+
+    const result = removeMalformedMarkers(content, positions);
+
+    expect(result).not.toContain(endMarker);
+    expect(result).toContain('# before');
   });
 });
 
@@ -305,6 +457,54 @@ describe('updateShellConfig', () => {
     expect(writtenContent).toContain('# <<< hyntx config <<<');
     // The malformed marker is removed and replaced with a clean block
     // The implementation removes from the end marker position onwards
+  });
+
+  it('handles markers in wrong order', () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(fs.readFileSync).mockReturnValue(
+      '# before\n# <<< hyntx config <<<\n  export OLD=value\n# >>> hyntx config >>>\n# after\n',
+    );
+
+    const result = updateShellConfig('/mock/home/.zshrc', [
+      'export HYNTX_SERVICES=ollama',
+    ]);
+
+    expect(result.success).toBe(true);
+    const writtenContent = vi.mocked(fs.writeFileSync).mock.calls[0]?.[1];
+    expect(writtenContent).toContain('# >>> hyntx config >>>');
+    expect(writtenContent).toContain('# <<< hyntx config <<<');
+    expect(writtenContent).toContain('export HYNTX_SERVICES=ollama');
+    expect(writtenContent).not.toContain('export OLD=value');
+    expect(writtenContent).toContain('# before');
+    expect(writtenContent).toContain('# after');
+  });
+
+  it('handles empty file', () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(fs.readFileSync).mockReturnValue('');
+
+    const result = updateShellConfig('/mock/home/.zshrc', [
+      'export HYNTX_SERVICES=ollama',
+    ]);
+
+    expect(result.success).toBe(true);
+    const writtenContent = vi.mocked(fs.writeFileSync).mock.calls[0]?.[1];
+    expect(writtenContent).toContain('# >>> hyntx config >>>');
+    expect(writtenContent).toContain('# <<< hyntx config <<<');
+  });
+
+  it('handles file with only whitespace', () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(fs.readFileSync).mockReturnValue('   \n\n   ');
+
+    const result = updateShellConfig('/mock/home/.zshrc', [
+      'export HYNTX_SERVICES=ollama',
+    ]);
+
+    expect(result.success).toBe(true);
+    const writtenContent = vi.mocked(fs.writeFileSync).mock.calls[0]?.[1];
+    expect(writtenContent).toContain('# >>> hyntx config >>>');
+    expect(writtenContent).toContain('# <<< hyntx config <<<');
   });
 });
 

@@ -246,7 +246,7 @@ Extend CLI with all advanced options: date ranges, filters, file output, verbose
 
 Review and verify complete error handling throughout the system with clear messages and appropriate exit codes.
 
-### 22. [Refactor Shell Config Edge Case Logic](backlog/refactor-shell-config-logic.md)
+### ~~22. [Refactor Shell Config Edge Case Logic](backlog/refactor-shell-config-logic.md)~~ ✅ COMPLETED
 
 **Priority**: P4 | **Dependencies**: utils-completos.md, test-coverage-setup-shell.md
 
@@ -294,7 +294,7 @@ For efficient development, it is recommended to follow this order:
 27. ~~**e2e-testing.md** - E2E testing infrastructure (local-only)~~ ✅
 28. ~~**cli-completo.md** - Complete CLI (requires reporter-markdown)~~ ✅
 29. ~~**error-handling.md** - Complete review (requires all previous)~~ ✅
-30. **refactor-shell-config-logic.md** - Shell config edge case simplification (P4)
+30. ~~**refactor-shell-config-logic.md** - Shell config edge case simplification (P4)~~ ✅
 
 ---
 

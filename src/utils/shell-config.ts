@@ -21,6 +21,105 @@ import type {
 } from '../types/index.js';
 import { logger } from './logger.js';
 
+/** Start marker for hyntx config block */
+const START_MARKER = '# >>> hyntx config >>>';
+/** End marker for hyntx config block */
+const END_MARKER = '# <<< hyntx config <<<';
+
+/**
+ * Describes the issue with marker positioning.
+ */
+type MarkerIssue = 'missing_start' | 'missing_end' | 'wrong_order';
+
+/**
+ * Result of finding marker positions in content.
+ */
+type MarkerPositions = {
+  readonly startIndex: number;
+  readonly endIndex: number;
+  readonly isValid: boolean;
+  readonly issue?: MarkerIssue;
+};
+
+/**
+ * Finds and validates marker positions in content.
+ *
+ * @param content - The shell config file content
+ * @returns MarkerPositions with validation status
+ */
+export function findMarkerPositions(content: string): MarkerPositions {
+  const startIndex = content.indexOf(START_MARKER);
+  const endIndex = content.indexOf(END_MARKER);
+
+  // Both missing - no existing block
+  if (startIndex === -1 && endIndex === -1) {
+    return { startIndex: -1, endIndex: -1, isValid: true };
+  }
+
+  // Only start marker
+  if (startIndex !== -1 && endIndex === -1) {
+    return { startIndex, endIndex: -1, isValid: false, issue: 'missing_end' };
+  }
+
+  // Only end marker
+  if (startIndex === -1 && endIndex !== -1) {
+    return { startIndex: -1, endIndex, isValid: false, issue: 'missing_start' };
+  }
+
+  // Both present - check order
+  if (startIndex > endIndex) {
+    return { startIndex, endIndex, isValid: false, issue: 'wrong_order' };
+  }
+
+  // Valid block
+  return { startIndex, endIndex, isValid: true };
+}
+
+/**
+ * Removes malformed markers from content.
+ * Handles cases where only one marker exists or markers are in wrong order.
+ *
+ * @param content - The shell config file content
+ * @param positions - The marker positions
+ * @returns Content with malformed markers removed
+ */
+export function removeMalformedMarkers(
+  content: string,
+  positions: MarkerPositions,
+): string {
+  let result = content;
+
+  // For wrong order, we need to remove both markers and content between them
+  // For missing start/end, we just remove the single marker that exists
+  if (positions.issue === 'wrong_order') {
+    // End marker comes first, start marker comes second
+    // Remove from end marker to after start marker (including the line)
+    const startLineEnd = result.indexOf('\n', positions.startIndex);
+
+    // Remove the entire range from end marker to after start marker
+    const before = result.slice(0, positions.endIndex);
+    const after = result.slice(
+      startLineEnd !== -1 ? startLineEnd + 1 : result.length,
+    );
+    result = before.trimEnd() + (after ? '\n' + after : '');
+  } else {
+    // Single marker case
+    const markerIndex =
+      positions.startIndex !== -1 ? positions.startIndex : positions.endIndex;
+    const marker = positions.startIndex !== -1 ? START_MARKER : END_MARKER;
+
+    // Find the line containing the marker and remove it
+    const lineStart = result.lastIndexOf('\n', markerIndex - 1) + 1;
+    const lineEnd = result.indexOf('\n', markerIndex + marker.length);
+
+    result =
+      result.slice(0, lineStart) +
+      result.slice(lineEnd !== -1 ? lineEnd + 1 : result.length);
+  }
+
+  return result.trimEnd();
+}
+
 /**
  * Detects the user's shell type based on environment variables.
  *
@@ -118,11 +217,8 @@ export function updateShellConfig(
   configFile: string,
   exports: readonly string[],
 ): ShellConfigResult {
-  const startMarker = '# >>> hyntx config >>>';
-  const endMarker = '# <<< hyntx config <<<';
-
   const exportLines = exports.map((line) => `  ${line}`).join('\n');
-  const configBlock = `${startMarker}\n${exportLines}\n\n  # Uncomment to enable periodic reminders:\n  # hyntx --check-reminder 2>/dev/null\n${endMarker}\n`;
+  const configBlock = `${START_MARKER}\n${exportLines}\n\n  # Uncomment to enable periodic reminders:\n  # hyntx --check-reminder 2>/dev/null\n${END_MARKER}\n`;
 
   try {
     let content = '';
@@ -134,16 +230,17 @@ export function updateShellConfig(
       action = 'updated';
     }
 
-    // Check if config block already exists
-    const hasStartMarker = content.includes(startMarker);
-    const hasEndMarker = content.includes(endMarker);
+    // Find and validate marker positions
+    const positions = findMarkerPositions(content);
 
-    if (hasStartMarker && hasEndMarker) {
-      // Replace existing block
-      const startIndex = content.indexOf(startMarker);
-      const endIndex = content.indexOf(endMarker) + endMarker.length;
-      const before = content.slice(0, startIndex);
-      const after = content.slice(endIndex);
+    if (positions.startIndex === -1 && positions.endIndex === -1) {
+      // No existing block - append new one
+      const separator = content && !content.endsWith('\n') ? '\n\n' : '\n';
+      content = `${content}${separator}${configBlock}`;
+    } else if (positions.isValid) {
+      // Valid block - replace it
+      const before = content.slice(0, positions.startIndex);
+      const after = content.slice(positions.endIndex + END_MARKER.length);
 
       // Remove trailing newline from before if it exists
       const beforeTrimmed = before.endsWith('\n')
@@ -151,26 +248,17 @@ export function updateShellConfig(
         : before;
 
       content = `${beforeTrimmed}\n${configBlock}${after}`.trim() + '\n';
-    } else if (hasStartMarker || hasEndMarker) {
-      // Malformed block - remove it and add new one
-      const startIndex = hasStartMarker
-        ? content.indexOf(startMarker)
-        : content.indexOf(endMarker);
-      const endIndex = hasEndMarker
-        ? content.indexOf(endMarker) + endMarker.length
-        : content.indexOf(startMarker) + startMarker.length;
-
-      const before = content.slice(0, startIndex);
-      const after = content.slice(endIndex);
-      const beforeTrimmed = before.endsWith('\n')
-        ? before.slice(0, -1)
-        : before;
-
-      content = `${beforeTrimmed}\n${configBlock}${after}`.trim() + '\n';
     } else {
-      // Add new block at the end
-      const separator = content && !content.endsWith('\n') ? '\n\n' : '\n';
-      content = `${content}${separator}${configBlock}`;
+      // Malformed block - log warning, remove malformed markers, add new block
+      logger.collectWarning(
+        `Found malformed Hyntx block in ${configFile} (${positions.issue ?? 'unknown'}). Rebuilding configuration.`,
+        'shell-config',
+      );
+
+      const cleanedContent = removeMalformedMarkers(content, positions);
+      const separator =
+        cleanedContent && !cleanedContent.endsWith('\n') ? '\n\n' : '\n';
+      content = `${cleanedContent}${separator}${configBlock}`;
     }
 
     // Ensure directory exists
