@@ -306,8 +306,15 @@ function redactUKNINO(text: string): string {
  * @returns Text with Chilean RUN redacted
  */
 function redactChileanRUN(text: string): string {
-  // RUN: 7-8 digits + dash (optional) + 1 digit or K
-  return text.replace(/\b\d{7,8}-?[0-9K]\b/gi, '[REDACTED_CHILEAN_RUN]');
+  // RUN/RUT: 7-8 digits + dash + check digit (0-9 or K)
+  // Some sources omit the dash; in that case it's typically 8 digits + check digit (9 total).
+  // Important: avoid matching generic 9-digit numbers like SSNs, so only redact when labeled.
+  return text.replace(
+    /\b(?:RUN|RUT)[\s:]*([0-9]{7,8}-[0-9K]|[0-9]{8}[0-9K])\b/gi,
+    (match: string, run: string) => {
+      return match.replace(run, '[REDACTED_CHILEAN_RUN]');
+    },
+  );
 }
 
 /**
@@ -537,11 +544,12 @@ export function sanitize(text: string): SanitizeResult {
   sanitized = redactBearerTokens(sanitized);
   sanitized = redactURLCredentials(sanitized);
   sanitized = redactPEMKeys(sanitized);
-  // PII redaction
+  // PII redaction (specific patterns before broad numeric matchers)
   sanitized = redactEmails(sanitized);
-  sanitized = redactPhoneNumbers(sanitized);
   sanitized = redactCreditCards(sanitized);
-  sanitized = redactSSN(sanitized);
+  // Document numbers (often numeric; must run before SSN/phone)
+  sanitized = redactPassportNumbers(sanitized);
+  sanitized = redactDriverLicenseNumbers(sanitized);
   // National ID numbers
   sanitized = redactSpanishDNI(sanitized);
   sanitized = redactSpanishNIE(sanitized);
@@ -550,17 +558,17 @@ export function sanitize(text: string): SanitizeResult {
   sanitized = redactUKNINO(sanitized);
   sanitized = redactChileanRUN(sanitized);
   sanitized = redactArgentineDNI(sanitized);
-  // Network identifiers
-  sanitized = redactIPv4(sanitized);
-  sanitized = redactIPv6(sanitized);
-  sanitized = redactMACAddresses(sanitized);
-  // Document numbers
-  sanitized = redactPassportNumbers(sanitized);
-  sanitized = redactDriverLicenseNumbers(sanitized);
   // Location and personal data
   sanitized = redactAddresses(sanitized);
   sanitized = redactBirthDates(sanitized);
   sanitized = redactNames(sanitized);
+  // Broad numeric matchers last (avoid misclassifying other IDs)
+  sanitized = redactSSN(sanitized);
+  sanitized = redactPhoneNumbers(sanitized);
+  // Network identifiers
+  sanitized = redactIPv4(sanitized);
+  sanitized = redactIPv6(sanitized);
+  sanitized = redactMACAddresses(sanitized);
 
   const redacted = countRedactions(text, sanitized);
 
