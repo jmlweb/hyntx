@@ -52,6 +52,7 @@ Add `lint-staged` configuration object to package.json:
 ```
 
 **Pattern matching**:
+
 - `*.ts` - TypeScript files: run ESLint fix and Prettier
 - `*.{json,md,yml,yaml}` - Config and docs: Prettier only
 - `*.{js,mjs,cjs}` - JavaScript files: ESLint fix and Prettier
@@ -61,11 +62,13 @@ Add `lint-staged` configuration object to package.json:
 Replace current content with lint-staged:
 
 **Current**:
+
 ```
 pnpm typecheck && pnpm lint
 ```
 
 **New**:
+
 ```
 pnpm lint-staged
 ```
@@ -81,11 +84,13 @@ Ensure husky is properly configured:
 - ✅ `.husky/commit-msg` exists and is executable (may need to fix permissions)
 
 **Verify current state**:
+
 ```bash
 ls -la .husky/
 ```
 
 **Fix executable permissions** (if needed):
+
 ```bash
 chmod +x .husky/pre-commit
 chmod +x .husky/commit-msg
@@ -134,4 +139,3 @@ git diff --staged
 - docs/DEVELOPMENT.md - Development setup (mentions lint-staged pattern)
 - [lint-staged documentation](https://github.com/okonet/lint-staged)
 - [husky documentation](https://typicode.github.io/husky/)
-

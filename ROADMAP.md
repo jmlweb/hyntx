@@ -102,7 +102,7 @@ Implement report formatter for terminal output with Before/After visualization.
 
 These tasks improve code quality, security, and enforce documented conventions.
 
-### 2.5.1. [Add ESLint Enforcement Rules](backlog/add-eslint-enforcement-rules.md)
+### ~~2.5.1. [Add ESLint Enforcement Rules](backlog/add-eslint-enforcement-rules.md)~~ ✅ COMPLETED
 
 **Priority**: P1 | **Dependencies**: none
 
@@ -247,7 +247,7 @@ For efficient development, it is recommended to follow this order:
 16. ~~**remove-unused-dependencies.md** - Quick cleanup (P0, no dependencies)~~ ✅
 17. ~~**fix-node-version-inconsistency.md** - Documentation fix (P0, no dependencies)~~ ✅
 18. ~~**move-types-to-devdeps.md** - Quick cleanup (P1, no dependencies)~~ ✅
-19. **add-eslint-enforcement-rules.md** - Code quality (P1, no dependencies)
+19. ~~**add-eslint-enforcement-rules.md** - Code quality (P1, no dependencies)~~ ✅
 20. **add-shell-config-permissions.md** - Security improvement (P1, no dependencies)
 21. **add-prettier-eslint-to-husky.md** - Developer experience (P1, no dependencies)
 22. **reporter-markdown.md** - File output (blocks cli-completo)

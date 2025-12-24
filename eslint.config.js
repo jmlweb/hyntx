@@ -43,6 +43,32 @@ export default tseslint.config(
         },
         { selector: 'function', format: ['camelCase'] },
       ],
+
+      // Enforce named exports only (AGENTS.md requirement)
+      'no-restricted-exports': [
+        'error',
+        {
+          restrictDefaultExports: {
+            direct: true,
+            named: true,
+            defaultFrom: true,
+            namedFrom: true,
+            namespaceFrom: true,
+          },
+        },
+      ],
+
+      // Prevent enum usage (prefer const maps per CODE-STYLE.md)
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'TSEnumDeclaration',
+          message: 'Use const maps instead of enums (see CODE-STYLE.md)',
+        },
+      ],
+
+      // Encourage immutability (functional programming)
+      'no-param-reassign': ['error', { props: true }],
     },
   },
   {
