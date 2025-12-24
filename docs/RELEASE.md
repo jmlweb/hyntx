@@ -162,8 +162,8 @@ jobs:
 
       - name: Publish to npm
         run: pnpm publish --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # Trusted Publishing (OIDC) does not require an npm token.
+        # Configure this repo as a "Trusted Publisher" for the package on npm.
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -223,17 +223,24 @@ jobs:
 
 Configure these in **Settings → Secrets and variables → Actions**:
 
-| Secret Name     | Description                          | Required For  |
-| --------------- | ------------------------------------ | ------------- |
-| `NPM_TOKEN`     | npm access token with publish rights | Release       |
-| `CODECOV_TOKEN` | Codecov token for coverage reports   | CI (optional) |
-| `SNYK_TOKEN`    | Snyk token for security scanning     | Security      |
+| Secret Name     | Description                        | Required For  |
+| --------------- | ---------------------------------- | ------------- |
+| `CODECOV_TOKEN` | Codecov token for coverage reports | CI (optional) |
+| `SNYK_TOKEN`    | Snyk token for security scanning   | Security      |
 
-### Creating npm Token
+### Configure npm Trusted Publishing (Recommended)
 
-1. Go to [npmjs.com](https://www.npmjs.com) → Account Settings → Access Tokens
-2. Create a new **Automation** token (for CI/CD)
-3. Copy the token and add it as `NPM_TOKEN` in GitHub Secrets
+Instead of storing a long-lived `NPM_TOKEN`, configure **Trusted Publishing** for your npm package:
+
+1. Go to `npmjs.com` → your package → **Settings** → **Trusted Publishers**
+2. Add **GitHub Actions** as a trusted publisher
+3. Select this repo and the workflow file: `.github/workflows/release.yml`
+
+After this, publishing from GitHub Actions will use **OIDC** and no npm token secret is required.
+
+### (Optional) Token-based publishing
+
+If you need to publish outside GitHub Actions (local/manual or from an unsupported CI), create a **granular** npm access token and use it as `NPM_TOKEN` for that environment only.
 
 ---
 
@@ -530,6 +537,11 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write # enable OIDC for npm Trusted Publishing + provenance
     steps:
       - uses: actions/checkout@v4
         with:
@@ -552,7 +564,6 @@ jobs:
       - run: pnpm dlx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 ```
 
 **Workflow**:
@@ -1350,9 +1361,9 @@ git tag v1.0.0
 
 ### "GitHub Actions release failed"
 
-- Check `NPM_TOKEN` secret is set
-- Verify token has publish permissions
-- Check workflow logs for specific errors
+- Ensure the job has `permissions: id-token: write`
+- Ensure the npm package is configured with this repo/workflow as a **Trusted Publisher**
+- Check workflow logs for the npm OIDC/token-exchange error details
 
 ---
 
