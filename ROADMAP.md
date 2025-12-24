@@ -54,7 +54,7 @@ Extend log reading with date and project filters, and day grouping.
 
 Implement automatic redaction of secrets and sensitive information before analysis.
 
-### 8. [Provider Base and Ollama](backlog/provider-base-ollama.md)
+### ~~8. [Provider Base and Ollama](backlog/provider-base-ollama.md)~~ ✅ COMPLETED
 
 **Priority**: P1 | **Dependencies**: tipos-base.md
 
@@ -151,7 +151,7 @@ For efficient development, it is recommended to follow this order:
 5. ~~**setup-inicial.md** - Initial configuration~~ ✅
 6. ~~**log-reader-completo.md** - Extends the basic~~ ✅
 7. ~~**sanitizer.md** - Independent, required before providers~~ ✅
-8. **provider-base-ollama.md** - First functional provider
+8. ~~**provider-base-ollama.md** - First functional provider~~ ✅
 9. **analyzer-batching.md** - Orchestrates analysis
 10. **reporter-terminal.md** - Shows results
 11. **cli-entry-basico.md** - Basic functional CLI
