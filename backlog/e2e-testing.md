@@ -44,9 +44,8 @@ Enable developers to validate the complete CLI workflow locally, test environmen
 Add support for `HYNTX_CLAUDE_PROJECTS_DIR` environment variable with fallback to default:
 
 ```typescript
-export const CLAUDE_PROJECTS_DIR = 
-  process.env['HYNTX_CLAUDE_PROJECTS_DIR'] ?? 
-  join(HOME, '.claude', 'projects');
+export const CLAUDE_PROJECTS_DIR =
+  process.env['HYNTX_CLAUDE_PROJECTS_DIR'] ?? join(HOME, '.claude', 'projects');
 ```
 
 ### 2. Test Utilities
@@ -72,6 +71,7 @@ export const CLAUDE_PROJECTS_DIR =
 ### 4. E2E Test Cases
 
 #### env-config.test.ts
+
 - Test adding `HYNTX_CLAUDE_PROJECTS_DIR` changes log reading path
 - Test removing `HYNTX_CLAUDE_PROJECTS_DIR` falls back to default
 - Test `HYNTX_SERVICES` configuration affects provider selection
@@ -79,6 +79,7 @@ export const CLAUDE_PROJECTS_DIR =
 - Test environment variable precedence (env > defaults)
 
 #### log-reading.test.ts
+
 - Test reading logs from custom path via `HYNTX_CLAUDE_PROJECTS_DIR`
 - Test prompt extraction from JSONL files
 - Test date filtering works correctly
@@ -87,6 +88,7 @@ export const CLAUDE_PROJECTS_DIR =
 - Test malformed JSONL handling
 
 #### cli.test.ts
+
 - Test full workflow: read → sanitize → analyze → report
 - Test with mocked provider responses
 - Test exit codes (0, 1, 2, 3)
@@ -96,6 +98,7 @@ export const CLAUDE_PROJECTS_DIR =
 - Test project filtering
 
 #### provider-integration.test.ts
+
 - Test provider selection based on `HYNTX_SERVICES`
 - Test Ollama availability check (mocked)
 - Test fallback chain when providers unavailable
@@ -137,12 +140,14 @@ export const CLAUDE_PROJECTS_DIR =
 ## Test Cases
 
 ### Environment Configuration
+
 - Adding `HYNTX_CLAUDE_PROJECTS_DIR` changes log reading path
 - Removing `HYNTX_CLAUDE_PROJECTS_DIR` falls back to default
 - `HYNTX_SERVICES` configuration affects provider selection
 - Provider-specific environment variables are respected
 
 ### Log Reading
+
 - Reading logs from custom path works correctly
 - Prompt extraction from JSONL files works
 - Date filtering works correctly
@@ -151,6 +156,7 @@ export const CLAUDE_PROJECTS_DIR =
 - Malformed JSONL handling
 
 ### Complete Workflow
+
 - Full workflow: read → sanitize → analyze → report
 - Exit codes are correct (0, 1, 2, 3)
 - CLI flags work correctly (`--dry-run`, `--verbose`)
@@ -158,6 +164,7 @@ export const CLAUDE_PROJECTS_DIR =
 - Project filtering works
 
 ### Provider Integration
+
 - Provider selection based on configuration
 - Provider availability checks (mocked)
 - Fallback chain when providers unavailable
@@ -186,4 +193,3 @@ export const CLAUDE_PROJECTS_DIR =
 - `docs/TESTING.md` - Testing strategy documentation
 - `docs/SPECS.md` - Technical specifications
 - `docs/CLI.md` - CLI interface documentation
-
