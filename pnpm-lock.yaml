@@ -7,9 +7,6 @@ settings:
 importers:
   .:
     dependencies:
-      '@types/figlet':
-        specifier: ^1.7.0
-        version: 1.7.0
       boxen:
         specifier: ^8.0.1
         version: 8.0.1
@@ -38,6 +35,9 @@ importers:
       '@eslint/js':
         specifier: ^9.17.0
         version: 9.39.2
+      '@types/figlet':
+        specifier: ^1.7.0
+        version: 1.7.0
       '@types/node':
         specifier: ^25.0.3
         version: 25.0.3

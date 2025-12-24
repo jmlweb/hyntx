@@ -114,7 +114,7 @@ Add missing ESLint rules to enforce documented conventions: no-default-export, n
 
 Set restrictive file permissions (600) on shell config files after writing API keys to prevent access by other users.
 
-### 2.5.3. [Move Type Definitions to Dev Dependencies](backlog/move-types-to-devdeps.md)
+### ~~2.5.3. [Move Type Definitions to Dev Dependencies](backlog/move-types-to-devdeps.md)~~ ✅ COMPLETED
 
 **Priority**: P1 | **Dependencies**: none
 
@@ -240,7 +240,7 @@ For efficient development, it is recommended to follow this order:
 15. ~~**reminder-system.md** - Reminder system~~ ✅
 16. ~~**remove-unused-dependencies.md** - Quick cleanup (P0, no dependencies)~~ ✅
 17. ~~**fix-node-version-inconsistency.md** - Documentation fix (P0, no dependencies)~~ ✅
-18. **move-types-to-devdeps.md** - Quick cleanup (P1, no dependencies)
+18. ~~**move-types-to-devdeps.md** - Quick cleanup (P1, no dependencies)~~ ✅
 19. **add-eslint-enforcement-rules.md** - Code quality (P1, no dependencies)
 20. **add-shell-config-permissions.md** - Security improvement (P1, no dependencies)
 21. **reporter-markdown.md** - File output (blocks cli-completo)
