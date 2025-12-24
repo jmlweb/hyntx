@@ -510,10 +510,18 @@ describe('updateShellConfig', () => {
 });
 
 describe('saveConfigToShell', () => {
+  const originalEnv = process.env;
+
   beforeEach(() => {
     vi.clearAllMocks();
     // Re-mock homedir after clearAllMocks
     vi.mocked(os.homedir).mockReturnValue('/mock/home');
+    // Mock SHELL to ensure consistent detection across platforms
+    process.env = { ...originalEnv, SHELL: '/bin/zsh' };
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
   });
 
   it('saves config to detected shell file successfully', () => {
@@ -577,10 +585,18 @@ describe('saveConfigToShell', () => {
 });
 
 describe('getManualInstructions', () => {
+  const originalEnv = process.env;
+
   beforeEach(() => {
     vi.clearAllMocks();
     // Re-mock homedir after clearAllMocks
     vi.mocked(os.homedir).mockReturnValue('/mock/home');
+    // Mock SHELL to ensure consistent detection across platforms
+    process.env = { ...originalEnv, SHELL: '/bin/zsh' };
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
   });
 
   it('returns manual instructions with exports', () => {
