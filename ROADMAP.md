@@ -234,7 +234,7 @@ Refactor `log-reader.ts` to remove unnecessary defensive code and improve type s
 
 Implement comprehensive end-to-end testing infrastructure for local development validation. Tests validate complete CLI workflow, environment variable configuration, and custom Claude Code paths. **Note**: These tests are local-only and NOT included in CI/CD pipelines.
 
-### 20. [Complete CLI with All Options](backlog/cli-completo.md)
+### ~~20. [Complete CLI with All Options](backlog/cli-completo.md)~~ ✅ COMPLETED
 
 **Priority**: P3 | **Dependencies**: cli-entry-basico.md, reminder-system.md, reporter-markdown.md, provider-factory.md, log-reader-completo.md
 
@@ -292,7 +292,7 @@ For efficient development, it is recommended to follow this order:
 25. ~~**test-coverage-setup-shell.md** - Test coverage (blocks refactor-shell-config-logic)~~ ✅
 26. ~~**refactor-log-reader-types.md** - Type safety improvements (quick win)~~ ✅
 27. ~~**e2e-testing.md** - E2E testing infrastructure (local-only)~~ ✅
-28. **cli-completo.md** - Complete CLI (requires reporter-markdown)
+28. ~~**cli-completo.md** - Complete CLI (requires reporter-markdown)~~ ✅
 29. **error-handling.md** - Complete review (requires all previous)
 30. **refactor-shell-config-logic.md** - Shell config edge case simplification (P4)
 

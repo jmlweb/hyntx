@@ -70,8 +70,8 @@ type ParsedArgs = {
   readonly version: boolean;
   readonly verbose: boolean;
   readonly checkConfig: boolean;
-  readonly format?: 'terminal' | 'json';
-  readonly compact?: boolean;
+  readonly format: 'terminal' | 'json';
+  readonly compact: boolean;
 };
 
 // =============================================================================
@@ -991,7 +991,7 @@ export async function main(): Promise<void> {
 
       // Display results
       if (!args.output || !isJsonMode) {
-        displayResults(result, args.format ?? 'terminal', args.compact);
+        displayResults(result, args.format, args.compact);
       }
     }
 
