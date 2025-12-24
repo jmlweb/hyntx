@@ -5,7 +5,7 @@
 # set -e
 
 # Validate inputs
-MAX_TASKS=${1:-5}
+MAX_TASKS=${1:-10}
 DELAY=${2:-2}
 
 # Validate MAX_TASKS is a positive integer
@@ -74,6 +74,34 @@ for i in $(seq 1 $MAX_TASKS); do
     COMPLETED=$((COMPLETED + 1))
     echo ""
     echo "✓ Task $i completed successfully (exit code: $EXIT_CODE)"
+    
+    # Sync with remote repository
+    echo ""
+    echo "🔄 Syncing with remote repository..."
+    
+    # Pull latest changes
+    if command -v ggpull &> /dev/null; then
+      echo "Executing: ggpull"
+      ggpull
+      PULL_EXIT_CODE=$?
+      if [ $PULL_EXIT_CODE -ne 0 ]; then
+        echo "⚠️  Warning: ggpull failed (exit code: $PULL_EXIT_CODE)" >&2
+      fi
+    else
+      echo "⚠️  Warning: 'ggpull' command not found, skipping pull" >&2
+    fi
+    
+    # Push local changes
+    if command -v ggpush &> /dev/null; then
+      echo "Executing: ggpush"
+      ggpush
+      PUSH_EXIT_CODE=$?
+      if [ $PUSH_EXIT_CODE -ne 0 ]; then
+        echo "⚠️  Warning: ggpush failed (exit code: $PUSH_EXIT_CODE)" >&2
+      fi
+    else
+      echo "⚠️  Warning: 'ggpush' command not found, skipping push" >&2
+    fi
   else
     echo ""
     echo "✗ Task $i failed (exit code: $EXIT_CODE)"
