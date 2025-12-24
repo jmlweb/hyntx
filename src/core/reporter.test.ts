@@ -14,6 +14,7 @@ import {
   formatPattern,
   formatTopSuggestion,
   formatJson,
+  formatMarkdown,
 } from './reporter.js';
 import type {
   AnalysisResult,
@@ -878,5 +879,303 @@ describe('formatJson', () => {
     expect(parsed.topSuggestion).toContain('🔴');
     expect(parsed.patterns[0]?.name).toContain('中文');
     expect(parsed.patterns[0]?.suggestion).toContain('日本語');
+  });
+});
+
+describe('formatMarkdown', () => {
+  const createAnalysisResult = (
+    overrides?: Partial<AnalysisResult>,
+  ): AnalysisResult => ({
+    date: '2025-01-15',
+    patterns: [],
+    stats: {
+      totalPrompts: 100,
+      promptsWithIssues: 20,
+      overallScore: 8,
+    },
+    topSuggestion: 'Keep up the good work!',
+    ...overrides,
+  });
+
+  const createPattern = (id: string): AnalysisPattern => ({
+    id,
+    name: `Pattern ${id}`,
+    frequency: 5,
+    severity: 'medium',
+    examples: [`Example for ${id}`],
+    suggestion: `Fix ${id}`,
+    beforeAfter: {
+      before: `Before ${id}`,
+      after: `After ${id}`,
+    },
+  });
+
+  it('should generate valid Markdown with header', () => {
+    const result = createAnalysisResult();
+    const markdown = formatMarkdown(result);
+
+    // Should start with H1 header
+    expect(markdown.startsWith('# Hyntx Analysis Report')).toBe(true);
+    // Should contain the date
+    expect(markdown).toContain('**Date:** 2025-01-15');
+  });
+
+  it('should include statistics table', () => {
+    const result = createAnalysisResult({
+      stats: {
+        totalPrompts: 100,
+        promptsWithIssues: 20,
+        overallScore: 8,
+      },
+    });
+    const markdown = formatMarkdown(result);
+
+    // Should have Statistics section
+    expect(markdown).toContain('## Statistics');
+    // Should have table headers
+    expect(markdown).toContain('| Metric | Value |');
+    expect(markdown).toContain('|--------|-------|');
+    // Should contain stats values
+    expect(markdown).toContain('| Total Prompts | 100 |');
+    expect(markdown).toContain('| Prompts with Issues | 20 |');
+    expect(markdown).toContain('| Overall Score | 8/10 |');
+  });
+
+  it('should include top suggestion as blockquote', () => {
+    const result = createAnalysisResult({
+      topSuggestion: 'This is the top suggestion',
+    });
+    const markdown = formatMarkdown(result);
+
+    expect(markdown).toContain('## Top Suggestion');
+    expect(markdown).toContain('> 💡 This is the top suggestion');
+  });
+
+  it('should handle empty top suggestion', () => {
+    const result = createAnalysisResult({
+      topSuggestion: '',
+    });
+    const markdown = formatMarkdown(result);
+
+    // Should not include Top Suggestion section if empty
+    expect(markdown).not.toContain('## Top Suggestion');
+  });
+
+  it('should format patterns with severity icons', () => {
+    const result = createAnalysisResult({
+      patterns: [
+        { ...createPattern('high'), severity: 'high' },
+        { ...createPattern('medium'), severity: 'medium' },
+        { ...createPattern('low'), severity: 'low' },
+      ],
+    });
+    const markdown = formatMarkdown(result);
+
+    expect(markdown).toContain('## Detected Patterns');
+    expect(markdown).toContain('### 1. 🔴 Pattern high');
+    expect(markdown).toContain('### 2. 🟡 Pattern medium');
+    expect(markdown).toContain('### 3. 🟢 Pattern low');
+  });
+
+  it('should include pattern frequency and severity', () => {
+    const result = createAnalysisResult({
+      patterns: [createPattern('test')],
+    });
+    const markdown = formatMarkdown(result);
+
+    expect(markdown).toContain('**Frequency:** 5 | **Severity:** medium');
+  });
+
+  it('should include pattern examples', () => {
+    const result = createAnalysisResult({
+      patterns: [
+        {
+          ...createPattern('test'),
+          examples: ['First example', 'Second example'],
+        },
+      ],
+    });
+    const markdown = formatMarkdown(result);
+
+    expect(markdown).toContain('**Examples:**');
+    expect(markdown).toContain('- First example');
+    expect(markdown).toContain('- Second example');
+  });
+
+  it('should handle pattern with no examples', () => {
+    const result = createAnalysisResult({
+      patterns: [{ ...createPattern('test'), examples: [] }],
+    });
+    const markdown = formatMarkdown(result);
+
+    expect(markdown).not.toContain('**Examples:**');
+  });
+
+  it('should include pattern suggestion', () => {
+    const result = createAnalysisResult({
+      patterns: [{ ...createPattern('test'), suggestion: 'Do this instead' }],
+    });
+    const markdown = formatMarkdown(result);
+
+    expect(markdown).toContain('**Suggestion:**');
+    expect(markdown).toContain('Do this instead');
+  });
+
+  it('should format before/after as blockquotes', () => {
+    const result = createAnalysisResult({
+      patterns: [
+        {
+          ...createPattern('test'),
+          beforeAfter: {
+            before: 'Old way',
+            after: 'New way',
+          },
+        },
+      ],
+    });
+    const markdown = formatMarkdown(result);
+
+    expect(markdown).toContain('**Before/After:**');
+    expect(markdown).toContain('> ❌ **Before:**');
+    expect(markdown).toContain('> Old way');
+    expect(markdown).toContain('> ✅ **After:**');
+    expect(markdown).toContain('> New way');
+  });
+
+  it('should handle multi-line before/after text', () => {
+    const result = createAnalysisResult({
+      patterns: [
+        {
+          ...createPattern('test'),
+          beforeAfter: {
+            before: 'Line 1\nLine 2',
+            after: 'Better 1\nBetter 2',
+          },
+        },
+      ],
+    });
+    const markdown = formatMarkdown(result);
+
+    expect(markdown).toContain('> Line 1');
+    expect(markdown).toContain('> Line 2');
+    expect(markdown).toContain('> Better 1');
+    expect(markdown).toContain('> Better 2');
+  });
+
+  it('should show no issues message when no patterns', () => {
+    const result = createAnalysisResult({ patterns: [] });
+    const markdown = formatMarkdown(result);
+
+    expect(markdown).toContain('## Results');
+    expect(markdown).toContain(
+      '✅ No issues detected! Your prompts look great.',
+    );
+  });
+
+  it('should include footer with generator link', () => {
+    const result = createAnalysisResult();
+    const markdown = formatMarkdown(result);
+
+    expect(markdown).toContain(
+      '*Generated by [Hyntx](https://github.com/hyntx/hyntx)*',
+    );
+  });
+
+  it('should produce valid Markdown structure', () => {
+    const result = createAnalysisResult({
+      patterns: [createPattern('p1'), createPattern('p2')],
+    });
+    const markdown = formatMarkdown(result);
+
+    // Should have proper line breaks
+    expect(markdown).toContain('\n\n');
+    // Should have horizontal rules between patterns
+    expect(markdown).toContain('---');
+    // Should have all main sections
+    expect(markdown).toContain('## Statistics');
+    expect(markdown).toContain('## Top Suggestion');
+    expect(markdown).toContain('## Detected Patterns');
+  });
+
+  it('should handle special characters in text', () => {
+    const result = createAnalysisResult({
+      topSuggestion: 'Test with `backticks` and *asterisks*',
+      patterns: [
+        {
+          ...createPattern('special'),
+          name: 'Pattern with [brackets]',
+          suggestion: 'Fix with (parentheses)',
+          beforeAfter: {
+            before: 'Code with `code`',
+            after: 'Better with **bold**',
+          },
+        },
+      ],
+    });
+    const markdown = formatMarkdown(result);
+
+    // Special characters should be preserved
+    expect(markdown).toContain('`backticks`');
+    expect(markdown).toContain('*asterisks*');
+    expect(markdown).toContain('[brackets]');
+    expect(markdown).toContain('(parentheses)');
+  });
+
+  it('should handle Unicode characters', () => {
+    const result = createAnalysisResult({
+      topSuggestion: 'Test with emojis 🎉 and 日本語',
+      patterns: [
+        {
+          ...createPattern('unicode'),
+          name: 'Pattern with 中文',
+        },
+      ],
+    });
+    const markdown = formatMarkdown(result);
+
+    expect(markdown).toContain('🎉');
+    expect(markdown).toContain('日本語');
+    expect(markdown).toContain('中文');
+  });
+
+  it('should produce consistent output', () => {
+    const result = createAnalysisResult({
+      patterns: [createPattern('test')],
+    });
+
+    const markdown1 = formatMarkdown(result);
+    const markdown2 = formatMarkdown(result);
+
+    expect(markdown1).toBe(markdown2);
+  });
+
+  it('should handle zero values in stats', () => {
+    const result = createAnalysisResult({
+      stats: {
+        totalPrompts: 0,
+        promptsWithIssues: 0,
+        overallScore: 0,
+      },
+    });
+    const markdown = formatMarkdown(result);
+
+    expect(markdown).toContain('| Total Prompts | 0 |');
+    expect(markdown).toContain('| Prompts with Issues | 0 |');
+    expect(markdown).toContain('| Overall Score | 0/10 |');
+  });
+
+  it('should handle all severity types', () => {
+    const result = createAnalysisResult({
+      patterns: [
+        { ...createPattern('h'), severity: 'high' },
+        { ...createPattern('m'), severity: 'medium' },
+        { ...createPattern('l'), severity: 'low' },
+      ],
+    });
+    const markdown = formatMarkdown(result);
+
+    expect(markdown).toContain('🔴');
+    expect(markdown).toContain('🟡');
+    expect(markdown).toContain('🟢');
   });
 });

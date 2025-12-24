@@ -210,7 +210,7 @@ These tasks add advanced features and complete the system.
 
 Implement periodic reminder system to maintain the analysis habit.
 
-### 16. [Markdown Format Reporter](backlog/reporter-markdown.md)
+### ~~16. [Markdown Format Reporter](backlog/reporter-markdown.md)~~ ✅ COMPLETED
 
 **Priority**: P3 | **Dependencies**: tipos-base.md, reporter-terminal.md
 
@@ -286,7 +286,7 @@ For efficient development, it is recommended to follow this order:
 19. ~~**add-eslint-enforcement-rules.md** - Code quality (P1, no dependencies)~~ ✅
 20. ~~**add-shell-config-permissions.md** - Security improvement (P1, no dependencies)~~ ✅
 21. ~~**add-prettier-eslint-to-husky.md** - Developer experience (P1, no dependencies)~~ ✅
-22. **reporter-markdown.md** - File output (blocks cli-completo)
+22. ~~**reporter-markdown.md** - File output (blocks cli-completo)~~ ✅
 23. ~~**add-provider-retry-logic.md** - Reliability improvement (P2)~~ ✅
 24. ~~**add-provider-rate-limiting.md** - Reliability improvement (P2)~~ ✅
 25. **test-coverage-setup-shell.md** - Test coverage (blocks refactor-shell-config-logic)
