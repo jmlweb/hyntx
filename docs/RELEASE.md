@@ -335,6 +335,7 @@ Current setting: `--access public` in release workflow.
 The goal is **minimal cognitive overhead** with **maximum automation**. You should only think about versioning when making releases, not during development.
 
 **Core Principles**:
+
 1. **Conventional Commits** → Automatic version detection
 2. **Single source of truth** → `package.json` version
 3. **Automated workflows** → CI/CD handles bumping and publishing
@@ -368,6 +369,7 @@ Is it a breaking change?
 #### What Counts as Breaking?
 
 ✅ **Breaking Changes** (MAJOR):
+
 - Removing public APIs
 - Changing function signatures
 - Removing CLI flags/options
@@ -376,6 +378,7 @@ Is it a breaking change?
 - Changing configuration file format
 
 ✅ **New Features** (MINOR):
+
 - Adding new CLI flags
 - Adding new public APIs
 - Adding new configuration options
@@ -383,6 +386,7 @@ Is it a breaking change?
 - New provider support
 
 ✅ **Bug Fixes** (PATCH):
+
 - Fixing crashes
 - Fixing incorrect behavior
 - Documentation corrections
@@ -391,14 +395,14 @@ Is it a breaking change?
 
 #### Examples for Hyntx
 
-| Change | Version Bump | Example |
-|--------|--------------|---------|
-| Remove `--output` flag | MAJOR | 0.1.0 → 1.0.0 |
-| Add `--json` output format | MINOR | 0.1.0 → 0.2.0 |
-| Fix date parsing bug | PATCH | 0.1.0 → 0.1.1 |
-| Change default model | MAJOR | 0.1.0 → 1.0.0 |
-| Add Google provider | MINOR | 0.1.0 → 0.2.0 |
-| Fix typo in error message | PATCH | 0.1.0 → 0.1.1 |
+| Change                     | Version Bump | Example       |
+| -------------------------- | ------------ | ------------- |
+| Remove `--output` flag     | MAJOR        | 0.1.0 → 1.0.0 |
+| Add `--json` output format | MINOR        | 0.1.0 → 0.2.0 |
+| Fix date parsing bug       | PATCH        | 0.1.0 → 0.1.1 |
+| Change default model       | MAJOR        | 0.1.0 → 1.0.0 |
+| Add Google provider        | MINOR        | 0.1.0 → 0.2.0 |
+| Fix typo in error message  | PATCH        | 0.1.0 → 0.1.1 |
 
 ---
 
@@ -416,23 +420,24 @@ Is it a breaking change?
 
 #### Commit Types → Version Bumps
 
-| Commit Type | Version Bump | Example |
-|-------------|--------------|---------|
-| `feat:` | MINOR | `feat(cli): add --json output` |
-| `fix:` | PATCH | `fix(reader): handle empty logs` |
-| `perf:` | PATCH | `perf(analyzer): optimize batching` |
-| `refactor:` | PATCH | `refactor(providers): simplify factory` |
-| `docs:` | PATCH | `docs: update README installation` |
-| `style:` | PATCH | `style: format code with prettier` |
-| `test:` | PATCH | `test: add coverage for sanitizer` |
-| `chore:` | PATCH | `chore: update dependencies` |
-| `BREAKING CHANGE:` | MAJOR | `feat!: remove deprecated API` |
+| Commit Type        | Version Bump | Example                                 |
+| ------------------ | ------------ | --------------------------------------- |
+| `feat:`            | MINOR        | `feat(cli): add --json output`          |
+| `fix:`             | PATCH        | `fix(reader): handle empty logs`        |
+| `perf:`            | PATCH        | `perf(analyzer): optimize batching`     |
+| `refactor:`        | PATCH        | `refactor(providers): simplify factory` |
+| `docs:`            | PATCH        | `docs: update README installation`      |
+| `style:`           | PATCH        | `style: format code with prettier`      |
+| `test:`            | PATCH        | `test: add coverage for sanitizer`      |
+| `chore:`           | PATCH        | `chore: update dependencies`            |
+| `BREAKING CHANGE:` | MAJOR        | `feat!: remove deprecated API`          |
 
 #### Breaking Change Indicators
 
 Two ways to indicate breaking changes:
 
 **Option 1: Footer**
+
 ```
 feat(api): add new endpoint
 
@@ -440,6 +445,7 @@ BREAKING CHANGE: Removes deprecated /v1 endpoint
 ```
 
 **Option 2: Exclamation mark**
+
 ```
 feat(api)!: remove deprecated endpoint
 ```
@@ -471,6 +477,7 @@ git commit -m "feat(cli)!: remove --verbose flag"
 #### Option A: Semantic Release (Recommended)
 
 **Semantic Release** automatically:
+
 - Detects version from commits
 - Bumps `package.json`
 - Creates git tags
@@ -527,21 +534,21 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - uses: pnpm/action-setup@v4
         with:
           version: 9.15.4
-      
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22.x
           registry-url: 'https://registry.npmjs.org'
           cache: 'pnpm'
-      
+
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm test:run
-      
+
       - run: pnpm dlx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -659,12 +666,12 @@ Automatically generates `CHANGELOG.md` from commits:
 
 ### Features
 
-* **cli**: add --json output format ([abc123](https://github.com/user/hyntx/commit/abc123))
-* **providers**: add Google Gemini support ([def456](https://github.com/user/hyntx/commit/def456))
+- **cli**: add --json output format ([abc123](https://github.com/user/hyntx/commit/abc123))
+- **providers**: add Google Gemini support ([def456](https://github.com/user/hyntx/commit/def456))
 
 ### Bug Fixes
 
-* **sanitizer**: redact AWS secret keys ([ghi789](https://github.com/user/hyntx/commit/ghi789))
+- **sanitizer**: redact AWS secret keys ([ghi789](https://github.com/user/hyntx/commit/ghi789))
 ```
 
 **Manual with `standard-version`**:
@@ -699,17 +706,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - New feature X
 
 ### Changed
+
 - Improved Y
 
 ### Fixed
+
 - Bug Z
 
 ## [1.0.0] - 2025-01-20
 
 ### Added
+
 - Initial release
 - CLI with basic analysis
 - Ollama provider support
@@ -825,6 +836,7 @@ git push origin main --tags
 #### ✅ DO
 
 1. **Use Conventional Commits** consistently
+
    ```bash
    feat(cli): add --json output
    fix(reader): handle empty logs
@@ -839,6 +851,7 @@ git push origin main --tags
    - Or use automatic generation
 
 4. **Tag releases immediately**
+
    ```bash
    git tag v1.0.0
    git push origin v1.0.0
@@ -852,24 +865,28 @@ git push origin main --tags
 #### ❌ DON'T
 
 1. **Don't skip versions**
+
    ```bash
    # ❌ Bad: Skip from 0.1.0 to 0.3.0
    # ✅ Good: 0.1.0 → 0.2.0 → 0.3.0
    ```
 
 2. **Don't bump version for every commit**
+
    ```bash
    # ❌ Bad: Version bump in every commit
    # ✅ Good: Version bump only on release
    ```
 
 3. **Don't mix versioning strategies**
+
    ```bash
    # ❌ Bad: Sometimes manual, sometimes auto
    # ✅ Good: Pick one strategy and stick to it
    ```
 
 4. **Don't forget to update changelog**
+
    ```bash
    # ❌ Bad: Release without changelog
    # ✅ Good: Always update changelog
@@ -888,6 +905,7 @@ git push origin main --tags
 **Recommended**: **Semantic Release** (fully automated)
 
 **Why**:
+
 - Project uses Conventional Commits (already in AGENTS.md)
 - Reduces cognitive overhead
 - Automatic changelog generation
@@ -896,6 +914,7 @@ git push origin main --tags
 **Setup Steps**:
 
 1. Install dependencies:
+
    ```bash
    pnpm add -D semantic-release @semantic-release/changelog @semantic-release/git
    ```
@@ -954,6 +973,7 @@ Here's how a real project might evolve:
 ```
 
 Notice:
+
 - **PATCH**: Bug fixes, small improvements
 - **MINOR**: New features, backward compatible
 - **MAJOR**: Breaking changes (rare, but important)
@@ -962,17 +982,17 @@ Notice:
 
 ### 12. Quick Reference
 
-| Task | Command |
-|------|---------|
+| Task                  | Command                                       |
+| --------------------- | --------------------------------------------- |
 | Check current version | `node -p "require('./package.json').version"` |
-| Bump patch | `npm version patch` |
-| Bump minor | `npm version minor` |
-| Bump major | `npm version major` |
-| Create tag | `git tag v1.0.0` |
-| Push tag | `git push origin v1.0.0` |
-| List tags | `git tag -l` |
-| Delete tag | `git tag -d v1.0.0` |
-| View version history | `git log --oneline --decorate` |
+| Bump patch            | `npm version patch`                           |
+| Bump minor            | `npm version minor`                           |
+| Bump major            | `npm version major`                           |
+| Create tag            | `git tag v1.0.0`                              |
+| Push tag              | `git push origin v1.0.0`                      |
+| List tags             | `git tag -l`                                  |
+| Delete tag            | `git tag -d v1.0.0`                           |
+| View version history  | `git log --oneline --decorate`                |
 
 ---
 

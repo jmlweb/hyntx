@@ -2,6 +2,18 @@
 
 This roadmap organizes the implementation tasks for the Hyntx project following a Vertical Slicing approach, where each task represents a complete end-to-end functionality.
 
+## Phase 0: Pre-Foundation (P0 - Critical)
+
+These tasks should be completed before starting development to secure project infrastructure.
+
+### 0. [Dummy npm Deployment - Package Name Reservation](backlog/npm-dummy-deployment.md)
+
+**Priority**: P0 | **Dependencies**: none
+
+Perform a dummy deployment to npm to reserve the `hyntx` package name and prevent name squatting. This is a minimal deployment with placeholder functionality.
+
+---
+
 ## Phase 1: Foundation (P0 - Critical)
 
 These tasks are essential and must be completed first, as they form the foundation of the system.
@@ -144,6 +156,7 @@ Implement comprehensive end-to-end testing infrastructure for local development 
 
 For efficient development, it is recommended to follow this order:
 
+0. **npm-dummy-deployment.md** - Reserve package name (do this first!)
 1. ~~**tipos-base.md** - Fundamental base~~ ✅
 2. ~~**schema-validator.md** - Simple, no complex dependencies~~ ✅
 3. ~~**utils-completos.md** - Required early for paths and shell-config~~ ✅

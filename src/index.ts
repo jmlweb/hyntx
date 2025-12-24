@@ -1,8 +1,357 @@
+#!/usr/bin/env node
+
 /**
  * Hyntx - CLI Entry Point
  *
- * This is a placeholder entry point. The actual CLI implementation
- * will be added in a future task (cli-entry-basico.md).
+ * Main entry point for the Hyntx CLI that analyzes Claude Code prompts
+ * and generates improvement suggestions.
  */
 
-export * from './types/index.js';
+import { parseArgs } from 'node:util';
+import chalk from 'chalk';
+import ora from 'ora';
+import { isFirstRun, getEnvConfig } from './utils/env.js';
+import { claudeProjectsExist, readLogs } from './core/log-reader.js';
+import { runSetup } from './core/setup.js';
+import { analyzePrompts } from './core/analyzer.js';
+import { printReport } from './core/reporter.js';
+import { OllamaProvider } from './providers/ollama.js';
+import { CLAUDE_PROJECTS_DIR } from './utils/paths.js';
+import { EXIT_CODES } from './types/index.js';
+import type { AnalysisResult } from './types/index.js';
+
+// =============================================================================
+// Types
+// =============================================================================
+
+/**
+ * Parsed command-line arguments.
+ */
+type ParsedArgs = {
+  readonly date: string;
+  readonly help: boolean;
+  readonly version: boolean;
+};
+
+// =============================================================================
+// Constants
+// =============================================================================
+
+/**
+ * Package version (hardcoded for now, can be loaded from package.json).
+ */
+const VERSION = '0.0.1';
+
+// =============================================================================
+// Helper Functions
+// =============================================================================
+
+/**
+ * Parses command-line arguments.
+ *
+ * @returns Parsed arguments
+ * @throws Error if arguments are invalid
+ */
+export function parseArguments(): ParsedArgs {
+  try {
+    const { values } = parseArgs({
+      options: {
+        date: {
+          type: 'string',
+          default: 'today',
+        },
+        help: {
+          type: 'boolean',
+          short: 'h',
+          default: false,
+        },
+        version: {
+          type: 'boolean',
+          default: false,
+        },
+      },
+      strict: true,
+      allowPositionals: false,
+    });
+
+    return {
+      date: values.date || 'today',
+      help: values.help || false,
+      version: values.version || false,
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Invalid arguments: ${errorMessage}`);
+  }
+}
+
+/**
+ * Displays help message and exits.
+ */
+export function showHelp(): void {
+  const helpText = `
+${chalk.bold('Usage:')} hyntx [options]
+
+${chalk.bold('Options:')}
+  --date <date>     Date to analyze (today, yesterday, YYYY-MM-DD) [default: today]
+  -h, --help        Show help
+  --version         Show version
+
+${chalk.bold('Exit codes:')}
+  ${String(EXIT_CODES.SUCCESS)} - Success
+  ${String(EXIT_CODES.ERROR)} - Error
+  ${String(EXIT_CODES.NO_DATA)} - No data found
+  ${String(EXIT_CODES.PROVIDER_UNAVAILABLE)} - Provider unavailable
+
+${chalk.bold('Examples:')}
+  hyntx                      # Analyze today's prompts
+  hyntx --date yesterday     # Analyze yesterday
+  hyntx --date 2025-01-20    # Specific date
+`;
+
+  console.log(helpText);
+  process.exit(EXIT_CODES.SUCCESS);
+}
+
+/**
+ * Displays version information and exits.
+ */
+export function showVersion(): void {
+  console.log(`hyntx v${VERSION}`);
+  process.exit(EXIT_CODES.SUCCESS);
+}
+
+/**
+ * Checks if this is the first run and runs setup if needed.
+ */
+export async function checkAndRunSetup(): Promise<void> {
+  if (isFirstRun()) {
+    const spinner = ora('Running first-time setup...').start();
+    spinner.stop(); // Stop before interactive prompts
+
+    await runSetup();
+  }
+}
+
+/**
+ * Reads logs for the specified date with a spinner.
+ *
+ * @param date - Date to read logs for
+ * @returns Array of prompt strings
+ */
+export async function readLogsWithSpinner(
+  date: string,
+): Promise<readonly string[]> {
+  // Check if Claude projects directory exists
+  if (!claudeProjectsExist()) {
+    console.error(chalk.red('Error: Claude Code logs directory not found'));
+    console.error(
+      chalk.dim(`Expected location: ${CLAUDE_PROJECTS_DIR}`),
+    );
+    console.error(
+      chalk.dim(
+        '\nMake sure Claude Code is installed and has been used at least once.',
+      ),
+    );
+    process.exit(EXIT_CODES.NO_DATA);
+  }
+
+  const spinner = ora(`Reading Claude Code logs for ${date}...`).start();
+
+  try {
+    const result = await readLogs({ date });
+
+    if (result.prompts.length === 0) {
+      spinner.fail(
+        chalk.yellow(`No prompts found for ${date}`),
+      );
+      console.error(
+        chalk.dim(
+          '\nTry a different date or check that Claude Code has been used recently.',
+        ),
+      );
+      process.exit(EXIT_CODES.NO_DATA);
+    }
+
+    spinner.succeed(
+      chalk.green(
+        `Found ${String(result.prompts.length)} prompts for ${date}`,
+      ),
+    );
+
+    // Show warnings if any (but don't fail)
+    if (result.warnings.length > 0) {
+      for (const warning of result.warnings) {
+        console.warn(chalk.yellow(`Warning: ${warning}`));
+      }
+    }
+
+    // Extract prompt content strings
+    return result.prompts.map((p) => p.content);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    spinner.fail(chalk.red(`Failed to read logs: ${errorMessage}`));
+    process.exit(EXIT_CODES.ERROR);
+  }
+}
+
+/**
+ * Connects to the Ollama provider with availability check.
+ *
+ * @returns OllamaProvider instance
+ */
+export async function connectProviderWithSpinner(): Promise<OllamaProvider> {
+  const config = getEnvConfig();
+
+  // Check if Ollama is configured
+  if (!config.services.includes('ollama')) {
+    console.error(chalk.red('Error: Ollama provider not configured'));
+    console.error(
+      chalk.dim('\nRun setup again to configure Ollama as a provider.'),
+    );
+    process.exit(EXIT_CODES.PROVIDER_UNAVAILABLE);
+  }
+
+  const spinner = ora('Connecting to Ollama...').start();
+
+  try {
+    const provider = new OllamaProvider(config.ollama);
+
+    const isAvailable = await provider.isAvailable();
+
+    if (!isAvailable) {
+      spinner.fail(chalk.red('Ollama service not available'));
+      console.error(
+        chalk.dim(
+          `\nMake sure Ollama is running: ${chalk.bold('ollama serve')}`,
+        ),
+      );
+      console.error(
+        chalk.dim(
+          `And the model "${config.ollama.model}" is installed: ${chalk.bold(`ollama pull ${config.ollama.model}`)}`,
+        ),
+      );
+      process.exit(EXIT_CODES.PROVIDER_UNAVAILABLE);
+    }
+
+    spinner.succeed(
+      chalk.green(
+        `Connected to Ollama (${config.ollama.model})`,
+      ),
+    );
+
+    return provider;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    spinner.fail(chalk.red(`Failed to connect: ${errorMessage}`));
+    process.exit(EXIT_CODES.ERROR);
+  }
+}
+
+/**
+ * Analyzes prompts with progress tracking.
+ *
+ * @param provider - Analysis provider
+ * @param prompts - Array of prompt strings
+ * @param date - Date context
+ * @returns Analysis result
+ */
+export async function analyzeWithProgress(
+  provider: OllamaProvider,
+  prompts: readonly string[],
+  date: string,
+): Promise<AnalysisResult> {
+  const spinner = ora(
+    `Analyzing ${String(prompts.length)} prompts...`,
+  ).start();
+
+  try {
+    const result = await analyzePrompts({
+      provider,
+      prompts,
+      date,
+      onProgress: (current, total) => {
+        if (total > 1) {
+          spinner.text = `Analyzing ${String(prompts.length)} prompts (batch ${String(current + 1)}/${String(total)})...`;
+        }
+      },
+    });
+
+    spinner.succeed(chalk.green('Analysis complete'));
+
+    return result;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    spinner.fail(chalk.red(`Analysis failed: ${errorMessage}`));
+    process.exit(EXIT_CODES.ERROR);
+  }
+}
+
+/**
+ * Displays analysis results.
+ *
+ * @param result - Analysis result
+ */
+export function displayResults(result: AnalysisResult): void {
+  console.log(''); // Blank line before report
+  printReport(result);
+}
+
+/**
+ * Handles errors and exits with appropriate code.
+ *
+ * @param error - Error to handle
+ */
+export function handleError(error: Error): void {
+  console.error(chalk.red(`\nError: ${error.message}`));
+  process.exit(EXIT_CODES.ERROR);
+}
+
+// =============================================================================
+// Main Function
+// =============================================================================
+
+/**
+ * Main entry point for the CLI.
+ */
+export async function main(): Promise<void> {
+  try {
+    // Parse arguments
+    const args = parseArguments();
+
+    // Handle --help
+    if (args.help) {
+      showHelp();
+    }
+
+    // Handle --version
+    if (args.version) {
+      showVersion();
+    }
+
+    // Check for first run and run setup if needed
+    await checkAndRunSetup();
+
+    // Read logs
+    const prompts = await readLogsWithSpinner(args.date);
+
+    // Connect to provider
+    const provider = await connectProviderWithSpinner();
+
+    // Analyze prompts
+    const result = await analyzeWithProgress(provider, prompts, args.date);
+
+    // Display results
+    displayResults(result);
+
+    // Exit successfully
+    process.exit(EXIT_CODES.SUCCESS);
+  } catch (error) {
+    handleError(error instanceof Error ? error : new Error(String(error)));
+  }
+}
+
+// Run main function if this is the main module
+if (import.meta.url === `file://${process.argv[1]}`) {
+  void main();
+}

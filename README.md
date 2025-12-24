@@ -6,6 +6,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 
+> **🚧 NOT READY FOR USE**: Hyntx is currently **under active development** and **not yet ready for production use**. The tool is not functional at this time. This README describes the planned features and functionality. For the current development status, implementation progress, and what's actually working, please see the [ROADMAP.md](ROADMAP.md).
+
 ## What is Hyntx?
 
 Hyntx reads your Claude Code conversation logs and uses AI to detect common prompt engineering anti-patterns. It provides you with:
@@ -31,6 +33,8 @@ Think of it as a **retrospective code review for your prompts**.
 - **Dry-run mode**: Preview what will be analyzed before sending to AI
 
 ## Installation
+
+> **Note**: Hyntx is not yet ready for use. The installation instructions below are for reference only. See [ROADMAP.md](ROADMAP.md) for development status.
 
 ### NPM (Global)
 
@@ -405,11 +409,7 @@ Contributions are welcome! Please:
 
 ## Roadmap
 
-- [ ] Support for custom analysis patterns
-- [ ] Export to JSON for programmatic use
-- [ ] Integration with other AI coding assistants
-- [ ] Web dashboard for visualization
-- [ ] Team analytics (anonymized, aggregated insights)
+For detailed development roadmap, planned features, and implementation status, see [ROADMAP.md](ROADMAP.md).
 
 ## License
 
