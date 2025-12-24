@@ -1,0 +1,5 @@
+# Build output
+dist/
+
+# Lock files (auto-generated)
+pnpm-lock.yaml
