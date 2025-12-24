@@ -37,6 +37,7 @@ describe('detectShellConfigFile', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env = { ...originalEnv };
+    Object.defineProperty(process, 'platform', { value: originalPlatform });
   });
 
   afterAll(() => {

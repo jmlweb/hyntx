@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { glob } from 'glob';
+import { format } from 'date-fns';
 import {
   claudeProjectsExist,
   readLogs,
@@ -740,10 +741,10 @@ describe('readLogs with filters', () => {
     mockGlob.mockResolvedValue(['/mock/.claude/projects/test/log.jsonl']);
 
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0] ?? '2025-01-23';
+    const todayStr = format(today, 'yyyy-MM-dd');
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0] ?? '2025-01-22';
+    const yesterdayStr = format(yesterday, 'yyyy-MM-dd');
 
     const jsonlContent = [
       JSON.stringify({
