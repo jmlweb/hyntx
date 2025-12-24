@@ -42,6 +42,7 @@ type ParsedArgs = {
   readonly date: string;
   readonly help: boolean;
   readonly version: boolean;
+  readonly verbose: boolean;
   readonly format?: 'terminal' | 'json';
   readonly compact?: boolean;
 };
@@ -85,6 +86,11 @@ export function parseArguments(): ParsedArgs {
           type: 'boolean',
           default: false,
         },
+        verbose: {
+          type: 'boolean',
+          short: 'v',
+          default: false,
+        },
         help: {
           type: 'boolean',
           short: 'h',
@@ -103,6 +109,7 @@ export function parseArguments(): ParsedArgs {
       date: values.date || 'today',
       help: values.help || false,
       version: values.version || false,
+      verbose: values.verbose || false,
       format: (values.format || 'terminal') as 'terminal' | 'json',
       compact: values.compact || false,
     };
@@ -123,6 +130,7 @@ ${chalk.bold('Options:')}
   --date <date>        Date to analyze (today, yesterday, YYYY-MM-DD) [default: today]
   --format <type>      Output format: terminal, json [default: terminal]
   --compact            Compact JSON output (only with --format json)
+  -v, --verbose        Enable debug output to stderr
   -h, --help           Show help
   --version            Show version
 
@@ -434,6 +442,12 @@ export async function main(): Promise<void> {
     // Parse arguments
     const args = parseArguments();
     isJsonMode = args.format === 'json';
+
+    // Enable verbose mode if requested
+    if (args.verbose) {
+      logger.setVerbose(true);
+      logger.debug('Verbose mode enabled');
+    }
 
     // Handle --help
     if (args.help) {

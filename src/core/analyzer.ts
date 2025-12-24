@@ -6,6 +6,7 @@
  */
 
 import { sanitizePrompts } from './sanitizer.js';
+import { logger } from '../utils/logger.js';
 import {
   type AnalysisProvider,
   type AnalysisResult,
@@ -477,16 +478,33 @@ export async function analyzePrompts(
 ): Promise<AnalysisResult> {
   const { provider, prompts, date, context, onProgress } = options;
 
+  logger.debug(
+    `Starting analysis of ${String(prompts.length)} prompts for ${date}`,
+    'analyzer',
+  );
+
   if (prompts.length === 0) {
     throw new Error('Cannot analyze empty prompts array');
   }
 
   // Step 1: Sanitize prompts
-  const { prompts: sanitizedPrompts } = sanitizePrompts(prompts);
+  const { prompts: sanitizedPrompts, totalRedacted } = sanitizePrompts(prompts);
+
+  if (totalRedacted > 0) {
+    logger.debug(
+      `Sanitizer redacted ${String(totalRedacted)} secrets`,
+      'analyzer',
+    );
+  }
 
   // Step 2: Infer provider type and get limits
   const providerType = inferProviderType(provider.name);
   const limits = PROVIDER_LIMITS[providerType];
+
+  logger.debug(
+    `Using provider type: ${providerType} (limit: ${String(limits.maxTokensPerBatch)} tokens/batch)`,
+    'analyzer',
+  );
 
   // Step 3: Batch prompts
   const batches = batchPrompts({
@@ -494,6 +512,11 @@ export async function analyzePrompts(
     maxTokensPerBatch: limits.maxTokensPerBatch,
     prioritization: limits.prioritization,
   });
+
+  logger.debug(
+    `Created ${String(batches.length)} batch(es) for analysis`,
+    'analyzer',
+  );
 
   // Fast path: single batch (no merge overhead)
   if (batches.length === 1) {
@@ -506,11 +529,25 @@ export async function analyzePrompts(
       onProgress(0, 1);
     }
 
+    logger.debug(
+      `Processing single batch (${String(batch.tokens)} tokens)`,
+      'analyzer',
+    );
+    const startTime = Date.now();
+
     const result = await provider.analyze(batch.prompts, date, context);
+
+    const elapsed = Date.now() - startTime;
+    logger.debug(`Batch completed in ${String(elapsed)}ms`, 'analyzer');
 
     if (onProgress) {
       onProgress(1, 1);
     }
+
+    logger.debug(
+      `Analysis complete: ${String(result.patterns.length)} patterns found`,
+      'analyzer',
+    );
 
     return result;
   }
@@ -527,8 +564,20 @@ export async function analyzePrompts(
       onProgress(i, totalBatches);
     }
 
+    logger.debug(
+      `Processing batch ${String(i + 1)}/${String(totalBatches)} (${String(batch.tokens)} tokens)`,
+      'analyzer',
+    );
+    const startTime = Date.now();
+
     const result = await provider.analyze(batch.prompts, date, context);
     results.push(result);
+
+    const elapsed = Date.now() - startTime;
+    logger.debug(
+      `Batch ${String(i + 1)}/${String(totalBatches)} completed in ${String(elapsed)}ms`,
+      'analyzer',
+    );
   }
 
   if (onProgress) {
@@ -536,5 +585,13 @@ export async function analyzePrompts(
   }
 
   // Step 5: Merge results
-  return mergeBatchResults({ results, date });
+  logger.debug(`Merging ${String(results.length)} batch results`, 'analyzer');
+  const mergedResult = mergeBatchResults({ results, date });
+
+  logger.debug(
+    `Analysis complete: ${String(mergedResult.patterns.length)} patterns found`,
+    'analyzer',
+  );
+
+  return mergedResult;
 }

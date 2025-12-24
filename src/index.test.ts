@@ -87,6 +87,7 @@ describe('parseArguments', () => {
       date: 'today',
       help: false,
       version: false,
+      verbose: false,
       format: 'terminal',
       compact: false,
     });
@@ -123,6 +124,7 @@ describe('parseArguments', () => {
       date: '2025-01-20',
       help: false,
       version: false,
+      verbose: false,
       format: 'terminal',
       compact: false,
     });
@@ -138,6 +140,18 @@ describe('parseArguments', () => {
     process.argv = ['node', 'index.js', '--compact'];
     const result = index.parseArguments();
     expect(result.compact).toBe(true);
+  });
+
+  it('parses --verbose argument', () => {
+    process.argv = ['node', 'index.js', '--verbose'];
+    const result = index.parseArguments();
+    expect(result.verbose).toBe(true);
+  });
+
+  it('parses -v short flag', () => {
+    process.argv = ['node', 'index.js', '-v'];
+    const result = index.parseArguments();
+    expect(result.verbose).toBe(true);
   });
 
   it('defaults to terminal format', () => {

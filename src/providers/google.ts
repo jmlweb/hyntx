@@ -14,6 +14,7 @@ import {
   type GoogleConfig,
   type ProjectContext,
 } from '../types/index.js';
+import { logger } from '../utils/logger.js';
 import {
   createRateLimiter,
   DEFAULT_RATE_LIMITS,
@@ -82,8 +83,14 @@ export class GoogleProvider implements AnalysisProvider {
   public async isAvailable(): Promise<boolean> {
     // If no API key is configured, provider is not available
     if (!this.config.apiKey) {
+      logger.debug('No API key configured', 'google');
       return false;
     }
+
+    logger.debug(
+      `Validating API key with model ${this.config.model}`,
+      'google',
+    );
 
     try {
       const controller = new AbortController();
@@ -119,9 +126,18 @@ export class GoogleProvider implements AnalysisProvider {
       // 400 = bad request but key is valid
       // 401/403 = unauthorized, key is invalid
       // 429 = rate limited but key is valid
-      return response.ok || response.status === 429 || response.status === 400;
+      const isAvailable =
+        response.ok || response.status === 429 || response.status === 400;
+
+      logger.debug(
+        `API responded with status ${String(response.status)} (available: ${String(isAvailable)})`,
+        'google',
+      );
+
+      return isAvailable;
     } catch {
       // Network errors, timeouts, or other issues indicate unavailability
+      logger.debug('Connection failed', 'google');
       return false;
     }
   }

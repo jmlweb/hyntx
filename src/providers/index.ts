@@ -10,6 +10,7 @@ import {
   type EnvConfig,
   type ProviderType,
 } from '../types/index.js';
+import { logger } from '../utils/logger.js';
 import { OllamaProvider } from './ollama.js';
 import { AnthropicProvider } from './anthropic.js';
 import { GoogleProvider } from './google.js';
@@ -74,6 +75,11 @@ export async function getAvailableProvider(
     );
   }
 
+  logger.debug(
+    `Checking ${String(config.services.length)} configured provider(s): ${config.services.join(', ')}`,
+    'provider',
+  );
+
   let firstProvider: AnalysisProvider | undefined;
 
   for (const type of config.services) {
@@ -82,18 +88,25 @@ export async function getAvailableProvider(
     // Track the first provider for fallback notification
     firstProvider ??= provider;
 
+    logger.debug(`Checking availability of ${provider.name}...`, 'provider');
+
     try {
       const isAvailable = await provider.isAvailable();
 
       if (isAvailable) {
+        logger.debug(`${provider.name} is available`, 'provider');
+
         // If we're using a different provider than the first one, notify via callback
         if (onFallback && provider !== firstProvider) {
           onFallback(firstProvider.name, provider.name);
         }
 
         return provider;
+      } else {
+        logger.debug(`${provider.name} is not available`, 'provider');
       }
     } catch {
+      logger.debug(`${provider.name} availability check failed`, 'provider');
       // Provider availability check failed, try next provider
       continue;
     }

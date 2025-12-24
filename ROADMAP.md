@@ -180,7 +180,7 @@ Implement `--format json` flag for machine-readable output. Enables automation, 
 
 Replace hardcoded `OllamaProvider` in CLI with `getAvailableProvider()` factory to enable all configured providers with automatic fallback.
 
-### 14.5. [Add Verbose/Debug Mode](backlog/add-verbose-debug-mode.md)
+### ~~14.5. [Add Verbose/Debug Mode](backlog/add-verbose-debug-mode.md)~~ ✅ COMPLETED
 
 **Priority**: P2 | **Dependencies**: cli-entry-basico.md | **Source**: IDEA-003
 

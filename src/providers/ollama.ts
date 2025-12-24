@@ -14,6 +14,7 @@ import {
   type OllamaConfig,
   type ProjectContext,
 } from '../types/index.js';
+import { logger } from '../utils/logger.js';
 import { SYSTEM_PROMPT, buildUserPrompt, parseResponse } from './base.js';
 
 /**
@@ -60,6 +61,8 @@ export class OllamaProvider implements AnalysisProvider {
    * @returns Promise that resolves to true if available, false otherwise
    */
   public async isAvailable(): Promise<boolean> {
+    logger.debug(`Connecting to Ollama at ${this.config.host}`, 'ollama');
+
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
@@ -73,21 +76,41 @@ export class OllamaProvider implements AnalysisProvider {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
+        logger.debug(
+          `Ollama API returned ${String(response.status)}`,
+          'ollama',
+        );
         return false;
       }
 
       const data = (await response.json()) as { models?: { name: string }[] };
 
       if (!data.models || !Array.isArray(data.models)) {
+        logger.debug('Ollama returned invalid model list', 'ollama');
         return false;
       }
 
       // Check if the configured model is available
-      return data.models.some((model) =>
+      const modelAvailable = data.models.some((model) =>
         model.name.includes(this.config.model),
       );
+
+      if (modelAvailable) {
+        logger.debug(
+          `Model ${this.config.model} available (${String(data.models.length)} models found)`,
+          'ollama',
+        );
+      } else {
+        logger.debug(
+          `Model ${this.config.model} not found in available models`,
+          'ollama',
+        );
+      }
+
+      return modelAvailable;
     } catch {
       // Network errors, timeouts, or JSON parse errors all indicate unavailability
+      logger.debug('Ollama connection failed', 'ollama');
       return false;
     }
   }
@@ -174,6 +197,10 @@ export class OllamaProvider implements AnalysisProvider {
 
         // Exponential backoff: 1s, 2s, 4s, ...
         const delay = BASE_RETRY_DELAY_MS * Math.pow(2, attempt);
+        logger.debug(
+          `Retry attempt ${String(attempt + 1)}/${String(MAX_RETRIES)}, waiting ${String(delay)}ms`,
+          'ollama',
+        );
         await sleep(delay);
       }
     }

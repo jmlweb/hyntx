@@ -433,7 +433,10 @@ export function groupByDay(
 export async function readLogs(
   options?: ReadLogsOptions,
 ): Promise<LogReadResult> {
+  logger.debug(`Scanning ${CLAUDE_PROJECTS_DIR}`, 'log-reader');
+
   if (!claudeProjectsExist()) {
+    logger.debug('Claude projects directory not found', 'log-reader');
     return {
       prompts: [],
       warnings: [
@@ -444,6 +447,8 @@ export async function readLogs(
 
   const pattern = `${CLAUDE_PROJECTS_DIR}/**/*.jsonl`;
   const files = await glob(pattern);
+
+  logger.debug(`Found ${String(files.length)} JSONL files`, 'log-reader');
 
   if (files.length === 0) {
     return {
@@ -460,6 +465,11 @@ export async function readLogs(
     allPrompts.push(...prompts);
     allWarnings.push(...warnings);
   }
+
+  logger.debug(
+    `Parsed ${String(allPrompts.length)} total prompts from all files`,
+    'log-reader',
+  );
 
   // Apply filters if provided
   let filteredPrompts = allPrompts;
@@ -512,6 +522,17 @@ export async function readLogs(
     }
   }
 
+  // Log filtering results
+  if (options) {
+    const filtered = allPrompts.length - filteredPrompts.length;
+    if (filtered > 0) {
+      logger.debug(
+        `Filtered ${String(filtered)} prompts (${String(filteredPrompts.length)} remaining)`,
+        'log-reader',
+      );
+    }
+  }
+
   // Sort chronologically by timestamp
   const sortedPrompts = filteredPrompts.sort((a, b) => {
     try {
@@ -523,6 +544,11 @@ export async function readLogs(
       return 0;
     }
   });
+
+  logger.debug(
+    `Returning ${String(sortedPrompts.length)} prompts for analysis`,
+    'log-reader',
+  );
 
   return {
     prompts: sortedPrompts,

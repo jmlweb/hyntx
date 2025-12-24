@@ -14,6 +14,7 @@ import {
   type AnthropicConfig,
   type ProjectContext,
 } from '../types/index.js';
+import { logger } from '../utils/logger.js';
 import {
   createRateLimiter,
   DEFAULT_RATE_LIMITS,
@@ -92,8 +93,14 @@ export class AnthropicProvider implements AnalysisProvider {
   public async isAvailable(): Promise<boolean> {
     // If no API key is configured, provider is not available
     if (!this.config.apiKey) {
+      logger.debug('No API key configured', 'anthropic');
       return false;
     }
+
+    logger.debug(
+      `Validating API key with model ${this.config.model}`,
+      'anthropic',
+    );
 
     try {
       const controller = new AbortController();
@@ -125,9 +132,18 @@ export class AnthropicProvider implements AnalysisProvider {
       // 401 = unauthorized, key is invalid
       // 403 = forbidden, key is invalid or lacks permissions
       // 429 = rate limited but key is valid
-      return response.ok || response.status === 429 || response.status === 400;
+      const isAvailable =
+        response.ok || response.status === 429 || response.status === 400;
+
+      logger.debug(
+        `API responded with status ${String(response.status)} (available: ${String(isAvailable)})`,
+        'anthropic',
+      );
+
+      return isAvailable;
     } catch {
       // Network errors, timeouts, or other issues indicate unavailability
+      logger.debug('Connection failed', 'anthropic');
       return false;
     }
   }

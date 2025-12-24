@@ -5,6 +5,8 @@
  * information from prompts before sending them to AI providers.
  */
 
+import { logger } from '../utils/logger.js';
+
 /**
  * Result of sanitizing a single text.
  */
@@ -604,6 +606,11 @@ export function sanitizePrompts(
     return { prompts: [], totalRedacted: 0 };
   }
 
+  logger.debug(
+    `Sanitizing ${String(prompts.length)} prompts for secrets`,
+    'sanitizer',
+  );
+
   const sanitizedPrompts: string[] = [];
   let totalRedacted = 0;
 
@@ -611,6 +618,15 @@ export function sanitizePrompts(
     const result = sanitize(prompt);
     sanitizedPrompts.push(result.text);
     totalRedacted += result.redacted;
+  }
+
+  if (totalRedacted > 0) {
+    logger.debug(
+      `Redacted ${String(totalRedacted)} secret(s) from prompts`,
+      'sanitizer',
+    );
+  } else {
+    logger.debug('No secrets found to redact', 'sanitizer');
   }
 
   return {
