@@ -88,6 +88,7 @@ describe('parseArguments', () => {
       help: false,
       version: false,
       verbose: false,
+      checkConfig: false,
       format: 'terminal',
       compact: false,
     });
@@ -125,6 +126,7 @@ describe('parseArguments', () => {
       help: false,
       version: false,
       verbose: false,
+      checkConfig: false,
       format: 'terminal',
       compact: false,
     });
@@ -152,6 +154,12 @@ describe('parseArguments', () => {
     process.argv = ['node', 'index.js', '-v'];
     const result = index.parseArguments();
     expect(result.verbose).toBe(true);
+  });
+
+  it('parses --check-config argument', () => {
+    process.argv = ['node', 'index.js', '--check-config'];
+    const result = index.parseArguments();
+    expect(result.checkConfig).toBe(true);
   });
 
   it('defaults to terminal format', () => {

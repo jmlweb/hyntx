@@ -24,6 +24,10 @@ import {
   loadProjectConfigForCwd,
   mergeConfigs,
 } from './utils/project-config.js';
+import {
+  validateAllProviders,
+  printHealthCheckResult,
+} from './utils/config-validator.js';
 import type {
   AnalysisProvider,
   AnalysisResult,
@@ -43,6 +47,7 @@ type ParsedArgs = {
   readonly help: boolean;
   readonly version: boolean;
   readonly verbose: boolean;
+  readonly checkConfig: boolean;
   readonly format?: 'terminal' | 'json';
   readonly compact?: boolean;
 };
@@ -91,6 +96,10 @@ export function parseArguments(): ParsedArgs {
           short: 'v',
           default: false,
         },
+        'check-config': {
+          type: 'boolean',
+          default: false,
+        },
         help: {
           type: 'boolean',
           short: 'h',
@@ -110,6 +119,7 @@ export function parseArguments(): ParsedArgs {
       help: values.help || false,
       version: values.version || false,
       verbose: values.verbose || false,
+      checkConfig: values['check-config'] || false,
       format: (values.format || 'terminal') as 'terminal' | 'json',
       compact: values.compact || false,
     };
@@ -131,6 +141,7 @@ ${chalk.bold('Options:')}
   --format <type>      Output format: terminal, json [default: terminal]
   --compact            Compact JSON output (only with --format json)
   -v, --verbose        Enable debug output to stderr
+  --check-config       Validate configuration and test provider connectivity
   -h, --help           Show help
   --version            Show version
 
@@ -158,6 +169,32 @@ ${chalk.bold('Examples:')}
 export function showVersion(): void {
   console.log(`hyntx v${VERSION}`);
   process.exit(EXIT_CODES.SUCCESS);
+}
+
+/**
+ * Runs configuration health check and exits.
+ *
+ * Validates all configured providers and tests their connectivity.
+ * Exits with 0 if all providers are valid, 1 if any issues found.
+ */
+export async function runConfigCheck(): Promise<void> {
+  const config = getEnvConfig();
+
+  logger.debug('Running configuration health check', 'cli');
+
+  const result = await validateAllProviders(config);
+  printHealthCheckResult(result, config);
+
+  // Exit with appropriate code
+  if (result.allValid) {
+    process.exit(EXIT_CODES.SUCCESS);
+  } else if (result.summary.availableCount > 0) {
+    // Some providers available, warn but don't fail completely
+    process.exit(EXIT_CODES.SUCCESS);
+  } else {
+    // No providers available
+    process.exit(EXIT_CODES.PROVIDER_UNAVAILABLE);
+  }
 }
 
 /**
@@ -457,6 +494,12 @@ export async function main(): Promise<void> {
     // Handle --version
     if (args.version) {
       showVersion();
+    }
+
+    // Handle --check-config
+    if (args.checkConfig) {
+      // Enable verbose for health check if requested
+      await runConfigCheck();
     }
 
     // Check for first run and run setup if needed
