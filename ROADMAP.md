@@ -90,7 +90,7 @@ Implement report formatter for terminal output with Before/After visualization.
 
 These tasks complete the basic CLI and add support for multiple providers.
 
-### 11. [Basic CLI Entry Point](backlog/cli-entry-basico.md)
+### ~~11. [Basic CLI Entry Point](backlog/cli-entry-basico.md)~~ ✅ COMPLETED
 
 **Priority**: P2 | **Dependencies**: tipos-base.md, setup-inicial.md, log-reader-completo.md, sanitizer.md, analyzer-batching.md, provider-base-ollama.md, reporter-terminal.md, utils-completos.md
 
@@ -167,7 +167,7 @@ For efficient development, it is recommended to follow this order:
 8. ~~**provider-base-ollama.md** - First functional provider~~ ✅
 9. ~~**analyzer-batching.md** - Orchestrates analysis~~ ✅
 10. ~~**reporter-terminal.md** - Shows results~~ ✅
-11. **cli-entry-basico.md** - Basic functional CLI
+11. ~~**cli-entry-basico.md** - Basic functional CLI~~ ✅
 12. **provider-anthropic.md** - Second provider
 13. **provider-google.md** - Third provider
 14. **provider-factory.md** - Multi-provider support
