@@ -342,15 +342,14 @@ try {
 
 The project uses a comprehensive set of terminal UI libraries for an attractive and professional user experience:
 
-| Library        | Purpose          | When to Use                         |
-| -------------- | ---------------- | ----------------------------------- |
-| `chalk`        | Colors & styling | All colored text, semantic coloring |
-| `ora`          | Spinners         | Short operations (< 5 seconds)      |
-| `prompts`      | Interactivity    | User input, menus, confirmations    |
-| `boxen`        | Boxed sections   | Visual separation, callouts         |
-| `cli-table3`   | Tables           | Structured data display             |
-| `cli-progress` | Progress bars    | Long operations (> 5 seconds)       |
-| `figlet`       | ASCII art        | Optional headers/logos              |
+| Library      | Purpose          | When to Use                         |
+| ------------ | ---------------- | ----------------------------------- |
+| `chalk`      | Colors & styling | All colored text, semantic coloring |
+| `ora`        | Spinners         | Short operations (< 5 seconds)      |
+| `prompts`    | Interactivity    | User input, menus, confirmations    |
+| `boxen`      | Boxed sections   | Visual separation, callouts         |
+| `cli-table3` | Tables           | Structured data display             |
+| `figlet`     | ASCII art        | Optional headers/logos              |
 
 ### Use Chalk for Colors
 
@@ -425,32 +424,6 @@ table.push(
 );
 
 console.log(table.toString());
-```
-
-### Use cli-progress for Long Operations
-
-```typescript
-import cliProgress from 'cli-progress';
-import chalk from 'chalk';
-
-const progressBar = new cliProgress.SingleBar(
-  {
-    format: chalk.cyan('{bar}') + ' | {percentage}% | {value}/{total} batches',
-    barCompleteChar: '\u2588',
-    barIncompleteChar: '\u2591',
-    hideCursor: true,
-  },
-  cliProgress.Presets.shades_classic,
-);
-
-progressBar.start(10, 0); // Total: 10 batches
-
-for (let i = 0; i < 10; i++) {
-  await processBatch(i);
-  progressBar.update(i + 1);
-}
-
-progressBar.stop();
 ```
 
 ### Use Figlet for ASCII Art (Optional)

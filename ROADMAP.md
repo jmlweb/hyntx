@@ -12,6 +12,18 @@ These tasks should be completed before starting development to secure project in
 
 Perform a dummy deployment to npm to reserve the `hyntx` package name and prevent name squatting. This is a minimal deployment with placeholder functionality.
 
+### ~~0.1. [Remove Unused Dependencies](backlog/remove-unused-dependencies.md)~~ ✅ COMPLETED
+
+**Priority**: P0 | **Dependencies**: none
+
+Remove `cli-progress` and `@types/cli-progress` which are not used in the codebase. The analyzer uses callback-based progress instead.
+
+### 0.2. [Fix Node Version Inconsistency](backlog/fix-node-version-inconsistency.md)
+
+**Priority**: P0 | **Dependencies**: none
+
+Fix documentation inconsistency: `docs/SPECS.md` says Node 18+ but `package.json` requires Node 22+. Align all references.
+
 ---
 
 ## Phase 1: Foundation (P0 - Critical)
@@ -86,6 +98,30 @@ Implement report formatter for terminal output with Before/After visualization.
 
 ---
 
+## Phase 2.5: Code Quality (P1 - High)
+
+These tasks improve code quality, security, and enforce documented conventions.
+
+### 2.5.1. [Add ESLint Enforcement Rules](backlog/add-eslint-enforcement-rules.md)
+
+**Priority**: P1 | **Dependencies**: none
+
+Add missing ESLint rules to enforce documented conventions: no-default-export, no-enums (prefer const maps), no-param-reassign.
+
+### 2.5.2. [Add Shell Config Permissions](backlog/add-shell-config-permissions.md)
+
+**Priority**: P1 | **Dependencies**: none
+
+Set restrictive file permissions (600) on shell config files after writing API keys to prevent access by other users.
+
+### 2.5.3. [Move Type Definitions to Dev Dependencies](backlog/move-types-to-devdeps.md)
+
+**Priority**: P1 | **Dependencies**: none
+
+Move `@types/*` packages from dependencies to devDependencies where they belong.
+
+---
+
 ## Phase 3: CLI and Providers (P2 - Medium)
 
 These tasks complete the basic CLI and add support for multiple providers.
@@ -113,6 +149,18 @@ Implement Google provider (Gemini API) as a third provider option.
 **Priority**: P2 | **Dependencies**: tipos-base.md, provider-base-ollama.md, provider-anthropic.md, provider-google.md, utils-completos.md
 
 Implement provider factory with automatic selection and fallback between providers.
+
+### 14.1. [Add Provider Retry Logic](backlog/add-provider-retry-logic.md)
+
+**Priority**: P2 | **Dependencies**: provider-factory.md
+
+Add retry logic with exponential backoff for transient network failures in cloud providers.
+
+### 14.2. [Add Provider Rate Limiting](backlog/add-provider-rate-limiting.md)
+
+**Priority**: P2 | **Dependencies**: provider-factory.md
+
+Add rate limiting for Anthropic and Google API calls to prevent 429 errors during batch processing.
 
 ---
 
@@ -190,13 +238,20 @@ For efficient development, it is recommended to follow this order:
 13. ~~**provider-google.md** - Third provider~~ ✅
 14. ~~**provider-factory.md** - Multi-provider support~~ ✅
 15. ~~**reminder-system.md** - Reminder system~~ ✅
-16. **reporter-markdown.md** - File output (blocks cli-completo)
-17. **test-coverage-setup-shell.md** - Test coverage for setup/shell-config (blocks refactor-shell-config-logic)
-18. **refactor-log-reader-types.md** - Type safety improvements (no blockers, quick win)
-19. **e2e-testing.md** - E2E testing infrastructure (local-only)
-20. **cli-completo.md** - Complete CLI (requires reporter-markdown)
-21. **error-handling.md** - Complete review (requires all previous)
-22. **refactor-shell-config-logic.md** - Shell config edge case simplification (P4, requires test-coverage)
+16. ~~**remove-unused-dependencies.md** - Quick cleanup (P0, no dependencies)~~ ✅
+17. **fix-node-version-inconsistency.md** - Documentation fix (P0, no dependencies)
+18. **move-types-to-devdeps.md** - Quick cleanup (P1, no dependencies)
+19. **add-eslint-enforcement-rules.md** - Code quality (P1, no dependencies)
+20. **add-shell-config-permissions.md** - Security improvement (P1, no dependencies)
+21. **reporter-markdown.md** - File output (blocks cli-completo)
+22. **add-provider-retry-logic.md** - Reliability improvement (P2)
+23. **add-provider-rate-limiting.md** - Reliability improvement (P2)
+24. **test-coverage-setup-shell.md** - Test coverage (blocks refactor-shell-config-logic)
+25. **refactor-log-reader-types.md** - Type safety improvements (quick win)
+26. **e2e-testing.md** - E2E testing infrastructure (local-only)
+27. **cli-completo.md** - Complete CLI (requires reporter-markdown)
+28. **error-handling.md** - Complete review (requires all previous)
+29. **refactor-shell-config-logic.md** - Shell config edge case simplification (P4)
 
 ---
 

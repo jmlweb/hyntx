@@ -102,7 +102,7 @@ The project follows a layered architecture with clear separation of concerns:
 
 ## 4. Dependencies (package.json)
 
-Base configuration already exists in `package.json`. Runtime dependencies (chalk, ora, prompts, boxen, cli-table3, cli-progress, figlet, date-fns, glob) will be added as needed during implementation of their respective modules.
+Base configuration already exists in `package.json`. Runtime dependencies (chalk, ora, prompts, boxen, cli-table3, figlet, date-fns, glob) will be added as needed during implementation of their respective modules.
 
 ---
 
@@ -289,23 +289,21 @@ The reporter module formats analysis results for different output formats. The t
 
 The terminal reporter must provide an **attractive and visually engaging** user experience using the following tools:
 
-| Library          | Purpose       | Visual Result                               | Usage                                                                  |
-| ---------------- | ------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
-| **chalk**        | Colors        | Vibrant colors and styles (bold, underline) | Semantic coloring: success=green, warning=yellow, error=red, info=cyan |
-| **ora**          | Spinners      | Elegant animated loading icons              | Short operations (provider connection, single operations)              |
-| **prompts**      | Interactivity | Clean visual menus, lists, and prompts      | Interactive setup, user input (menus, confirmations, text input)       |
-| **boxen**        | Containers    | Draws boxes around text in terminal         | Visual separation of sections, callouts, Before/After examples         |
-| **cli-table3**   | Tables        | Formatted tables for structured data        | Statistics, patterns list, data grids                                  |
-| **cli-progress** | Progress bars | Animated progress indicators                | Long-running operations (reading logs, analyzing batches)              |
-| **figlet**       | ASCII art     | Text-based logos and banners                | Optional header/logo (can be disabled via `--no-art` flag)             |
+| Library        | Purpose       | Visual Result                               | Usage                                                                  |
+| -------------- | ------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
+| **chalk**      | Colors        | Vibrant colors and styles (bold, underline) | Semantic coloring: success=green, warning=yellow, error=red, info=cyan |
+| **ora**        | Spinners      | Elegant animated loading icons              | Short operations (provider connection, single operations)              |
+| **prompts**    | Interactivity | Clean visual menus, lists, and prompts      | Interactive setup, user input (menus, confirmations, text input)       |
+| **boxen**      | Containers    | Draws boxes around text in terminal         | Visual separation of sections, callouts, Before/After examples         |
+| **cli-table3** | Tables        | Formatted tables for structured data        | Statistics, patterns list, data grids                                  |
+| **figlet**     | ASCII art     | Text-based logos and banners                | Optional header/logo (can be disabled via `--no-art` flag)             |
 
 **Visual Features:**
 
 - **ASCII Art Headers**: Optional ASCII art logo/banner for brand identity (can be disabled via `--no-art` flag)
 - **Boxed Sections**: Use `boxen` to create visually distinct sections with borders
 - **Tables**: Use `cli-table3` for structured data (statistics, patterns list)
-- **Progress Indicators**: Use `cli-progress` for long-running operations (reading logs, analyzing batches)
-- **Spinners**: Use `ora` for short operations (provider connection, single operations)
+- **Spinners**: Use `ora` for operations with indeterminate duration (provider connection, analysis)
 - **Colors**: Use `chalk` consistently for semantic coloring (success=green, warning=yellow, error=red, info=cyan)
 - **Interactivity**: Use `prompts` for clean, visual interactive menus and user input
 - **Animations**: Smooth transitions and loading states throughout the workflow
