@@ -47,7 +47,9 @@ const provider = new OllamaProvider(config.ollama);
 import { getAvailableProvider } from './providers/index.js';
 // ...
 const provider = await getAvailableProvider(config, (from, to) => {
-  console.log(chalk.yellow(`Primary provider ${from} unavailable, falling back to ${to}`));
+  console.log(
+    chalk.yellow(`Primary provider ${from} unavailable, falling back to ${to}`),
+  );
 });
 ```
 

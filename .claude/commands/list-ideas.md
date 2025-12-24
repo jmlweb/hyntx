@@ -40,11 +40,11 @@ Display all ideas with optional filtering by status. Shows a formatted table wit
 
 Total: X ideas ({Y on-validation, Z accepted, W rejected})
 
-| ID | Title | Status | Category | Effort | Impact | Created |
-|----|-------|--------|----------|--------|--------|---------|
-| IDEA-003 | Add CSV export | accepted | feature | low | medium | 2025-12-24 |
-| IDEA-002 | Rewrite in Rust | rejected | refactor | high | low | 2025-12-24 |
-| IDEA-001 | Add dark mode | on-validation | feature | - | - | 2025-12-23 |
+| ID       | Title           | Status        | Category | Effort | Impact | Created    |
+| -------- | --------------- | ------------- | -------- | ------ | ------ | ---------- |
+| IDEA-003 | Add CSV export  | accepted      | feature  | low    | medium | 2025-12-24 |
+| IDEA-002 | Rewrite in Rust | rejected      | refactor | high   | low    | 2025-12-24 |
+| IDEA-001 | Add dark mode   | on-validation | feature  | -      | -      | 2025-12-23 |
 ```
 
 ### For Rejected Ideas (Show Reasons)
@@ -54,20 +54,20 @@ Total: X ideas ({Y on-validation, Z accepted, W rejected})
 
 Total: 2 rejected ideas
 
-| ID | Title | Category | Effort | Impact | Rejection Reason |
-|----|-------|----------|--------|--------|------------------|
-| IDEA-002 | Rewrite in Rust | refactor | high | low | Out of scope - TypeScript is core to project |
-| IDEA-005 | Add blockchain | feature | high | low | Not aligned with project vision |
+| ID       | Title           | Category | Effort | Impact | Rejection Reason                             |
+| -------- | --------------- | -------- | ------ | ------ | -------------------------------------------- |
+| IDEA-002 | Rewrite in Rust | refactor | high   | low    | Out of scope - TypeScript is core to project |
+| IDEA-005 | Add blockchain  | feature  | high   | low    | Not aligned with project vision              |
 ```
 
 ## Filter Options
 
-| Filter | Directories Read | Use Case |
-|--------|-----------------|----------|
-| `on-validation` | `ideas/on-validation/` | See what needs validation |
-| `accepted` | `ideas/accepted/` | See what's approved for backlog |
-| `rejected` | `ideas/rejected/` | Review past decisions |
-| `all` or none | All three directories | Complete overview |
+| Filter          | Directories Read       | Use Case                        |
+| --------------- | ---------------------- | ------------------------------- |
+| `on-validation` | `ideas/on-validation/` | See what needs validation       |
+| `accepted`      | `ideas/accepted/`      | See what's approved for backlog |
+| `rejected`      | `ideas/rejected/`      | Review past decisions           |
+| `all` or none   | All three directories  | Complete overview               |
 
 ## Execute Now
 

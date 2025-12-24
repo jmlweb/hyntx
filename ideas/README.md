@@ -198,10 +198,10 @@ Display ideas with optional filtering by status.
 
 Total: 12 ideas (3 on-validation, 7 accepted, 2 rejected)
 
-| ID | Title | Status | Category | Effort | Impact | Created |
-|----|-------|--------|----------|--------|--------|---------|
-| IDEA-012 | Add CSV export | accepted | feature | low | medium | 2025-12-24 |
-| IDEA-011 | Dark mode | on-validation | feature | - | - | 2025-12-23 |
+| ID       | Title          | Status        | Category | Effort | Impact | Created    |
+| -------- | -------------- | ------------- | -------- | ------ | ------ | ---------- |
+| IDEA-012 | Add CSV export | accepted      | feature  | low    | medium | 2025-12-24 |
+| IDEA-011 | Dark mode      | on-validation | feature  | -      | -      | 2025-12-23 |
 ```
 
 ### /feed-backlog
@@ -301,17 +301,17 @@ rejection_reason: "Reason text" or null
 
 ## Frontmatter Fields
 
-| Field | Required | Values | Notes |
-|-------|----------|--------|-------|
-| `id` | Yes | IDEA-XXX | Auto-generated, sequential |
-| `title` | Yes | String | Brief descriptive title |
-| `status` | Yes | on-validation, accepted, rejected | Current state |
-| `category` | Yes | feature, improvement, refactor, fix, documentation, other | Type of idea |
-| `created_date` | Yes | YYYY-MM-DD | When idea was created |
-| `validated_date` | No | YYYY-MM-DD or null | When validated |
-| `effort` | No | low, medium, high, null | Estimated effort |
-| `impact` | No | low, medium, high, null | Expected impact |
-| `rejection_reason` | Conditional | String or null | **MANDATORY if status is rejected** |
+| Field              | Required    | Values                                                    | Notes                               |
+| ------------------ | ----------- | --------------------------------------------------------- | ----------------------------------- |
+| `id`               | Yes         | IDEA-XXX                                                  | Auto-generated, sequential          |
+| `title`            | Yes         | String                                                    | Brief descriptive title             |
+| `status`           | Yes         | on-validation, accepted, rejected                         | Current state                       |
+| `category`         | Yes         | feature, improvement, refactor, fix, documentation, other | Type of idea                        |
+| `created_date`     | Yes         | YYYY-MM-DD                                                | When idea was created               |
+| `validated_date`   | No          | YYYY-MM-DD or null                                        | When validated                      |
+| `effort`           | No          | low, medium, high, null                                   | Estimated effort                    |
+| `impact`           | No          | low, medium, high, null                                   | Expected impact                     |
+| `rejection_reason` | Conditional | String or null                                            | **MANDATORY if status is rejected** |
 
 ## Best Practices
 

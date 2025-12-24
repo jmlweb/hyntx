@@ -34,6 +34,7 @@ This is complementary to the planned Markdown reporter but serves a different us
 4. Suppress spinner and progress output when JSON format is selected (clean stdout)
 
 The JSON output would include:
+
 - Analysis metadata (date, prompt count, provider used)
 - Patterns array with all pattern details
 - Before/After examples for each pattern

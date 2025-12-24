@@ -78,11 +78,11 @@ Show a table like this:
 
 Total ideas in validation: X
 
-| ID | Title | Recommendation | Effort | Impact | Reasoning |
-|----|-------|----------------|--------|--------|-----------|
-| IDEA-001 | Add dark mode | Accept | medium | high | Aligns with Phase 4, user-requested |
-| IDEA-002 | Rewrite in Rust | Reject | high | low | Out of scope, TypeScript is core |
-| IDEA-003 | Add CSV export | Accept | low | medium | Natural extension of reporters |
+| ID       | Title           | Recommendation | Effort | Impact | Reasoning                           |
+| -------- | --------------- | -------------- | ------ | ------ | ----------------------------------- |
+| IDEA-001 | Add dark mode   | Accept         | medium | high   | Aligns with Phase 4, user-requested |
+| IDEA-002 | Rewrite in Rust | Reject         | high   | low    | Out of scope, TypeScript is core    |
+| IDEA-003 | Add CSV export  | Accept         | low    | medium | Natural extension of reporters      |
 ```
 
 ## Execute Now

@@ -36,9 +36,9 @@ Use this template for the generated file:
 ```markdown
 ---
 id: IDEA-XXX
-title: {Title}
+title: { Title }
 status: on-validation
-category: {feature|improvement|refactor|fix|documentation|other}
+category: { feature|improvement|refactor|fix|documentation|other }
 created_date: YYYY-MM-DD
 validated_date: null
 effort: null
@@ -81,14 +81,14 @@ rejection_reason: null
 
 ## Category Options
 
-| Category | Description |
-|----------|-------------|
-| feature | New functionality or capability |
-| improvement | Enhancement to existing feature |
-| refactor | Code quality or architecture improvement |
-| fix | Bug fix or correction |
-| documentation | Documentation improvements |
-| other | Anything that doesn't fit above categories |
+| Category      | Description                                |
+| ------------- | ------------------------------------------ |
+| feature       | New functionality or capability            |
+| improvement   | Enhancement to existing feature            |
+| refactor      | Code quality or architecture improvement   |
+| fix           | Bug fix or correction                      |
+| documentation | Documentation improvements                 |
+| other         | Anything that doesn't fit above categories |
 
 ## Execute Now
 

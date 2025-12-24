@@ -13,10 +13,10 @@ Analyze the current state of the project, identify improvement opportunities, an
 Gather comprehensive context by reading:
 
 - **ROADMAP.md**: Current tasks, priorities, and phases
-- **backlog/*.md**: Pending tasks and their specifications
+- **backlog/\*.md**: Pending tasks and their specifications
 - **TECHNICAL_DEBT.md**: Known technical debt items
-- **ideas/accepted/*.md**: Previously accepted ideas (to avoid duplicates)
-- **ideas/on-validation/*.md**: Ideas currently under review
+- **ideas/accepted/\*.md**: Previously accepted ideas (to avoid duplicates)
+- **ideas/on-validation/\*.md**: Ideas currently under review
 - **src/**: Sample of codebase to identify patterns, gaps, or issues
 
 ### 2. Identify Improvement Opportunities
@@ -100,6 +100,7 @@ A good suggested idea should be:
 ## Example Execution
 
 **Analysis findings:**
+
 - TECHNICAL_DEBT.md mentions lack of E2E tests for checkout flow
 - backlog/ has multiple testing-related tasks but none for E2E
 - ideas/accepted/ doesn't have any testing infrastructure ideas
@@ -111,6 +112,7 @@ Implement E2E testing for critical user flows
 "Implement Playwright E2E testing infrastructure for checkout and authentication flows"
 
 **Action:**
+
 ```bash
 /new-idea "Implement Playwright E2E testing infrastructure for checkout and authentication flows. The project currently lacks E2E tests for critical user journeys, which increases risk of regressions. This idea proposes setting up Playwright with initial coverage for checkout flow and user authentication."
 ```

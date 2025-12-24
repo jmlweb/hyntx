@@ -93,12 +93,13 @@ New ideas to process: Z
 ### Creating Tasks
 
 Processing IDEA-001 (Add CSV export):
-  ✓ Created task: add-csv-reporter.md (P2, Phase 4)
-  ✓ Updated idea file with task reference
+✓ Created task: add-csv-reporter.md (P2, Phase 4)
+✓ Updated idea file with task reference
 
 Processing IDEA-003 (Dark mode toggle):
-  - Already has tasks: add-theme-system.md, add-dark-mode-ui.md
-  - Skipping
+
+- Already has tasks: add-theme-system.md, add-dark-mode-ui.md
+- Skipping
 
 ### Results
 
