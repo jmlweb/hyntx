@@ -30,7 +30,7 @@ Implement all system utilities: environment variable management and path constan
 
 Implement the basic capability to read and parse Claude Code JSONL files.
 
-### 5. [Initial Interactive Setup](backlog/setup-inicial.md)
+### ~~5. [Initial Interactive Setup](backlog/setup-inicial.md)~~ ✅ COMPLETED
 
 **Priority**: P0 | **Dependencies**: tipos-base.md, utils-completos.md (partial - shell-config)
 
@@ -148,7 +148,7 @@ For efficient development, it is recommended to follow this order:
 2. ~~**schema-validator.md** - Simple, no complex dependencies~~ ✅
 3. ~~**utils-completos.md** - Required early for paths and shell-config~~ ✅
 4. ~~**log-reader-basico.md** - Basic core functionality~~ ✅
-5. **setup-inicial.md** - Initial configuration
+5. ~~**setup-inicial.md** - Initial configuration~~ ✅
 6. **log-reader-completo.md** - Extends the basic
 7. **sanitizer.md** - Independent, required before providers
 8. **provider-base-ollama.md** - First functional provider
