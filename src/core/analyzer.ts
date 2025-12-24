@@ -12,6 +12,7 @@ import {
   type AnalysisPattern,
   type PatternSeverity,
   type ProviderType,
+  type ProjectContext,
   PROVIDER_LIMITS,
 } from '../types/index.js';
 
@@ -95,6 +96,7 @@ type AnalyzePromptsOptions = {
   readonly provider: AnalysisProvider;
   readonly prompts: readonly string[];
   readonly date: string;
+  readonly context?: ProjectContext;
   readonly onProgress?: (current: number, total: number) => void;
 };
 
@@ -465,6 +467,7 @@ export function mergeBatchResults(
  *   provider: ollamaProvider,
  *   prompts: ['prompt1', 'prompt2', 'prompt3'],
  *   date: '2025-01-15',
+ *   context: { role: 'developer', techStack: ['TypeScript'] },
  *   onProgress: (current, total) => console.log(`${current}/${total}`)
  * });
  * ```
@@ -472,7 +475,7 @@ export function mergeBatchResults(
 export async function analyzePrompts(
   options: AnalyzePromptsOptions,
 ): Promise<AnalysisResult> {
-  const { provider, prompts, date, onProgress } = options;
+  const { provider, prompts, date, context, onProgress } = options;
 
   if (prompts.length === 0) {
     throw new Error('Cannot analyze empty prompts array');
@@ -503,7 +506,7 @@ export async function analyzePrompts(
       onProgress(0, 1);
     }
 
-    const result = await provider.analyze(batch.prompts, date);
+    const result = await provider.analyze(batch.prompts, date, context);
 
     if (onProgress) {
       onProgress(1, 1);
@@ -524,7 +527,7 @@ export async function analyzePrompts(
       onProgress(i, totalBatches);
     }
 
-    const result = await provider.analyze(batch.prompts, date);
+    const result = await provider.analyze(batch.prompts, date, context);
     results.push(result);
   }
 

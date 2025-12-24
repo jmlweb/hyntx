@@ -20,10 +20,15 @@ import { getAvailableProvider } from './providers/index.js';
 import { CLAUDE_PROJECTS_DIR } from './utils/paths.js';
 import { logger } from './utils/logger.js';
 import { EXIT_CODES } from './types/index.js';
+import {
+  loadProjectConfigForCwd,
+  mergeConfigs,
+} from './utils/project-config.js';
 import type {
   AnalysisProvider,
   AnalysisResult,
   JsonErrorResponse,
+  ProjectContext,
 } from './types/index.js';
 
 // =============================================================================
@@ -328,6 +333,7 @@ export async function connectProviderWithSpinner(
  * @param provider - Analysis provider
  * @param prompts - Array of prompt strings
  * @param date - Date context
+ * @param context - Optional project context
  * @param isJsonMode - Whether JSON output mode is active
  * @returns Analysis result
  */
@@ -335,6 +341,7 @@ export async function analyzeWithProgress(
   provider: AnalysisProvider,
   prompts: readonly string[],
   date: string,
+  context: ProjectContext | undefined,
   isJsonMode: boolean,
 ): Promise<AnalysisResult> {
   const spinner = isJsonMode
@@ -346,6 +353,7 @@ export async function analyzeWithProgress(
       provider,
       prompts,
       date,
+      context,
       onProgress: (current, total) => {
         if (!isJsonMode && spinner && total > 1) {
           spinner.text = `Analyzing ${String(prompts.length)} prompts (batch ${String(current + 1)}/${String(total)})...`;
@@ -440,17 +448,23 @@ export async function main(): Promise<void> {
     // Check for first run and run setup if needed
     await checkAndRunSetup(isJsonMode);
 
+    // Load project config and merge with env config
+    const envConfig = getEnvConfig();
+    const projectConfig = loadProjectConfigForCwd(process.cwd());
+    const config = mergeConfigs(envConfig, projectConfig);
+
     // Read logs
     const prompts = await readLogsWithSpinner(args.date, isJsonMode);
 
     // Connect to provider
     const provider = await connectProviderWithSpinner(isJsonMode);
 
-    // Analyze prompts
+    // Analyze prompts with optional project context
     const result = await analyzeWithProgress(
       provider,
       prompts,
       args.date,
+      config.context,
       isJsonMode,
     );
 

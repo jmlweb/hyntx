@@ -252,7 +252,7 @@ Review and verify complete error handling throughout the system with clear messa
 
 Simplify complex edge case handling logic in `updateShellConfig()` function with proper marker validation and clearer string manipulation.
 
-### 23. [Add Project-Specific Configuration File Support](backlog/add-project-config-file.md)
+### ~~23. [Add Project-Specific Configuration File Support](backlog/add-project-config-file.md)~~ ✅ COMPLETED
 
 **Priority**: P1 | **Dependencies**: cli-entry-basico.md, provider-factory.md | **Source**: IDEA-007
 

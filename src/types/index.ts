@@ -143,13 +143,29 @@ export const PROVIDER_LIMITS: Record<ProviderType, ProviderLimits> = {
 } as const;
 
 /**
+ * Project-specific context information.
+ * Loaded from .hyntxrc.json files to provide additional context during analysis.
+ */
+export type ProjectContext = {
+  readonly role?: string;
+  readonly techStack?: readonly string[];
+  readonly domain?: string;
+  readonly guidelines?: readonly string[];
+  readonly projectType?: string;
+};
+
+/**
  * Interface for AI analysis providers.
  * All providers must implement this interface.
  */
 export type AnalysisProvider = {
   readonly name: string;
   isAvailable(): Promise<boolean>;
-  analyze(prompts: readonly string[], date: string): Promise<AnalysisResult>;
+  analyze(
+    prompts: readonly string[],
+    date: string,
+    context?: ProjectContext,
+  ): Promise<AnalysisResult>;
 };
 
 // =============================================================================

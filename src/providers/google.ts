@@ -12,6 +12,7 @@ import {
   type AnalysisProvider,
   type AnalysisResult,
   type GoogleConfig,
+  type ProjectContext,
 } from '../types/index.js';
 import {
   createRateLimiter,
@@ -132,18 +133,20 @@ export class GoogleProvider implements AnalysisProvider {
    *
    * @param prompts - Array of prompt strings to analyze
    * @param date - Date context for the analysis
+   * @param context - Optional project context for analysis
    * @returns Promise resolving to AnalysisResult
    * @throws Error if analysis fails after retries or if response is invalid
    */
   public async analyze(
     prompts: readonly string[],
     date: string,
+    context?: ProjectContext,
   ): Promise<AnalysisResult> {
     if (prompts.length === 0) {
       throw new Error('Cannot analyze empty prompts array');
     }
 
-    const userPrompt = buildUserPrompt(prompts, date);
+    const userPrompt = buildUserPrompt(prompts, date, context);
 
     return this.rateLimiter.throttle(() =>
       withRetry(

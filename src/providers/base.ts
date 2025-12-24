@@ -7,7 +7,11 @@
  * - Response parser with validation and error handling
  */
 
-import { type AnalysisResult, type AnalysisPattern } from '../types/index.js';
+import {
+  type AnalysisResult,
+  type AnalysisPattern,
+  type ProjectContext,
+} from '../types/index.js';
 
 /**
  * System prompt template for AI analysis providers.
@@ -52,14 +56,17 @@ Guidelines:
 /**
  * Builds a user prompt for analysis from a list of prompts.
  * Formats prompts with numbers and includes date context.
+ * Optionally injects project context to provide additional information.
  *
  * @param prompts - Array of prompt strings to analyze
  * @param date - Date context for the analysis (e.g., "2025-01-15")
+ * @param context - Optional project context to inject
  * @returns Formatted user prompt string
  */
 export function buildUserPrompt(
   prompts: readonly string[],
   date: string,
+  context?: ProjectContext,
 ): string {
   if (prompts.length === 0) {
     throw new Error('Cannot build prompt from empty array');
@@ -72,7 +79,35 @@ export function buildUserPrompt(
   const count = String(prompts.length);
   const plural = prompts.length === 1 ? '' : 's';
 
-  return `Analyze the following ${count} prompt${plural} from ${date}:
+  // Build context section if context is provided
+  let contextSection = '';
+  if (context) {
+    const contextParts: string[] = [];
+
+    if (context.role) {
+      contextParts.push(`Role: ${context.role}`);
+    }
+    if (context.projectType) {
+      contextParts.push(`Project Type: ${context.projectType}`);
+    }
+    if (context.domain) {
+      contextParts.push(`Domain: ${context.domain}`);
+    }
+    if (context.techStack && context.techStack.length > 0) {
+      contextParts.push(`Tech Stack: ${context.techStack.join(', ')}`);
+    }
+    if (context.guidelines && context.guidelines.length > 0) {
+      contextParts.push(
+        `Guidelines:\n${context.guidelines.map((g) => `- ${g}`).join('\n')}`,
+      );
+    }
+
+    if (contextParts.length > 0) {
+      contextSection = `\n\nProject Context:\n${contextParts.join('\n')}\n`;
+    }
+  }
+
+  return `Analyze the following ${count} prompt${plural} from ${date}:${contextSection}
 
 ${promptsList}
 

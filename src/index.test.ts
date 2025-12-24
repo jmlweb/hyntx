@@ -491,6 +491,7 @@ describe('analyzeWithProgress', () => {
       mockProvider,
       prompts,
       '2025-01-20',
+      undefined,
       false,
     );
 
@@ -520,7 +521,13 @@ describe('analyzeWithProgress', () => {
 
     mockAnalyzePrompts.mockResolvedValue(mockResult);
 
-    await index.analyzeWithProgress(mockProvider, prompts, '2025-01-20', false);
+    await index.analyzeWithProgress(
+      mockProvider,
+      prompts,
+      '2025-01-20',
+      undefined,
+      false,
+    );
 
     // Get the onProgress callback - typing isn't perfect here but it's a test
     const onProgressCall = mockAnalyzePrompts.mock.calls[0]?.[0] as
@@ -548,7 +555,13 @@ describe('analyzeWithProgress', () => {
 
     mockAnalyzePrompts.mockRejectedValue(new Error('Analysis error'));
 
-    await index.analyzeWithProgress(mockProvider, prompts, '2025-01-20', false);
+    await index.analyzeWithProgress(
+      mockProvider,
+      prompts,
+      '2025-01-20',
+      undefined,
+      false,
+    );
 
     expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.ERROR);
   });

@@ -1,0 +1,13 @@
+{
+  "context": {
+    "role": "backend developer",
+    "techStack": ["TypeScript", "Node.js", "Vitest"],
+    "domain": "CLI tools and prompt analysis",
+    "guidelines": [
+      "Use functional programming patterns",
+      "Prefer composition over inheritance",
+      "Avoid mutations"
+    ],
+    "projectType": "CLI tool"
+  }
+}
