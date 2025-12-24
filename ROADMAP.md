@@ -186,7 +186,7 @@ Replace hardcoded `OllamaProvider` in CLI with `getAvailableProvider()` factory 
 
 Add `--verbose` flag for detailed operational logging to stderr for troubleshooting.
 
-### 14.6. [Add Centralized Logging System](backlog/add-centralized-logging.md)
+### ~~14.6. [Add Centralized Logging System](backlog/add-centralized-logging.md)~~ ✅ COMPLETED
 
 **Priority**: P1 | **Dependencies**: cli-entry-basico.md | **Source**: IDEA-004
 

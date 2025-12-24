@@ -18,6 +18,7 @@ import { analyzePrompts } from './core/analyzer.js';
 import { printReport, formatJson } from './core/reporter.js';
 import { getAvailableProvider } from './providers/index.js';
 import { CLAUDE_PROJECTS_DIR } from './utils/paths.js';
+import { logger } from './utils/logger.js';
 import { EXIT_CODES } from './types/index.js';
 import type {
   AnalysisProvider,
@@ -182,11 +183,13 @@ export async function readLogsWithSpinner(
       };
       console.log(JSON.stringify(errorResponse));
     } else {
-      console.error(chalk.red('Error: Claude Code logs directory not found'));
-      console.error(chalk.dim(`Expected location: ${CLAUDE_PROJECTS_DIR}`));
-      console.error(
+      logger.error('Claude Code logs directory not found');
+      process.stderr.write(
+        chalk.dim(`Expected location: ${CLAUDE_PROJECTS_DIR}\n`),
+      );
+      process.stderr.write(
         chalk.dim(
-          '\nMake sure Claude Code is installed and has been used at least once.',
+          '\nMake sure Claude Code is installed and has been used at least once.\n',
         ),
       );
     }
@@ -209,9 +212,9 @@ export async function readLogsWithSpinner(
         console.log(JSON.stringify(errorResponse));
       } else {
         spinner?.fail(chalk.yellow(`No prompts found for ${date}`));
-        console.error(
+        process.stderr.write(
           chalk.dim(
-            '\nTry a different date or check that Claude Code has been used recently.',
+            '\nTry a different date or check that Claude Code has been used recently.\n',
           ),
         );
       }
@@ -225,12 +228,8 @@ export async function readLogsWithSpinner(
         ),
       );
 
-      // Show warnings if any (but don't fail)
-      if (result.warnings.length > 0) {
-        for (const warning of result.warnings) {
-          console.warn(chalk.yellow(`Warning: ${warning}`));
-        }
-      }
+      // Warnings are already collected by the log-reader via the logger
+      // They will be reported at the end of execution
     }
 
     // Extract prompt content strings
@@ -273,9 +272,9 @@ export async function connectProviderWithSpinner(
       };
       console.log(JSON.stringify(errorResponse));
     } else {
-      console.error(chalk.red('Error: No providers configured'));
-      console.error(
-        chalk.dim('\nRun setup to configure at least one provider.'),
+      logger.error('No providers configured');
+      process.stderr.write(
+        chalk.dim('\nRun setup to configure at least one provider.\n'),
       );
     }
     process.exit(EXIT_CODES.PROVIDER_UNAVAILABLE);
@@ -290,6 +289,11 @@ export async function connectProviderWithSpinner(
           `Primary provider ${from} unavailable, falling back to ${to}...`,
         );
       }
+      // Collect fallback as a warning for reporting
+      logger.collectWarning(
+        `Provider ${from} unavailable, fell back to ${to}`,
+        'provider',
+      );
     });
 
     if (!isJsonMode) {
@@ -307,10 +311,10 @@ export async function connectProviderWithSpinner(
       console.log(JSON.stringify(errorResponse));
     } else {
       spinner?.fail(chalk.red('No providers available'));
-      console.error(chalk.dim(`\n${errorMessage}`));
-      console.error(
+      process.stderr.write(chalk.dim(`\n${errorMessage}\n`));
+      process.stderr.write(
         chalk.dim(
-          '\nCheck your provider configuration and ensure at least one provider is running.',
+          '\nCheck your provider configuration and ensure at least one provider is running.\n',
         ),
       );
     }
@@ -403,7 +407,7 @@ export function handleError(error: Error, isJsonMode: boolean): void {
     };
     console.log(JSON.stringify(errorResponse));
   } else {
-    console.error(chalk.red(`\nError: ${error.message}`));
+    logger.error(error.message);
   }
   process.exit(EXIT_CODES.ERROR);
 }
@@ -453,9 +457,18 @@ export async function main(): Promise<void> {
     // Display results
     displayResults(result, args.format ?? 'terminal', args.compact ?? false);
 
+    // Report any collected warnings at the end of successful execution
+    if (!isJsonMode) {
+      logger.reportWarnings();
+    }
+
     // Exit successfully
     process.exit(EXIT_CODES.SUCCESS);
   } catch (error) {
+    // Report warnings before exiting on error too
+    if (!isJsonMode) {
+      logger.reportWarnings();
+    }
     handleError(
       error instanceof Error ? error : new Error(String(error)),
       isJsonMode,

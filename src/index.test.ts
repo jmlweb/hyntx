@@ -322,7 +322,7 @@ describe('readLogsWithSpinner', () => {
     );
   });
 
-  it('shows warnings when present but does not fail', async () => {
+  it('returns prompts when present even with warnings (warnings reported at end of main)', async () => {
     mockClaudeProjectsExist.mockReturnValue(true);
     mockReadLogs.mockResolvedValue({
       prompts: [
@@ -339,13 +339,10 @@ describe('readLogsWithSpinner', () => {
 
     const result = await index.readLogsWithSpinner('today', false);
 
+    // Warnings are now collected via logger.collectWarning() and
+    // reported at end of main() via logger.reportWarnings()
+    // So this function just returns the prompts regardless of warnings
     expect(result).toEqual(['Test prompt']);
-    expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining('Warning: Warning 1'),
-    );
-    expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining('Warning: Warning 2'),
-    );
   });
 
   it('exits with ERROR when readLogs throws', async () => {

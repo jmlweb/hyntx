@@ -175,7 +175,9 @@ describe('readLogs', () => {
 
     expect(result.prompts).toHaveLength(1);
     expect(result.prompts[0]?.content).toBe('Valid prompt');
-    expect(result.warnings).toHaveLength(2);
+    // Warnings are now aggregated per file (e.g., "Skipped 2 invalid line(s) in ...")
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toContain('Skipped 2 invalid line(s)');
   });
 
   it('skips empty lines without warning', async () => {

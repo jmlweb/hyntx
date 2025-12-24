@@ -19,6 +19,7 @@ import type {
   ShellConfigResult,
   ShellType,
 } from '../types/index.js';
+import { logger } from './logger.js';
 
 /**
  * Detects the user's shell type based on environment variables.
@@ -175,8 +176,19 @@ export function updateShellConfig(
     // Ensure directory exists
     try {
       mkdirSync(dirname(configFile), { recursive: true });
-    } catch {
-      // Directory might already exist, ignore
+    } catch (error) {
+      // Directory might already exist, which is fine
+      // Log other errors for debugging
+      if (
+        error instanceof Error &&
+        !error.message.includes('EEXIST') &&
+        !(error as NodeJS.ErrnoException).code?.includes('EEXIST')
+      ) {
+        logger.debug(
+          `Directory creation note: ${error.message}`,
+          'shell-config',
+        );
+      }
     }
 
     // Write file
@@ -186,8 +198,13 @@ export function updateShellConfig(
     // Failure is not critical - some systems may not support chmod
     try {
       chmodSync(configFile, 0o600);
-    } catch {
-      // Permission change failed - not critical, continue
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      logger.collectWarning(
+        `Could not set restrictive permissions on ${configFile}: ${errorMessage}`,
+        'shell-config',
+      );
     }
 
     return {

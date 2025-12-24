@@ -18,6 +18,7 @@ import {
 } from '../types/index.js';
 import { CLAUDE_PROJECTS_DIR } from '../utils/paths.js';
 import { validateLogEntry } from './schema-validator.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * Options for filtering logs.
@@ -125,23 +126,40 @@ function extractDate(timestamp: string): string {
  * Parses a single JSONL line into a ClaudeMessage.
  *
  * @param line - A single line from the JSONL file
+ * @param lineNumber - Line number for error context (optional)
+ * @param filePath - File path for error context (optional)
  * @returns Parsed ClaudeMessage or null if invalid
  */
-function parseLine(line: string): ClaudeMessage | null {
+function parseLine(
+  line: string,
+  lineNumber?: number,
+  filePath?: string,
+): ClaudeMessage | null {
   if (!line.trim()) {
     return null;
   }
+
+  const context =
+    lineNumber !== undefined && filePath
+      ? `${filePath}:${String(lineNumber)}`
+      : undefined;
 
   try {
     const parsed: unknown = JSON.parse(line);
     const validation = validateLogEntry(parsed);
 
     if (!validation.isValid) {
+      logger.debug(
+        `Schema validation failed: ${validation.warning ?? 'Unknown format'}`,
+        context,
+      );
       return null;
     }
 
     return parsed as ClaudeMessage;
-  } catch {
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Parse error';
+    logger.debug(`JSON parse failed: ${errorMessage}`, context);
     return null;
   }
 }
@@ -193,14 +211,16 @@ async function readJsonlFile(filePath: string): Promise<{
   try {
     const content = await readFile(filePath, 'utf-8');
     const lines = content.split('\n');
+    let skippedLines = 0;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i] ?? '';
-      const message = parseLine(line);
+      const lineNumber = i + 1;
+      const message = parseLine(line, lineNumber, filePath);
 
       if (message === null) {
         if (line.trim()) {
-          warnings.push(`Skipped invalid line ${String(i + 1)} in ${filePath}`);
+          skippedLines++;
         }
         continue;
       }
@@ -222,10 +242,19 @@ async function readJsonlFile(filePath: string): Promise<{
         date: extractDate(message.timestamp),
       });
     }
+
+    // Report summary of skipped lines rather than per-line warnings
+    if (skippedLines > 0) {
+      const warning = `Skipped ${String(skippedLines)} invalid line(s) in ${filePath}`;
+      warnings.push(warning);
+      logger.collectWarning(warning, 'log-reader');
+    }
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
-    warnings.push(`Failed to read ${filePath}: ${errorMessage}`);
+    const warning = `Failed to read ${filePath}: ${errorMessage}`;
+    warnings.push(warning);
+    logger.error(warning, 'log-reader');
   }
 
   return { prompts, warnings };
