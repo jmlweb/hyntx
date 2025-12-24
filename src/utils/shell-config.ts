@@ -5,7 +5,13 @@
  * environment variable exports, and update shell configuration files.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type {
@@ -175,6 +181,14 @@ export function updateShellConfig(
 
     // Write file
     writeFileSync(configFile, content, 'utf-8');
+
+    // Set restrictive permissions (600) to protect API keys
+    // Failure is not critical - some systems may not support chmod
+    try {
+      chmodSync(configFile, 0o600);
+    } catch {
+      // Permission change failed - not critical, continue
+    }
 
     return {
       success: true,
