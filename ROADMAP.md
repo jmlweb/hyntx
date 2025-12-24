@@ -48,7 +48,7 @@ These tasks implement the main functionality of the system.
 
 Extend log reading with date and project filters, and day grouping.
 
-### 7. [Secret Sanitizer](backlog/sanitizer.md)
+### ~~7. [Secret Sanitizer](backlog/sanitizer.md)~~ ✅ COMPLETED
 
 **Priority**: P1 | **Dependencies**: tipos-base.md
 
@@ -150,7 +150,7 @@ For efficient development, it is recommended to follow this order:
 4. ~~**log-reader-basico.md** - Basic core functionality~~ ✅
 5. ~~**setup-inicial.md** - Initial configuration~~ ✅
 6. ~~**log-reader-completo.md** - Extends the basic~~ ✅
-7. **sanitizer.md** - Independent, required before providers
+7. ~~**sanitizer.md** - Independent, required before providers~~ ✅
 8. **provider-base-ollama.md** - First functional provider
 9. **analyzer-batching.md** - Orchestrates analysis
 10. **reporter-terminal.md** - Shows results
