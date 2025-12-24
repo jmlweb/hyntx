@@ -60,7 +60,7 @@ Implement automatic redaction of secrets and sensitive information before analys
 
 Implement base provider interface and Ollama provider (local, offline-first).
 
-### 9. [Analyzer with Map-Reduce Batching](backlog/analyzer-batching.md)
+### ~~9. [Analyzer with Map-Reduce Batching](backlog/analyzer-batching.md)~~ ✅ COMPLETED
 
 **Priority**: P1 | **Dependencies**: tipos-base.md, provider-base-ollama.md
 
@@ -152,7 +152,7 @@ For efficient development, it is recommended to follow this order:
 6. ~~**log-reader-completo.md** - Extends the basic~~ ✅
 7. ~~**sanitizer.md** - Independent, required before providers~~ ✅
 8. ~~**provider-base-ollama.md** - First functional provider~~ ✅
-9. **analyzer-batching.md** - Orchestrates analysis
+9. ~~**analyzer-batching.md** - Orchestrates analysis~~ ✅
 10. **reporter-terminal.md** - Shows results
 11. **cli-entry-basico.md** - Basic functional CLI
 12. **provider-anthropic.md** - Second provider

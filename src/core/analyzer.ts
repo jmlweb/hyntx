@@ -1,0 +1,537 @@
+/**
+ * Prompt Analyzer for Hyntx
+ *
+ * This module provides core analysis functionality for batching prompts,
+ * merging results, and orchestrating the analysis workflow.
+ */
+
+import { sanitizePrompts } from './sanitizer.js';
+import {
+  type AnalysisProvider,
+  type AnalysisResult,
+  type AnalysisPattern,
+  type PatternSeverity,
+  type ProviderType,
+  PROVIDER_LIMITS,
+} from '../types/index.js';
+
+// =============================================================================
+// Constants
+// =============================================================================
+
+/**
+ * System overhead in tokens to reserve from the context limit.
+ * Accounts for system prompt and response overhead.
+ */
+const SYSTEM_OVERHEAD_TOKENS = 2000;
+
+/**
+ * Minimum viable batch size in tokens.
+ * Batches smaller than this are inefficient.
+ * Currently unused but reserved for future optimization.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const MIN_BATCH_SIZE_TOKENS = 5000;
+
+/**
+ * Severity ranking for sorting patterns.
+ * Higher values = more severe.
+ */
+const SEVERITY_RANK: Record<PatternSeverity, number> = {
+  high: 3,
+  medium: 2,
+  low: 1,
+};
+
+/**
+ * Maximum patterns to include in final result.
+ */
+const MAX_PATTERNS = 5;
+
+/**
+ * Maximum examples to include per pattern.
+ */
+const MAX_EXAMPLES_PER_PATTERN = 3;
+
+/**
+ * Estimated characters per token.
+ * 1 token ≈ 4 characters (common approximation).
+ */
+const CHARS_PER_TOKEN = 4;
+
+// =============================================================================
+// Types
+// =============================================================================
+
+/**
+ * A batch of prompts with estimated token count.
+ */
+type Batch = {
+  readonly prompts: readonly string[];
+  readonly tokens: number;
+};
+
+/**
+ * Options for batching prompts.
+ */
+type BatchPromptsOptions = {
+  readonly prompts: readonly string[];
+  readonly maxTokensPerBatch: number;
+  readonly prioritization: 'longest-first' | 'chronological';
+};
+
+/**
+ * Options for merging batch results.
+ */
+type MergeBatchResultsOptions = {
+  readonly results: readonly AnalysisResult[];
+  readonly date: string;
+};
+
+/**
+ * Options for analyzing prompts.
+ */
+type AnalyzePromptsOptions = {
+  readonly provider: AnalysisProvider;
+  readonly prompts: readonly string[];
+  readonly date: string;
+  readonly onProgress?: (current: number, total: number) => void;
+};
+
+// =============================================================================
+// Helper Functions
+// =============================================================================
+
+/**
+ * Calculates the average of an array of numbers.
+ *
+ * @param numbers - Array of numbers
+ * @returns Average value, or 0 if empty
+ */
+function average(numbers: readonly number[]): number {
+  if (numbers.length === 0) return 0;
+  return sum(numbers) / numbers.length;
+}
+
+/**
+ * Calculates the sum of an array of numbers.
+ *
+ * @param numbers - Array of numbers
+ * @returns Sum of all values
+ */
+function sum(numbers: readonly number[]): number {
+  return numbers.reduce((acc, n) => acc + n, 0);
+}
+
+/**
+ * Flattens an array of arrays into a single array.
+ * Does NOT remove duplicates - duplicates are merged later.
+ *
+ * @param arrays - Array of pattern arrays
+ * @returns Flattened array with all patterns
+ */
+function flattenAll(
+  arrays: readonly (readonly AnalysisPattern[])[],
+): AnalysisPattern[] {
+  const result: AnalysisPattern[] = [];
+
+  for (const arr of arrays) {
+    for (const item of arr) {
+      result.push(item);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Limits the number of examples in an array.
+ *
+ * @param examples - Array of examples
+ * @param max - Maximum number to keep
+ * @returns Limited array
+ */
+function limitExamples(
+  examples: readonly string[],
+  max: number,
+): readonly string[] {
+  return examples.slice(0, max);
+}
+
+/**
+ * Infers provider type from provider name.
+ *
+ * @param providerName - Name of the provider (e.g., "Ollama", "Anthropic")
+ * @returns Provider type
+ */
+function inferProviderType(providerName: string): ProviderType {
+  const nameLower = providerName.toLowerCase();
+  if (nameLower.includes('ollama')) return 'ollama';
+  if (nameLower.includes('anthropic') || nameLower.includes('claude'))
+    return 'anthropic';
+  if (nameLower.includes('google') || nameLower.includes('gemini'))
+    return 'google';
+  return 'ollama'; // Default fallback
+}
+
+/**
+ * Returns the maximum severity from an array of severities.
+ *
+ * @param severities - Array of severity levels
+ * @returns Maximum severity
+ */
+function maxSeverity(severities: readonly PatternSeverity[]): PatternSeverity {
+  if (severities.length === 0) return 'low';
+
+  let max: PatternSeverity = 'low';
+  let maxRank = SEVERITY_RANK.low;
+
+  for (const severity of severities) {
+    const rank = SEVERITY_RANK[severity];
+    if (rank > maxRank) {
+      max = severity;
+      maxRank = rank;
+    }
+  }
+
+  return max;
+}
+
+// =============================================================================
+// Core Functions
+// =============================================================================
+
+/**
+ * Estimates the token count for a given text.
+ *
+ * Uses a simple approximation: 1 token ≈ 4 characters.
+ * This is a conservative estimate that works across most tokenizers.
+ *
+ * @param text - Text to estimate
+ * @returns Estimated token count
+ *
+ * @example
+ * ```typescript
+ * estimateTokens('Hello world') // 3 tokens
+ * estimateTokens('') // 0 tokens
+ * ```
+ */
+export function estimateTokens(text: string): number {
+  if (!text || text.length === 0) return 0;
+  return Math.ceil(text.length / CHARS_PER_TOKEN);
+}
+
+/**
+ * Batches prompts intelligently based on token limits and prioritization strategy.
+ *
+ * Uses a greedy bin-packing algorithm to create batches that respect token limits
+ * while minimizing the number of API calls.
+ *
+ * @param options - Batching options
+ * @returns Array of batches
+ *
+ * @example
+ * ```typescript
+ * const batches = batchPrompts({
+ *   prompts: ['short', 'medium prompt', 'very long prompt...'],
+ *   maxTokensPerBatch: 1000,
+ *   prioritization: 'longest-first'
+ * });
+ * ```
+ */
+export function batchPrompts(options: BatchPromptsOptions): readonly Batch[] {
+  const { prompts, maxTokensPerBatch, prioritization } = options;
+
+  if (prompts.length === 0) {
+    return [];
+  }
+
+  // Reserve space for system overhead
+  const effectiveLimit = maxTokensPerBatch - SYSTEM_OVERHEAD_TOKENS;
+
+  // Calculate token estimates for each prompt
+  const promptsWithTokens = prompts.map((prompt) => ({
+    prompt,
+    tokens: estimateTokens(prompt),
+  }));
+
+  // Sort based on prioritization strategy
+  const sorted =
+    prioritization === 'longest-first'
+      ? [...promptsWithTokens].sort((a, b) => b.tokens - a.tokens)
+      : promptsWithTokens; // chronological maintains original order
+
+  // Greedy bin-packing algorithm
+  const batches: Batch[] = [];
+  let currentBatch: string[] = [];
+  let currentTokens = 0;
+
+  for (const { prompt, tokens } of sorted) {
+    // Handle oversized prompts (create dedicated batch)
+    if (tokens > effectiveLimit) {
+      // Flush current batch if it has content
+      if (currentBatch.length > 0) {
+        batches.push({ prompts: currentBatch, tokens: currentTokens });
+        currentBatch = [];
+        currentTokens = 0;
+      }
+      // Create dedicated batch for oversized prompt
+      batches.push({ prompts: [prompt], tokens });
+      continue;
+    }
+
+    // Check if adding this prompt would exceed the limit
+    if (currentTokens + tokens > effectiveLimit && currentBatch.length > 0) {
+      // Flush current batch and start new one
+      batches.push({ prompts: currentBatch, tokens: currentTokens });
+      currentBatch = [prompt];
+      currentTokens = tokens;
+    } else {
+      // Add to current batch
+      currentBatch.push(prompt);
+      currentTokens += tokens;
+    }
+  }
+
+  // Flush final batch
+  if (currentBatch.length > 0) {
+    batches.push({ prompts: currentBatch, tokens: currentTokens });
+  }
+
+  return batches;
+}
+
+/**
+ * Merges multiple batch results into a single consolidated result.
+ *
+ * Handles deduplication, averaging, and limiting of patterns and statistics.
+ *
+ * @param options - Merge options
+ * @returns Merged analysis result
+ *
+ * @example
+ * ```typescript
+ * const merged = mergeBatchResults({
+ *   results: [result1, result2, result3],
+ *   date: '2025-01-15'
+ * });
+ * ```
+ */
+export function mergeBatchResults(
+  options: MergeBatchResultsOptions,
+): AnalysisResult {
+  const { results, date } = options;
+
+  if (results.length === 0) {
+    throw new Error('Cannot merge empty results array');
+  }
+
+  // Fast path: single result (still apply limiting and date override)
+  if (results.length === 1) {
+    const result = results[0];
+    if (!result) {
+      throw new Error('Results array is empty');
+    }
+
+    // Apply limiting to patterns and examples
+    const limitedPatterns = result.patterns
+      .map((p) => ({
+        ...p,
+        examples: limitExamples(p.examples, MAX_EXAMPLES_PER_PATTERN),
+      }))
+      .sort((a, b) => {
+        const severityDiff =
+          SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity];
+        if (severityDiff !== 0) return severityDiff;
+        return b.frequency - a.frequency;
+      })
+      .slice(0, MAX_PATTERNS);
+
+    const topSuggestion =
+      limitedPatterns.length > 0 && limitedPatterns[0]
+        ? limitedPatterns[0].suggestion
+        : result.topSuggestion;
+
+    return {
+      ...result,
+      date,
+      patterns: limitedPatterns,
+      topSuggestion,
+    };
+  }
+
+  // Flatten all patterns (duplicates will be merged below)
+  const allPatterns = flattenAll(results.map((r) => r.patterns));
+
+  // Group patterns by ID and merge
+  const patternGroups = new Map<string, AnalysisPattern[]>();
+
+  for (const pattern of allPatterns) {
+    const group = patternGroups.get(pattern.id) ?? [];
+    group.push(pattern);
+    patternGroups.set(pattern.id, group);
+  }
+
+  // Merge each group into a single pattern
+  const mergedPatterns: AnalysisPattern[] = [];
+
+  for (const group of patternGroups.values()) {
+    if (group.length === 0) continue;
+
+    const firstPattern = group[0];
+    if (!firstPattern) continue;
+
+    if (group.length === 1) {
+      // Single pattern, just limit examples
+      mergedPatterns.push({
+        ...firstPattern,
+        examples: limitExamples(
+          firstPattern.examples,
+          MAX_EXAMPLES_PER_PATTERN,
+        ),
+      });
+    } else {
+      // Multiple patterns with same ID - merge them
+      const frequencies = group.map((p) => p.frequency);
+      const severities = group.map((p) => p.severity);
+      const allExamples = group.flatMap((p) => Array.from(p.examples));
+
+      const mergedFrequency = Math.round(average(frequencies));
+      const mergedSeverity = maxSeverity(severities);
+      const mergedExamples = limitExamples(
+        allExamples,
+        MAX_EXAMPLES_PER_PATTERN,
+      );
+
+      mergedPatterns.push({
+        ...firstPattern,
+        frequency: mergedFrequency,
+        severity: mergedSeverity,
+        examples: mergedExamples,
+      });
+    }
+  }
+
+  // Sort patterns by severity (desc) then frequency (desc)
+  const sortedPatterns = mergedPatterns.sort((a, b) => {
+    const severityDiff = SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity];
+    if (severityDiff !== 0) return severityDiff;
+    return b.frequency - a.frequency;
+  });
+
+  // Limit to top patterns
+  const topPatterns = sortedPatterns.slice(0, MAX_PATTERNS);
+
+  // Aggregate statistics
+  const totalPrompts = sum(results.map((r) => r.stats.totalPrompts));
+  const promptsWithIssues = sum(results.map((r) => r.stats.promptsWithIssues));
+  const avgScore = Math.round(
+    average(results.map((r) => r.stats.overallScore)),
+  );
+
+  // Use top suggestion from first result (or most severe pattern)
+  const topSuggestion =
+    topPatterns.length > 0 && topPatterns[0]
+      ? topPatterns[0].suggestion
+      : (results[0]?.topSuggestion ?? 'No suggestions available');
+
+  return {
+    date,
+    patterns: topPatterns,
+    stats: {
+      totalPrompts,
+      promptsWithIssues,
+      overallScore: avgScore,
+    },
+    topSuggestion,
+  };
+}
+
+/**
+ * Analyzes prompts using the provided AI provider.
+ *
+ * Orchestrates the full analysis workflow:
+ * 1. Sanitizes prompts to remove secrets
+ * 2. Batches prompts based on provider limits
+ * 3. Processes batches sequentially with progress updates
+ * 4. Merges batch results into final output
+ *
+ * @param options - Analysis options
+ * @returns Analysis result
+ *
+ * @example
+ * ```typescript
+ * const result = await analyzePrompts({
+ *   provider: ollamaProvider,
+ *   prompts: ['prompt1', 'prompt2', 'prompt3'],
+ *   date: '2025-01-15',
+ *   onProgress: (current, total) => console.log(`${current}/${total}`)
+ * });
+ * ```
+ */
+export async function analyzePrompts(
+  options: AnalyzePromptsOptions,
+): Promise<AnalysisResult> {
+  const { provider, prompts, date, onProgress } = options;
+
+  if (prompts.length === 0) {
+    throw new Error('Cannot analyze empty prompts array');
+  }
+
+  // Step 1: Sanitize prompts
+  const { prompts: sanitizedPrompts } = sanitizePrompts(prompts);
+
+  // Step 2: Infer provider type and get limits
+  const providerType = inferProviderType(provider.name);
+  const limits = PROVIDER_LIMITS[providerType];
+
+  // Step 3: Batch prompts
+  const batches = batchPrompts({
+    prompts: sanitizedPrompts,
+    maxTokensPerBatch: limits.maxTokensPerBatch,
+    prioritization: limits.prioritization,
+  });
+
+  // Fast path: single batch (no merge overhead)
+  if (batches.length === 1) {
+    const batch = batches[0];
+    if (!batch) {
+      throw new Error('Failed to create batches');
+    }
+
+    if (onProgress) {
+      onProgress(0, 1);
+    }
+
+    const result = await provider.analyze(batch.prompts, date);
+
+    if (onProgress) {
+      onProgress(1, 1);
+    }
+
+    return result;
+  }
+
+  // Step 4: Process batches sequentially with progress updates
+  const results: AnalysisResult[] = [];
+  const totalBatches = batches.length;
+
+  for (let i = 0; i < batches.length; i++) {
+    const batch = batches[i];
+    if (!batch) continue;
+
+    if (onProgress) {
+      onProgress(i, totalBatches);
+    }
+
+    const result = await provider.analyze(batch.prompts, date);
+    results.push(result);
+  }
+
+  if (onProgress) {
+    onProgress(totalBatches, totalBatches);
+  }
+
+  // Step 5: Merge results
+  return mergeBatchResults({ results, date });
+}
