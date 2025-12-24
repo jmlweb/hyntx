@@ -132,6 +132,12 @@ Extend CLI with all advanced options: date ranges, filters, file output, verbose
 
 Review and verify complete error handling throughout the system with clear messages and appropriate exit codes.
 
+### 19. [E2E Testing Infrastructure](backlog/e2e-testing.md)
+
+**Priority**: P3 | **Dependencies**: cli-entry-basico.md, log-reader-completo.md, provider-base-ollama.md, utils-completos.md
+
+Implement comprehensive end-to-end testing infrastructure for local development validation. Tests validate complete CLI workflow, environment variable configuration, and custom Claude Code paths. **Note**: These tests are local-only and NOT included in CI/CD pipelines.
+
 ---
 
 ## Recommended Implementation Order
@@ -156,6 +162,7 @@ For efficient development, it is recommended to follow this order:
 16. **reporter-markdown.md** - File output
 17. **cli-completo.md** - Complete CLI
 18. **error-handling.md** - Complete review
+19. **e2e-testing.md** - E2E testing infrastructure (local-only)
 
 ---
 
