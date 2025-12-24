@@ -21,6 +21,7 @@ Hyntx follows a layered architecture with clear separation of concerns:
 │ • Sanitizing  │   │ • Anthropic   │   │ • Shell config│
 │ • Analysis    │   │ • Google      │   │ • Paths       │
 │ • Reporting   │   │ • Factory     │   │ • Terminal    │
+│ • Setup       │   │               │   │               │
 └───────────────┘   └───────────────┘   └───────────────┘
         │                   │
         └───────────────────┘
@@ -48,6 +49,7 @@ Each module has one clear purpose:
 | `sanitizer.ts`  | Redact secrets from prompts           |
 | `analyzer.ts`   | Orchestrate analysis with batching    |
 | `reporter.ts`   | Format output for terminal/file       |
+| `setup.ts`      | Interactive first-run configuration   |
 
 ### 2. Dependency Inversion
 
@@ -229,6 +231,64 @@ function formatMarkdown(
   date: string,
   projects: string[],
 ): string;
+```
+
+#### setup.ts
+
+Interactive first-run configuration system.
+
+```typescript
+async function runSetup(): Promise<EnvConfig>;
+function showManualInstructions(config: EnvConfig): void;
+```
+
+**Responsibilities**:
+
+- Guide users through provider selection
+- Collect provider-specific configuration
+- Save configuration to shell files
+- Provide manual instructions fallback
+
+**UI Libraries**:
+
+- `prompts` - Interactive menus and user input
+- `chalk` - Terminal colors and styling
+- `boxen` - Boxed sections for visual appeal
+
+### Utility Modules
+
+#### shell-config.ts
+
+Shell configuration file management.
+
+```typescript
+function detectShellConfigFile(): { shellType: ShellType; configFile: string };
+function generateEnvExports(config: EnvConfig): readonly string[];
+function updateShellConfig(
+  configFile: string,
+  exports: readonly string[],
+): ShellConfigResult;
+function saveConfigToShell(config: EnvConfig): ShellConfigResult;
+function getManualInstructions(config: EnvConfig): string;
+```
+
+**Responsibilities**:
+
+- Detect user's shell type (zsh, bash, fish)
+- Generate environment variable export statements
+- Update or create configuration blocks in shell files
+- Handle configuration block markers for safe updates
+
+**Configuration Block Format**:
+
+```bash
+# >>> hyntx config >>>
+  export HYNTX_SERVICES=ollama
+  export HYNTX_OLLAMA_MODEL=llama3.2
+
+  # Uncomment to enable periodic reminders:
+  # hyntx --check-reminder 2>/dev/null
+# <<< hyntx config <<<
 ```
 
 ### Provider Modules

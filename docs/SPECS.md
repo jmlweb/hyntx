@@ -130,13 +130,44 @@ The CLI supports date filtering, project filtering, output formats, and debuggin
 
 ## 7. Shell Config Auto-Update (src/utils/shell-config.ts)
 
-> **Tarea de implementación**: Ver [setup-inicial.md](../backlog/setup-inicial.md) (incluye shell-config.ts)
+✅ **Implemented** - Shell configuration utilities are implemented in `src/utils/shell-config.ts`.
+
+**Functions**:
+
+- `detectShellConfigFile()` - Detects user's shell type and config file path
+- `generateEnvExports()` - Generates export statements for environment variables
+- `updateShellConfig()` - Updates or creates configuration block in shell file
+- `saveConfigToShell()` - Main function to save configuration
+- `getManualInstructions()` - Generates manual instructions for user
+
+**Features**:
+
+- Supports zsh, bash, and fish shells
+- Uses clear markers (`# >>> hyntx config >>>`) for configuration blocks
+- Handles existing blocks (replaces) or creates new ones
+- Graceful error handling with manual fallback
 
 ---
 
 ## 8. Interactive Setup (src/core/setup.ts)
 
-> **Tarea de implementación**: Ver [setup-inicial.md](../backlog/setup-inicial.md)
+✅ **Implemented** - Interactive setup system is implemented in `src/core/setup.ts`.
+
+**Functions**:
+
+- `runSetup()` - Main function that orchestrates interactive setup
+- `showManualInstructions()` - Shows manual instructions if auto-save fails
+
+**Features**:
+
+- Multi-provider selection (ollama, anthropic, google)
+- Provider-specific configuration (models, API keys, hosts)
+- Reminder frequency configuration
+- Auto-save to shell config files
+- Manual instructions fallback
+- Sets environment variables for current session
+- Uses `prompts` for clean interactive UI
+- Uses `chalk` and `boxen` for visual appeal
 
 ---
 
