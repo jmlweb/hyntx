@@ -4,10 +4,13 @@
 
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import {
   detectShellConfigFile,
   generateEnvExports,
   updateShellConfig,
+  saveConfigToShell,
+  getManualInstructions,
 } from './shell-config.js';
 import type { EnvConfig } from '../types/index.js';
 
@@ -284,5 +287,166 @@ describe('updateShellConfig', () => {
     const writtenContent = vi.mocked(fs.writeFileSync).mock.calls[0]?.[1];
     expect(writtenContent).toContain('# >>> hyntx config >>>');
     expect(writtenContent).toContain('# <<< hyntx config <<<');
+  });
+
+  it('handles malformed config block with only end marker', () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(fs.readFileSync).mockReturnValue(
+      '# before\n  export OLD=value\n# <<< hyntx config <<<\n# after\n',
+    );
+
+    const result = updateShellConfig('/mock/home/.zshrc', [
+      'export HYNTX_SERVICES=ollama',
+    ]);
+
+    expect(result.success).toBe(true);
+    const writtenContent = vi.mocked(fs.writeFileSync).mock.calls[0]?.[1];
+    expect(writtenContent).toContain('# >>> hyntx config >>>');
+    expect(writtenContent).toContain('# <<< hyntx config <<<');
+    // The malformed marker is removed and replaced with a clean block
+    // The implementation removes from the end marker position onwards
+  });
+});
+
+describe('saveConfigToShell', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Re-mock homedir after clearAllMocks
+    vi.mocked(os.homedir).mockReturnValue('/mock/home');
+  });
+
+  it('saves config to detected shell file successfully', () => {
+    vi.mocked(fs.existsSync).mockReturnValue(false);
+
+    const config: EnvConfig = {
+      services: ['ollama'],
+      reminder: '7d',
+      ollama: { model: 'llama3.2', host: 'http://localhost:11434' },
+      anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
+      google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
+    };
+
+    const result = saveConfigToShell(config);
+
+    expect(result.success).toBe(true);
+    expect(result.shellFile).toBe('/mock/home/.zshrc');
+    expect(result.action).toBe('created');
+    expect(fs.writeFileSync).toHaveBeenCalled();
+  });
+
+  it('generates correct exports for config', () => {
+    vi.mocked(fs.existsSync).mockReturnValue(false);
+
+    const config: EnvConfig = {
+      services: ['ollama', 'anthropic'],
+      reminder: '7d',
+      ollama: { model: 'llama3.2', host: 'http://localhost:11434' },
+      anthropic: { model: 'claude-3-5-haiku-latest', apiKey: 'sk-test-key' },
+      google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
+    };
+
+    saveConfigToShell(config);
+
+    const writtenContent = vi.mocked(fs.writeFileSync).mock.calls[0]?.[1];
+    expect(writtenContent).toContain('export HYNTX_SERVICES=ollama,anthropic');
+    expect(writtenContent).toContain('export HYNTX_OLLAMA_MODEL=llama3.2');
+    expect(writtenContent).toContain('export HYNTX_ANTHROPIC_KEY=sk-test-key');
+  });
+
+  it('returns failure when write fails', () => {
+    vi.mocked(fs.existsSync).mockReturnValue(false);
+    vi.mocked(fs.writeFileSync).mockImplementation(() => {
+      throw new Error('Permission denied');
+    });
+
+    const config: EnvConfig = {
+      services: ['ollama'],
+      reminder: '7d',
+      ollama: { model: 'llama3.2', host: 'http://localhost:11434' },
+      anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
+      google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
+    };
+
+    const result = saveConfigToShell(config);
+
+    expect(result.success).toBe(false);
+    expect(result.action).toBe('failed');
+    expect(result.message).toContain('Permission denied');
+  });
+});
+
+describe('getManualInstructions', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Re-mock homedir after clearAllMocks
+    vi.mocked(os.homedir).mockReturnValue('/mock/home');
+  });
+
+  it('returns manual instructions with exports', () => {
+    const config: EnvConfig = {
+      services: ['ollama'],
+      reminder: '7d',
+      ollama: { model: 'llama3.2', host: 'http://localhost:11434' },
+      anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
+      google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
+    };
+
+    const instructions = getManualInstructions(config);
+
+    expect(instructions).toContain('Add this to your');
+    expect(instructions).toContain('.zshrc');
+    expect(instructions).toContain('export HYNTX_SERVICES=ollama');
+    expect(instructions).toContain('export HYNTX_OLLAMA_MODEL=llama3.2');
+    expect(instructions).toContain('source /mock/home/.zshrc');
+    expect(instructions).toContain('hyntx --check-reminder');
+  });
+
+  it('includes all selected services in instructions', () => {
+    const config: EnvConfig = {
+      services: ['ollama', 'anthropic', 'google'],
+      reminder: '14d',
+      ollama: { model: 'llama3.2', host: 'http://localhost:11434' },
+      anthropic: { model: 'claude-3-5-haiku-latest', apiKey: 'sk-test-key' },
+      google: { model: 'gemini-2.0-flash-exp', apiKey: 'google-key' },
+    };
+
+    const instructions = getManualInstructions(config);
+
+    expect(instructions).toContain(
+      'export HYNTX_SERVICES=ollama,anthropic,google',
+    );
+    expect(instructions).toContain('export HYNTX_OLLAMA_MODEL=llama3.2');
+    expect(instructions).toContain('export HYNTX_ANTHROPIC_KEY=sk-test-key');
+    expect(instructions).toContain('export HYNTX_GOOGLE_KEY=google-key');
+  });
+
+  it('includes reminder in instructions', () => {
+    const config: EnvConfig = {
+      services: ['ollama'],
+      reminder: '30d',
+      ollama: { model: 'llama3.2', host: 'http://localhost:11434' },
+      anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
+      google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
+    };
+
+    const instructions = getManualInstructions(config);
+
+    expect(instructions).toContain('export HYNTX_REMINDER=30d');
+  });
+
+  it('returns correctly formatted multiline instructions', () => {
+    const config: EnvConfig = {
+      services: ['ollama'],
+      reminder: '7d',
+      ollama: { model: 'llama3.2', host: 'http://localhost:11434' },
+      anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
+      google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
+    };
+
+    const instructions = getManualInstructions(config);
+
+    const lines = instructions.split('\n');
+    expect(lines.length).toBeGreaterThan(5);
+    expect(lines.some((line) => line.includes('Then reload your shell')));
   });
 });

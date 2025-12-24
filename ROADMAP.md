@@ -216,7 +216,7 @@ Implement periodic reminder system to maintain the analysis habit.
 
 Implement report formatting in Markdown to save results to files.
 
-### 17. [Test Coverage for Setup and Shell Config](backlog/test-coverage-setup-shell.md)
+### ~~17. [Test Coverage for Setup and Shell Config](backlog/test-coverage-setup-shell.md)~~ ✅ COMPLETED
 
 **Priority**: P3 | **Dependencies**: setup-inicial.md, utils-completos.md
 
@@ -289,7 +289,7 @@ For efficient development, it is recommended to follow this order:
 22. ~~**reporter-markdown.md** - File output (blocks cli-completo)~~ ✅
 23. ~~**add-provider-retry-logic.md** - Reliability improvement (P2)~~ ✅
 24. ~~**add-provider-rate-limiting.md** - Reliability improvement (P2)~~ ✅
-25. **test-coverage-setup-shell.md** - Test coverage (blocks refactor-shell-config-logic)
+25. ~~**test-coverage-setup-shell.md** - Test coverage (blocks refactor-shell-config-logic)~~ ✅
 26. **refactor-log-reader-types.md** - Type safety improvements (quick win)
 27. **e2e-testing.md** - E2E testing infrastructure (local-only)
 28. **cli-completo.md** - Complete CLI (requires reporter-markdown)

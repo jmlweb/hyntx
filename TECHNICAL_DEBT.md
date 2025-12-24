@@ -159,37 +159,7 @@ try {
 
 ---
 
-## 5. Missing Test Coverage
-
-**Problem**: Two implemented modules have no test files: `setup.ts` and `shell-config.ts`. These modules contain important functionality that should be tested.
-
-**Impact**:
-
-- Risk of regressions when modifying these modules
-- Harder to refactor safely without tests
-- No documentation of expected behavior through tests
-- Potential bugs may go undetected
-
-**Missing Test Files**:
-
-- `src/core/setup.test.ts` - No tests for interactive setup functionality
-- `src/utils/shell-config.test.ts` - No tests for shell configuration utilities
-
-**Modules Without Tests**:
-
-- `src/core/setup.ts` - Interactive setup, provider configuration, shell config saving
-- `src/utils/shell-config.ts` - Shell detection, config file updates, manual instructions
-
-**Recommendation**: Create comprehensive test files for both modules, covering:
-
-- Happy paths
-- Error cases
-- Edge cases (malformed config files, missing directories, etc.)
-- Mocking of file system operations and user input
-
----
-
-## 6. Complex Shell Config Edge Case Logic
+## 5. Complex Shell Config Edge Case Logic
 
 **Problem**: The malformed block handling logic in `updateShellConfig()` is complex and handles edge cases where only one marker (start or end) is present. The logic for determining start and end indices when markers are missing could have edge cases with overlapping or incorrectly positioned markers.
 
@@ -240,5 +210,4 @@ try {
 These technical debt items should be prioritized based on:
 
 1. **High Priority**: Error handling (#3, #4) - affects reliability and debugging
-2. **Medium Priority**: Test coverage (#5) - affects maintainability
-3. **Low Priority**: Code quality improvements (#1, #2, #6) - improve code but don't block functionality
+2. **Low Priority**: Code quality improvements (#1, #2, #5) - improve code but don't block functionality
