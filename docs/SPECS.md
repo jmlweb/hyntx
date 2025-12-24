@@ -368,29 +368,14 @@ Testing strategy uses Vitest for unit and integration tests with focus on core b
 
 ---
 
-## 20. Future Enhancements (v1.1+)
+## 20. Future Enhancements
 
-Features deferred from v1.0 for future consideration:
+For post-v1.0 ideas and long-term plans, see [FUTURE_PLANS.md](FUTURE_PLANS.md).
 
-### 20.1 Project-Specific Context (.hyntxrc)
+**Note**: Some features originally planned for v1.1+ have been moved to the v1.0 backlog:
 
-Allow users to provide project context for more tailored advice:
-
-```json
-{
-  "frameworks": ["Next.js 14", "TypeScript", "tRPC"],
-  "description": "E-commerce platform",
-  "customRules": "Always specify API endpoint paths"
-}
-```
-
-### 20.2 Prompt Template Generation
-
-Generate `.claudeprompt` files based on analysis results to help users improve future prompts.
-
-### 20.3 Claude Code Version Detection
-
-Detect Claude Code version from `~/.claude/settings.json` for better compatibility messaging.
+- **Project-Specific Configuration**: Now in backlog as [IDEA-007](../ideas/accepted/IDEA-007-project-specific-configuration-file.md)
+- **JSON Output Format**: Now in backlog as [IDEA-001](../ideas/accepted/IDEA-001-add-json-output-format.md)
 
 ---
 
