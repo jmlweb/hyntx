@@ -102,7 +102,7 @@ The project follows a layered architecture with clear separation of concerns:
 
 ## 4. Dependencies (package.json)
 
-> **Tarea de implementación**: Ver [package-json.md](../backlog/package-json.md)
+Base configuration already exists in `package.json`. Runtime dependencies (chalk, ora, prompts, boxen, cli-table3, cli-progress, figlet, date-fns, glob) will be added as needed during implementation of their respective modules.
 
 ---
 
@@ -124,7 +124,7 @@ The CLI supports date filtering, project filtering, output formats, and debuggin
 
 ## 6. TypeScript Types (src/types/index.ts)
 
-> **Tarea de implementación**: Ver [tipos-base.md](../backlog/tipos-base.md)
+✅ **Implemented** - All types are defined in `src/types/index.ts`.
 
 ---
 
@@ -148,7 +148,7 @@ The CLI supports date filtering, project filtering, output formats, and debuggin
 
 ## 10. Schema Validator (src/core/schema-validator.ts)
 
-> **Tarea de implementación**: Ver [schema-validator.md](../backlog/schema-validator.md)
+✅ **Implemented** - Schema validation is implemented in `src/core/schema-validator.ts`.
 
 ---
 
@@ -286,7 +286,7 @@ The terminal reporter must provide an **attractive and visually engaging** user 
 
 ## 17. Utils
 
-> **Tarea de implementación**: Ver [utils-completos.md](../backlog/utils-completos.md)
+✅ **Implemented** - Utilities are implemented in `src/utils/` (env.ts, paths.ts).
 
 ---
 
@@ -317,8 +317,6 @@ Testing strategy uses Vitest for unit and integration tests with focus on core b
 - Coverage goals: 85%+ overall, 90%+ for core modules
 
 > **Complete testing strategy**: See [TESTING.md](TESTING.md) for test structure, mocking strategies, fixtures, and edge cases
->
-> **Task**: See [testing-strategy.md](../backlog/testing-strategy.md) for implementation tasks
 
 ---
 

@@ -134,24 +134,6 @@ Review and verify complete error handling throughout the system with clear messa
 
 ---
 
-## Phase 5: Testing and Documentation (P4 - Optional)
-
-These tasks are important for quality and long-term maintenance.
-
-### 19. [Testing Strategy](backlog/testing-strategy.md)
-
-**Priority**: P4 | **Dependencies**: All implemented modules
-
-Define and document testing strategy with main test cases and edge cases.
-
-### 20. [package.json Configuration](backlog/package-json.md)
-
-**Priority**: P4 | **Dependencies**: none
-
-Configure package.json with all necessary dependencies, scripts, and metadata.
-
----
-
 ## Recommended Implementation Order
 
 For efficient development, it is recommended to follow this order:
@@ -174,8 +156,6 @@ For efficient development, it is recommended to follow this order:
 16. **reporter-markdown.md** - File output
 17. **cli-completo.md** - Complete CLI
 18. **error-handling.md** - Complete review
-19. **package-json.md** - Project configuration
-20. **testing-strategy.md** - Testing documentation
 
 ---
 

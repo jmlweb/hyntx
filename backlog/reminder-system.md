@@ -23,7 +23,6 @@ Help users maintain the habit of analyzing their prompts regularly through confi
 ## Files to Create/Modify
 
 - `src/core/reminder.ts` - Reminder system functions
-- `src/utils/paths.ts` - Add LAST_RUN_FILE constant
 
 ## Implementation
 
