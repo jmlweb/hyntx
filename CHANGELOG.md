@@ -1,3 +1,20 @@
+## [1.1.0](https://github.com/jmlweb/hyntx/compare/v1.0.0...v1.1.0) (2025-12-24)
+
+### Features
+
+- **cli:** add --check-config flag for configuration health checks ([88aeaef](https://github.com/jmlweb/hyntx/commit/88aeaef70bf098cf40bad2c9978ce6cf38e5898c))
+- **cli:** add JSON output format with compact mode ([05e9fd8](https://github.com/jmlweb/hyntx/commit/05e9fd852648623f72648acbc16dafe44d4d8739))
+- **cli:** add verbose/debug mode with --verbose flag ([a2b4bc0](https://github.com/jmlweb/hyntx/commit/a2b4bc0c058761f5c1c86de70ec34d803c7a96fc))
+- **config:** add project-specific configuration file support ([df20058](https://github.com/jmlweb/hyntx/commit/df2005860bff93490f535e8f60c942b5cd4688f2))
+- **core:** implement centralized logging system ([ac09452](https://github.com/jmlweb/hyntx/commit/ac0945220842cb6df38be35786178cb74bc2027f))
+- **providers:** add centralized retry logic with exponential backoff ([9669ee1](https://github.com/jmlweb/hyntx/commit/9669ee16af1f7993f4773212ae329b4a05c723a3))
+- **providers:** add rate limiting to prevent 429 errors ([fe0897e](https://github.com/jmlweb/hyntx/commit/fe0897e5495b79c25f433e8c9c2156e58987e7d3))
+- **reporter:** add Markdown output format support ([208829e](https://github.com/jmlweb/hyntx/commit/208829e02f2fd8bbc893c16e1958e5135b1d2c3c))
+
+### Documentation
+
+- Add future plans for monorepo migration ([2811f09](https://github.com/jmlweb/hyntx/commit/2811f09f328a8aab60805a9695883db9da054f2d))
+
 ## 1.0.0 (2025-12-24)
 
 ### Features
