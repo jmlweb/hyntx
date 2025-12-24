@@ -119,6 +119,14 @@ function extractPrompts(messages: ClaudeMessage[]): ExtractedPrompt[] {
    │                              ▼
    │                       Save to shell config
    │
+   ├─► Load Project Config (project-config.ts)
+   │        │
+   │        └─► Merge with global config
+   │
+   ├─► Validate Config (config-validator.ts)
+   │        │
+   │        └─► Check provider availability
+   │
    ├─► Check Reminder? ──yes──► Reminder System (reminder.ts)
    │
    ├─► Read Logs (log-reader.ts)
@@ -132,18 +140,21 @@ function extractPrompts(messages: ClaudeMessage[]): ExtractedPrompt[] {
    │
    ├─► Get Provider (providers/index.ts)
    │        │
+   │        ├─► Check availability with retry (retry.ts)
    │        └─► Try each provider in order
    │
    ├─► Analyze (analyzer.ts)
    │        │
    │        ├─► Batch prompts if needed
-   │        ├─► Send to provider
+   │        ├─► Send to provider with rate limiting (rate-limiter.ts)
    │        └─► Merge results (Map-Reduce)
    │
    └─► Report (reporter.ts)
             │
             ├─► Terminal output
             └─► File output (if --output)
+
+   Throughout: Logging (logger.ts) for verbose mode and debugging
 ```
 
 ---
@@ -290,6 +301,87 @@ function getManualInstructions(config: EnvConfig): string;
   # hyntx --check-reminder 2>/dev/null
 # <<< hyntx config <<<
 ```
+
+#### logger.ts
+
+Centralized logging utilities for consistent logging across the application.
+
+```typescript
+function log(message: string, level?: 'info' | 'warn' | 'error'): void;
+function logVerbose(message: string): void; // Only logs if --verbose flag is set
+```
+
+**Responsibilities**:
+
+- Provide consistent logging interface
+- Support different log levels
+- Respect verbose mode flag
+
+#### retry.ts
+
+Retry logic for handling transient failures in API calls and network operations.
+
+```typescript
+function retry<T>(fn: () => Promise<T>, options?: RetryOptions): Promise<T>;
+```
+
+**Features**:
+
+- Configurable max retries
+- Exponential backoff strategy
+- Custom retry conditions
+- Timeout support
+
+#### rate-limiter.ts
+
+Rate limiting for API calls to prevent hitting provider limits.
+
+```typescript
+class RateLimiter {
+  constructor(requestsPerMinute: number);
+  async acquire(): Promise<void>;
+}
+```
+
+**Features**:
+
+- Token bucket algorithm
+- Per-provider rate limiting
+- Automatic request throttling
+
+#### config-validator.ts
+
+Configuration health check utilities.
+
+```typescript
+function validateConfig(config: EnvConfig): ValidationResult;
+function checkProviderAvailability(
+  config: EnvConfig,
+): Promise<ProviderStatus[]>;
+```
+
+**Features**:
+
+- Validates environment configuration
+- Checks provider connectivity
+- Reports configuration issues
+- Suggests fixes for common problems
+
+#### project-config.ts
+
+Project-specific configuration file support (`.hyntxrc`).
+
+```typescript
+function loadProjectConfig(cwd?: string): ProjectConfig | null;
+function mergeConfigs(global: EnvConfig, project: ProjectConfig): EnvConfig;
+```
+
+**Features**:
+
+- Loads `.hyntxrc` from project directory
+- Supports JSON and YAML formats
+- Merges with global configuration
+- Project-level provider preferences
 
 ### Provider Modules
 

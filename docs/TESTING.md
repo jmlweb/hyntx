@@ -33,11 +33,20 @@ hyntx/
 ## Running Tests
 
 ```bash
-# Watch mode (development)
+# Single run (unit tests only)
 pnpm test
 
-# Single run
-pnpm test
+# Watch mode (development)
+pnpm test:watch
+
+# E2E tests (local-only, not run in CI)
+pnpm test:e2e
+
+# E2E tests in watch mode
+pnpm test:e2e:watch
+
+# All tests (unit + E2E)
+pnpm test:all
 
 # With coverage
 pnpm test:coverage
@@ -48,6 +57,8 @@ pnpm test src/core/sanitizer.test.ts
 # Pattern matching
 pnpm test --grep "sanitizer"
 ```
+
+**Note**: E2E tests (31 of 59 currently failing) are being actively improved. See `E2E_TEST_IMPLEMENTATION_NOTES.md` for status and implementation details.
 
 ---
 

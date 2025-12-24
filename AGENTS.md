@@ -91,6 +91,40 @@ class ProviderError extends Error {
 
 ---
 
+## Module Overview
+
+### Core Modules (src/core/)
+
+- `analyzer.ts` - Analysis orchestration with batching and Map-Reduce
+- `log-reader.ts` - Claude Code log parsing with date/project filtering
+- `reminder.ts` - Periodic reminder system with configurable frequency
+- `reporter.ts` - Output formatting (terminal, markdown, JSON)
+- `sanitizer.ts` - Secret redaction for privacy
+- `schema-validator.ts` - Log schema validation with graceful degradation
+- `setup.ts` - Interactive first-run configuration
+
+### Provider Modules (src/providers/)
+
+- `base.ts` - Provider interface and shared utilities
+- `ollama.ts` - Local Ollama provider (privacy-first)
+- `anthropic.ts` - Anthropic Claude provider
+- `google.ts` - Google Gemini provider
+- `index.ts` - Provider factory with automatic fallback
+
+### Utility Modules (src/utils/)
+
+- `env.ts` - Environment configuration parsing and validation
+- `paths.ts` - System path constants
+- `terminal.ts` - Terminal output helpers
+- `shell-config.ts` - Shell configuration file management
+- `logger.ts` - Centralized logging utilities
+- `retry.ts` - Retry logic for transient failures
+- `rate-limiter.ts` - Rate limiting for API calls
+- `config-validator.ts` - Configuration health check utilities
+- `project-config.ts` - Project-specific configuration file support (`.hyntxrc`)
+
+---
+
 ## Security Rules
 
 **Privacy is critical** - Always sanitize before sending to AI:

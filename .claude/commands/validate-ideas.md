@@ -2,7 +2,7 @@
 description: Review ideas in on-validation and move them if appropriate
 ---
 
-# Revalidate Ideas
+# Validate Ideas
 
 Batch review all ideas currently in `ideas/on-validation/` and suggest moving them to `ideas/accepted/` or `ideas/rejected/` based on current project context.
 
@@ -74,7 +74,7 @@ Low Impact, High Effort  → REJECT (Poor ROI)
 Show a table like this:
 
 ```markdown
-## Revalidation Summary
+## Validation Summary
 
 Total ideas in validation: X
 

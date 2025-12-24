@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22.0.0-brightgreen.svg)](https://nodejs.org/)
 
-> **🚧 NOT READY FOR USE**: Hyntx is currently **under active development** and **not yet ready for production use**. The tool is not functional at this time. This README describes the planned features and functionality. For the current development status, implementation progress, and what's actually working, please see the [ROADMAP.md](ROADMAP.md).
+> 🚧 **NOT READY FOR USE**: This project is under active development. The published npm package does not produce output yet. Check back for updates.
 
 ## What is Hyntx?
 
@@ -33,8 +33,6 @@ Think of it as a **retrospective code review for your prompts**.
 - **Dry-run mode**: Preview what will be analyzed before sending to AI
 
 ## Installation
-
-> **Note**: Hyntx is not yet ready for use. The installation instructions below are for reference only. See [ROADMAP.md](ROADMAP.md) for development status.
 
 ### NPM (Global)
 
@@ -349,7 +347,7 @@ Make sure you've used Claude Code at least once. Logs are stored in:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/hyntx.git
+git clone https://github.com/jmlweb/hyntx.git
 cd hyntx
 
 # Install dependencies
@@ -423,9 +421,8 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/hyntx/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/hyntx/discussions)
-- **Email**: your-email@example.com
+- **Issues**: [GitHub Issues](https://github.com/jmlweb/hyntx/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/jmlweb/hyntx/discussions)
 
 ---
 

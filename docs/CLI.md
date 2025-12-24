@@ -8,18 +8,20 @@ hyntx [options]
 
 ## Options
 
-| Flag               | Alias | Type      | Default | Description                   |
-| ------------------ | ----- | --------- | ------- | ----------------------------- |
-| `--date`           |       | `string`  | `today` | Date to analyze               |
-| `--from`           |       | `string`  |         | Range start date              |
-| `--to`             |       | `string`  |         | Range end date                |
-| `--project`        |       | `string`  |         | Filter by project name        |
-| `--output`         | `-o`  | `string`  |         | Save report to file           |
-| `--verbose`        | `-v`  | `boolean` | `false` | Show debug information        |
-| `--dry-run`        |       | `boolean` | `false` | Preview without sending to AI |
-| `--check-reminder` |       | `boolean` | `false` | Check if reminder is due      |
-| `--help`           | `-h`  | `boolean` |         | Show help                     |
-| `--version`        |       | `boolean` |         | Show version                  |
+| Flag               | Alias | Type      | Default | Description                                |
+| ------------------ | ----- | --------- | ------- | ------------------------------------------ |
+| `--date`           |       | `string`  | `today` | Date to analyze                            |
+| `--from`           |       | `string`  |         | Range start date                           |
+| `--to`             |       | `string`  |         | Range end date                             |
+| `--project`        |       | `string`  |         | Filter by project name                     |
+| `--output`         | `-o`  | `string`  |         | Save report to file                        |
+| `--format`         |       | `string`  |         | Output format: `json`, `markdown`          |
+| `--verbose`        | `-v`  | `boolean` | `false` | Show debug information                     |
+| `--dry-run`        |       | `boolean` | `false` | Preview without sending to AI              |
+| `--check-config`   |       | `boolean` | `false` | Validate configuration and check providers |
+| `--check-reminder` |       | `boolean` | `false` | Check if reminder is due                   |
+| `--help`           | `-h`  | `boolean` |         | Show help                                  |
+| `--version`        |       | `boolean` |         | Show version                               |
 
 ---
 
@@ -76,9 +78,14 @@ hyntx --date yesterday --project backend
 ```bash
 # Save as Markdown
 hyntx --output report.md
+hyntx --format markdown --output report.md
 
-# Save as JSON
+# Save as JSON (to file)
 hyntx --output analysis.json
+hyntx --format json --output analysis.json
+
+# JSON to stdout (for piping)
+hyntx --format json
 
 # Multi-day range to file
 hyntx --from 2025-01-15 --to 2025-01-20 --output weekly-report.md
@@ -93,7 +100,10 @@ hyntx --dry-run
 # Verbose output
 hyntx --verbose
 
-# Both
+# Check configuration health
+hyntx --check-config
+
+# Both dry-run and verbose
 hyntx --dry-run --verbose
 ```
 
@@ -281,7 +291,25 @@ The terminal output uses ASCII art, boxes, tables, and colors for an attractive 
 > Add error messages to debugging requests
 ```
 
-### JSON (`--output analysis.json`)
+### JSON (`--output analysis.json` or `--format json`)
+
+JSON output is useful for programmatic consumption and integration with other tools.
+
+**To stdout** (for piping or programmatic use):
+
+```bash
+hyntx --format json | jq '.stats.overallScore'
+```
+
+**To file**:
+
+```bash
+hyntx --format json --output analysis.json
+# Or infer from file extension:
+hyntx --output analysis.json
+```
+
+**Example JSON output**:
 
 ```json
 {
@@ -308,6 +336,55 @@ The terminal output uses ASCII art, boxes, tables, and colors for an attractive 
   "topSuggestion": "Add error messages to debugging requests"
 }
 ```
+
+**Common use cases**:
+
+```bash
+# Extract overall score
+hyntx --format json | jq '.stats.overallScore'
+
+# Count patterns
+hyntx --format json | jq '.patterns | length'
+
+# Get pattern names
+hyntx --format json | jq '.patterns[].name'
+
+# Filter high-severity patterns
+hyntx --format json | jq '.patterns[] | select(.severity == "high")'
+```
+
+---
+
+## Configuration Health Check
+
+The `--check-config` flag validates your configuration and checks provider availability without running analysis.
+
+```bash
+hyntx --check-config
+```
+
+**Output example**:
+
+```text
+✅ Configuration valid
+
+Providers:
+  ✅ ollama - connected (llama3.2 available)
+  ✅ anthropic - API key valid
+  ⚠️  google - API key not configured (optional)
+
+Reminder: 7d (last run: 3 days ago)
+
+Project config: .hyntxrc found
+  - Overrides: ollama_model=llama3.3
+```
+
+**Common issues detected**:
+
+- Missing API keys
+- Invalid provider configuration
+- Unavailable Ollama service
+- Malformed `.hyntxrc` file
 
 ---
 

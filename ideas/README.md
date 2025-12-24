@@ -30,7 +30,7 @@ ideas/
    ↓
 2. ON VALIDATION (ideas/on-validation/)
    ↓
-   Use: /validate-idea or /revalidate-ideas
+   Use: /validate-idea or /validate-ideas
    ↓
 3a. ACCEPTED (ideas/accepted/)        3b. REJECTED (ideas/rejected/)
     ↓                                     ↓
@@ -82,8 +82,9 @@ Analyze the current project state and proactively suggest a new idea.
 **What it does:**
 
 - Analyzes ROADMAP, backlog, TECHNICAL_DEBT, and codebase
+- Checks all idea directories (accepted/, on-validation/, rejected/) to avoid duplicates
 - Identifies improvement opportunities (features, refactors, tooling, etc.)
-- Evaluates uniqueness (avoids duplicating existing ideas/tasks)
+- Evaluates uniqueness (avoids duplicating existing ideas/tasks, including previously rejected ideas)
 - Generates a comprehensive idea description
 - Automatically calls `/new-idea` with the suggestion
 - Reports what was analyzed and created
@@ -144,14 +145,14 @@ Evaluate a specific idea and move it to accepted or rejected.
 - Out of scope = Reject
 - Low ROI = Reject
 
-### /revalidate-ideas
+### /validate-ideas
 
 Batch review all ideas in on-validation directory.
 
 **Usage:**
 
 ```bash
-/revalidate-ideas
+/validate-ideas
 ```
 
 **What it does:**
@@ -426,7 +427,7 @@ Key differences:
 
 ```bash
 # After major milestone, review pending ideas
-/revalidate-ideas
+/validate-ideas
 
 # Claude analyzes 5 pending ideas:
 # IDEA-012: Accept (now aligns with Phase 4)
@@ -508,7 +509,7 @@ All ideas go through the same validation process, regardless of source.
 
 Periodic maintenance tasks:
 
-1. **Weekly**: Review on-validation queue with `/revalidate-ideas`
+1. **Weekly**: Review on-validation queue with `/validate-ideas`
 2. **Monthly**: Feed accepted ideas to backlog with `/feed-backlog`
 3. **Quarterly**: Review rejected ideas - context may have changed
 4. **As needed**: Clean up duplicate or obsolete ideas

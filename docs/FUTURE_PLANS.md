@@ -191,17 +191,17 @@ Provide a local web UI as an alternative to terminal output for users who prefer
 
 ---
 
-## Related Backlog Items (Not Future Plans)
+## Related Items Status
 
-The following items are **in the backlog** for v1.0 implementation and should **not** be confused with future plans:
+The following items were originally planned for future releases but have been **implemented in v1.1.0**:
 
-| Item                                | Status     | Reference                                                                                                                      |
-| ----------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Project-Specific Configuration File | In backlog | [IDEA-007](../ideas/accepted/IDEA-007-project-specific-configuration-file.md), [Task](../backlog/add-project-config-file.md)   |
-| JSON Output Format                  | In backlog | [IDEA-001](../ideas/accepted/IDEA-001-add-json-output-format.md), [Task](../backlog/add-json-output-format.md)                 |
-| Configuration Health Check          | In backlog | [IDEA-006](../ideas/accepted/IDEA-006-configuration-validation-health-check.md), [Task](../backlog/add-config-health-check.md) |
+| Item                                | Status                | Implementation                  |
+| ----------------------------------- | --------------------- | ------------------------------- |
+| Project-Specific Configuration File | ✅ Completed (v1.1.0) | `src/utils/project-config.ts`   |
+| JSON Output Format                  | ✅ Completed (v1.1.0) | `src/core/reporter.ts`          |
+| Configuration Health Check          | ✅ Completed (v1.1.0) | `src/utils/config-validator.ts` |
 
-These are scheduled for v1.0 and tracked in [ROADMAP.md](../ROADMAP.md).
+These features are now part of the stable release.
 
 ---
 

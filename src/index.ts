@@ -6,7 +6,7 @@
  */
 
 import { parseArgs } from 'node:util';
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import { writeFile, mkdir, rename } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, extname, resolve } from 'node:path';
@@ -1021,8 +1021,11 @@ export async function main(): Promise<void> {
 }
 
 // Run main function if this is the main module
+// Use realpathSync to resolve symlinks (e.g., when running via npm link)
 const isMainModule =
-  process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+  process.argv[1] &&
+  realpathSync(fileURLToPath(import.meta.url)) ===
+    realpathSync(process.argv[1]);
 
 if (isMainModule) {
   void main();

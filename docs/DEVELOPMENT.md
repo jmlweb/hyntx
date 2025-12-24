@@ -270,7 +270,7 @@ export default defineConfig({
 
 ## Testing Configuration
 
-### vitest.config.ts
+### vitest.config.ts (Unit Tests)
 
 ```typescript
 import { defineConfig } from 'vitest/config';
@@ -280,6 +280,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
+    exclude: ['tests/e2e/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
@@ -289,6 +290,23 @@ export default defineConfig({
   },
 });
 ```
+
+### vitest.config.e2e.ts (E2E Tests)
+
+```typescript
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: 'node',
+    include: ['tests/e2e/**/*.e2e.test.ts'],
+    testTimeout: 30000,
+  },
+});
+```
+
+**Note**: E2E tests are local-only and excluded from CI/CD to avoid dependency on real Claude Code logs.
 
 ### Required Dependencies
 
@@ -316,6 +334,9 @@ pnpm add -D vitest @vitest/coverage-v8
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "vitest run --config vitest.config.e2e.ts",
+    "test:e2e:watch": "vitest --config vitest.config.e2e.ts",
+    "test:all": "pnpm test && pnpm test:e2e",
     "check": "pnpm typecheck && pnpm lint && pnpm format:check",
     "prepare": "pnpm build"
   }
@@ -421,12 +442,14 @@ This file pins the project to Node.js 22.x LTS. When using nvm with automatic sw
 
 ## Quick Reference
 
-| Command           | Description                            |
-| ----------------- | -------------------------------------- |
-| `pnpm dev`        | Watch mode with rebuild                |
-| `pnpm build`      | Production build                       |
-| `pnpm start`      | Run CLI                                |
-| `pnpm check`      | Run all checks (types + lint + format) |
-| `pnpm test`       | Run tests in watch mode                |
-| `pnpm test`       | Run tests once                         |
-| `pnpm test:watch` | Run tests in watch mode                |
+| Command               | Description                            |
+| --------------------- | -------------------------------------- |
+| `pnpm dev`            | Watch mode with rebuild                |
+| `pnpm build`          | Production build                       |
+| `pnpm start`          | Run CLI                                |
+| `pnpm check`          | Run all checks (types + lint + format) |
+| `pnpm test`           | Run tests once (single run)            |
+| `pnpm test:watch`     | Run tests in watch mode                |
+| `pnpm test:e2e`       | Run E2E tests once                     |
+| `pnpm test:e2e:watch` | Run E2E tests in watch mode            |
+| `pnpm test:all`       | Run all tests (unit + E2E)             |

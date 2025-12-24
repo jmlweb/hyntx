@@ -228,56 +228,107 @@ Where `<project-hash>` is the encoded path:
 
 ### 11.3 Implementation
 
-✅ **Basic Log Reading Implemented** - `src/core/log-reader.ts` provides:
+✅ **Implemented** - `src/core/log-reader.ts` provides:
 
 - `claudeProjectsExist()` - Check if Claude projects directory exists
-- `readLogs()` - Read all JSONL files and extract user prompts
+- `readLogs()` - Read all JSONL files and extract user prompts with date and project filtering
 - `getProjects()` - List all project directories
-
-> **Pending**: Complete log reading with filters - see [log-reader-completo.md](../backlog/log-reader-completo.md)
 
 ---
 
 ## 12. Sanitizer (src/core/sanitizer.ts)
 
-> **Tarea de implementación**: Ver [sanitizer.md](../backlog/sanitizer.md)
+✅ **Implemented** - Sanitizer is implemented in `src/core/sanitizer.ts`.
+
+**Functions**:
+
+- `sanitize()` - Redacts sensitive information from a single text string
+- `sanitizePrompts()` - Sanitizes multiple prompts and tracks total redactions
+
+**Pattern Detection**:
+
+- API keys (OpenAI, Anthropic, AWS)
+- Bearer tokens
+- HTTP credentials in URLs
+- Email addresses
+- Private keys (PEM format)
 
 ---
 
 ## 13. Analyzer with Batching (src/core/analyzer.ts)
 
-> **Tarea de implementación**: Ver [analyzer-batching.md](../backlog/analyzer-batching.md)
+✅ **Implemented** - Analyzer with batching is implemented in `src/core/analyzer.ts`.
+
+**Functions**:
+
+- `batchPrompts()` - Splits prompts into batches based on provider token limits
+- `analyzePrompts()` - Orchestrates analysis with progress tracking
+- `mergeResults()` - Combines results from multiple batches (Map-Reduce)
+
+**Batching Strategy**:
+
+- Respects provider-specific token limits
+- Applies prioritization strategies (chronological or longest-first)
+- Handles oversized prompts gracefully
 
 ---
 
 ## 14. Providers
 
-> **Tareas de implementación**:
->
-> - Base y Ollama: Ver [provider-base-ollama.md](../backlog/provider-base-ollama.md)
-> - Anthropic: Ver [provider-anthropic.md](../backlog/provider-anthropic.md)
-> - Google: Ver [provider-google.md](../backlog/provider-google.md)
-> - Factory: Ver [provider-factory.md](../backlog/provider-factory.md)
+✅ **Implemented** - All providers are implemented with multi-provider support and automatic fallback.
 
 ### 14.1 Base (src/providers/base.ts)
 
-> Ver [provider-base-ollama.md](../backlog/provider-base-ollama.md)
+Defines the `AnalysisProvider` interface and shared utilities for all providers.
+
+**Key Exports**:
+
+- `AnalysisProvider` interface
+- `PROVIDER_LIMITS` - Token limits and prioritization strategies per provider
+- Analysis prompts and result parsing utilities
 
 ### 14.2 Ollama (src/providers/ollama.ts)
 
-> Ver [provider-base-ollama.md](../backlog/provider-base-ollama.md)
+Local AI provider using Ollama for privacy-first analysis.
+
+**Features**:
+
+- Health check via `/api/tags` endpoint
+- Streaming support for long responses
+- Automatic model availability validation
+- Configurable host and model selection
 
 ### 14.3 Anthropic (src/providers/anthropic.ts)
 
-> Ver [provider-anthropic.md](../backlog/provider-anthropic.md)
+Cloud provider using Anthropic's Claude models.
+
+**Features**:
+
+- API key validation
+- Support for Claude 3.5 Haiku and other models
+- Streaming support for real-time results
+- Proper error handling and rate limiting awareness
 
 ### 14.4 Google (src/providers/google.ts)
 
-> Ver [provider-google.md](../backlog/provider-google.md)
+Cloud provider using Google's Gemini models.
+
+**Features**:
+
+- API key validation
+- Support for Gemini 2.0 Flash and other models
+- Large context window support (500k tokens)
+- JSON response parsing
 
 ### 14.5 Factory with Multi-Provider Support (src/providers/index.ts)
 
-> Ver [provider-factory.md](../backlog/provider-factory.md)
+Provider factory with automatic fallback chain.
+
+**Functions**:
+
+- `createProvider()` - Instantiates a specific provider
+- `getAvailableProvider()` - Tries providers in order with fallback callbacks
+- Provider availability checking and error handling
 
 ---
 
@@ -316,25 +367,52 @@ The terminal reporter must provide an **attractive and visually engaging** user 
 - Before/After: Side-by-side or stacked with clear visual distinction
 - Suggestions: Highlighted callout boxes
 
-> **Tareas de implementación**:
->
-> - Terminal: Ver [reporter-terminal.md](../backlog/reporter-terminal.md)
-> - Markdown: Ver [reporter-markdown.md](../backlog/reporter-markdown.md)
+✅ **Implemented** - Reporter is implemented in `src/core/reporter.ts`.
+
+**Functions**:
+
+- `printReport()` - Formats and prints terminal output with colors and boxes
+- `formatMarkdown()` - Generates markdown report from analysis results
+- `formatJson()` - Generates JSON output for programmatic consumption
+
+**Supported Output Formats**:
+
+- Terminal (default) - Visual output with colors, tables, and boxed sections
+- Markdown - Clean markdown format for documentation
+- JSON - Structured data for integration with other tools
 
 ---
 
 ## 16. Entry Point (src/index.ts)
 
-> **Tareas de implementación**:
->
-> - CLI básico: Ver [cli-entry-basico.md](../backlog/cli-entry-basico.md)
-> - CLI completo: Ver [cli-completo.md](../backlog/cli-completo.md)
+✅ **Implemented** - CLI entry point is implemented in `src/index.ts`.
+
+**Features**:
+
+- Argument parsing with all CLI flags
+- Interactive setup on first run
+- Reminder system integration
+- Complete analysis workflow orchestration
+- Error handling with appropriate exit codes
+- Support for all output formats (terminal, markdown, JSON)
 
 ---
 
 ## 17. Utils
 
-✅ **Implemented** - Utilities are implemented in `src/utils/` (env.ts, paths.ts).
+✅ **Implemented** - Utilities are implemented in `src/utils/`.
+
+**Modules**:
+
+- `env.ts` - Environment configuration parsing and validation
+- `paths.ts` - System path constants and utilities
+- `terminal.ts` - Terminal output helpers
+- `shell-config.ts` - Shell configuration file management
+- `logger.ts` - Centralized logging utilities
+- `retry.ts` - Retry logic for transient failures
+- `rate-limiter.ts` - Rate limiting for API calls
+- `config-validator.ts` - Configuration health check utilities
+- `project-config.ts` - Project-specific configuration file support
 
 ---
 
@@ -348,9 +426,9 @@ The system uses a three-tier error handling strategy:
 
 Exit codes: 0 (success), 1 (general error), 2 (no data), 3 (all providers unavailable)
 
+✅ **Implemented** - Error handling is implemented throughout the application following the three-tier strategy with appropriate exit codes and recovery mechanisms.
+
 > **Implementation details**: See [ARCHITECTURE.md](ARCHITECTURE.md#error-handling-strategy) for error categories and handling patterns
->
-> **Task**: See [error-handling.md](../backlog/error-handling.md) for implementation tasks
 
 ---
 
