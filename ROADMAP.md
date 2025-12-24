@@ -108,7 +108,7 @@ Implement Anthropic provider (Claude API) as an alternative to Ollama.
 
 Implement Google provider (Gemini API) as a third provider option.
 
-### 14. [Multi-Provider Factory with Fallback](backlog/provider-factory.md)
+### ~~14. [Multi-Provider Factory with Fallback](backlog/provider-factory.md)~~ ✅ COMPLETED
 
 **Priority**: P2 | **Dependencies**: tipos-base.md, provider-base-ollama.md, provider-anthropic.md, provider-google.md, utils-completos.md
 
@@ -170,7 +170,7 @@ For efficient development, it is recommended to follow this order:
 11. ~~**cli-entry-basico.md** - Basic functional CLI~~ ✅
 12. ~~**provider-anthropic.md** - Second provider~~ ✅
 13. ~~**provider-google.md** - Third provider~~ ✅
-14. **provider-factory.md** - Multi-provider support
+14. ~~**provider-factory.md** - Multi-provider support~~ ✅
 15. **reminder-system.md** - Reminder system
 16. **reporter-markdown.md** - File output
 17. **cli-completo.md** - Complete CLI
