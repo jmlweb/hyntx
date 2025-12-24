@@ -6,7 +6,7 @@ This roadmap organizes the implementation tasks for the Hyntx project following 
 
 These tasks should be completed before starting development to secure project infrastructure.
 
-### 0. [Dummy npm Deployment - Package Name Reservation](backlog/npm-dummy-deployment.md)
+### ~~0. [Dummy npm Deployment - Package Name Reservation](backlog/npm-dummy-deployment.md)~~ ✅ COMPLETED
 
 **Priority**: P0 | **Dependencies**: none
 
@@ -156,7 +156,7 @@ Implement comprehensive end-to-end testing infrastructure for local development 
 
 For efficient development, it is recommended to follow this order:
 
-0. **npm-dummy-deployment.md** - Reserve package name (do this first!)
+0. ~~**npm-dummy-deployment.md** - Reserve package name (do this first!)~~ ✅
 1. ~~**tipos-base.md** - Fundamental base~~ ✅
 2. ~~**schema-validator.md** - Simple, no complex dependencies~~ ✅
 3. ~~**utils-completos.md** - Required early for paths and shell-config~~ ✅
