@@ -20,6 +20,7 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "check": "pnpm typecheck && pnpm lint && pnpm format:check",
+    "size": "npm pack --dry-run 2>&1 | tail -1",
     "prepare": "pnpm build"
   },
   "keywords": [

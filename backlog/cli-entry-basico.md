@@ -75,6 +75,15 @@ Uses types from `src/types/index.ts` and all system modules.
 - Analysis with many prompts (should use batching)
 - --help and --version commands
 
+## Technical Debt Reference
+
+This task addresses the following item from `TECHNICAL_DEBT.md`:
+
+- **Item 7**: CLI Entry Point is Placeholder
+
+**Post-completion action**: Remove item 7 from `TECHNICAL_DEBT.md`.
+
 ## References
 
 - Section 16 of `docs/SPECS.md` - Entry Point (basic version, without all options)
+- `TECHNICAL_DEBT.md` - Item 7

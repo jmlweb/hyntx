@@ -11,6 +11,7 @@ Analyze the current codebase and update `TECHNICAL_DEBT.md` with actual technica
 **Please, focus on the current code of the project, forget the roadmap or the documentation specs.**
 
 Only document issues found in actual implemented code files. Ignore:
+
 - Roadmap items
 - Backlog tasks
 - Documentation specifications
@@ -28,6 +29,7 @@ Examine all implemented files in `src/` directory:
 - **Entry point**: `src/index.ts`
 
 Look for:
+
 - Code quality issues
 - Inconsistent patterns
 - Error handling problems
@@ -40,6 +42,7 @@ Look for:
 ### 2. Identify Technical Debt
 
 Focus on significant issues that affect:
+
 - Code maintainability
 - Reliability
 - Debugging
@@ -93,4 +96,3 @@ When analyzing code, check for:
 ## Execute
 
 Analyze the current codebase and update `TECHNICAL_DEBT.md` with all identified issues, following the structure and format of the existing document.
-

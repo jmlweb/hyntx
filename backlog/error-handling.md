@@ -68,6 +68,16 @@ Applies to the entire system.
 - Warning: invalid timestamp (continues)
 - Error: file write fails (continues with warning)
 
+## Technical Debt Reference
+
+This task addresses the following items from `TECHNICAL_DEBT.md`:
+
+- **Item 3**: Inconsistent Error Handling Patterns
+- **Item 4**: Silent Error Swallowing
+
+**Post-completion action**: Remove items 3 and 4 from `TECHNICAL_DEBT.md`.
+
 ## References
 
 - Section 18 of `docs/SPECS.md` - Error Handling
+- `TECHNICAL_DEBT.md` - Items 3 and 4
