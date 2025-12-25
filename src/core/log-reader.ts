@@ -53,7 +53,7 @@ export function claudeProjectsExist(): boolean {
  * @param filePath - Full path to the JSONL file
  * @returns The project hash/name
  */
-function extractProjectName(filePath: string): string {
+export function extractProjectName(filePath: string): string {
   // Path structure: ~/.claude/projects/<project-hash>/<file>.jsonl
   const parts = filePath.split('/');
   const projectIndex = parts.findIndex((p) => p === 'projects');
@@ -153,7 +153,7 @@ export function isClaudeMessage(value: unknown): value is ClaudeMessage {
  * @param filePath - File path for error context (optional)
  * @returns Parsed ClaudeMessage or null if invalid
  */
-function parseLine(
+export function parseLine(
   line: string,
   lineNumber?: number,
   filePath?: string,
@@ -199,7 +199,7 @@ function parseLine(
  * @param message - The Claude message to check
  * @returns true if the message is from the user
  */
-function isUserMessage(message: ClaudeMessage): boolean {
+export function isUserMessage(message: ClaudeMessage): boolean {
   return message.type === 'user' && message.message.role === 'user';
 }
 
@@ -210,7 +210,7 @@ function isUserMessage(message: ClaudeMessage): boolean {
  * @param message - The Claude message
  * @returns The extracted text content
  */
-function extractContent(message: ClaudeMessage): string {
+export function extractContent(message: ClaudeMessage): string {
   // isClaudeMessage type guard guarantees content is a string
   return message.message.content;
 }

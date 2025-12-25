@@ -375,3 +375,48 @@ export type ComparisonResult = {
   readonly after: AnalysisResult;
   readonly changes: ComparisonChanges;
 };
+
+// =============================================================================
+// Watcher Types
+// =============================================================================
+
+/**
+ * Event emitted when a new prompt is detected in the logs.
+ * Contains the extracted prompt and the file path where it was found.
+ */
+export type PromptEvent = {
+  readonly prompt: ExtractedPrompt;
+  readonly filePath: string;
+};
+
+/**
+ * Options for configuring the log watcher.
+ */
+export type WatcherOptions = {
+  readonly debounceMs?: number;
+  readonly projectFilter?: string;
+  readonly signal?: AbortSignal;
+  readonly baseDir?: string;
+};
+
+/**
+ * Tracks the current position in a file for incremental reading.
+ * Used to only read new content when files are modified.
+ */
+export type FilePosition = {
+  readonly path: string;
+  readonly size: number;
+  readonly lastModified: number;
+};
+
+/**
+ * Interface for the log watcher.
+ * Watches Claude Code JSONL files for new prompts in real-time.
+ */
+export type LogWatcher = {
+  start(): Promise<void>;
+  stop(): Promise<void>;
+  on(event: 'prompt', callback: (event: PromptEvent) => void): void;
+  on(event: 'error', callback: (error: Error) => void): void;
+  on(event: 'ready', callback: () => void): void;
+};

@@ -8,10 +8,6 @@ This roadmap organizes implementation tasks following a Vertical Slicing approac
 
 Implementing real-time prompt analysis with watch mode (IDEA-015).
 
-### Pending Tasks
-
-- [ ] [Implement watch mode file watcher](../backlog/implement-watch-mode-file-watcher.md) - P1
-
 ### Accepted Ideas Awaiting Implementation
 
 - **IDEA-015**: Interactive Watch Mode for Real-Time Prompt Analysis (effort: medium, impact: high) - _In Progress_
@@ -81,7 +77,11 @@ Implementing real-time prompt analysis with watch mode (IDEA-015).
 - CLI entry point test coverage
 - Parallel log file reading
 
-**Total completed**: 43 tasks
+### Phase 5: Watch Mode (1 task)
+
+- Watch mode file watcher with debouncing and signal handling
+
+**Total completed**: 44 tasks
 
 ---
 
