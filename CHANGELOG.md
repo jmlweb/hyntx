@@ -1,3 +1,9 @@
+## [1.3.0](https://github.com/jmlweb/hyntx/compare/v1.2.0...v1.3.0) (2025-12-25)
+
+### Features
+
+- **IDEA-015:** add watch mode for real-time prompt analysis ([aec2bc7](https://github.com/jmlweb/hyntx/commit/aec2bc739d5ede735a57e80e5bc39f2fcbad2839))
+
 ## [1.2.0](https://github.com/jmlweb/hyntx/compare/v1.1.0...v1.2.0) (2025-12-25)
 
 ### Features
