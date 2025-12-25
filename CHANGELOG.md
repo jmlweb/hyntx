@@ -1,3 +1,9 @@
+## [1.4.0](https://github.com/jmlweb/hyntx/compare/v1.3.0...v1.4.0) (2025-12-25)
+
+### Features
+
+- **watcher:** implement watch mode file watcher for real-time prompt analysis ([3835d64](https://github.com/jmlweb/hyntx/commit/3835d64a3be8a47d844c4b135c7b9e668ab0ec3c))
+
 ## [1.3.0](https://github.com/jmlweb/hyntx/compare/v1.2.0...v1.3.0) (2025-12-25)
 
 ### Features
