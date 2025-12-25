@@ -149,7 +149,8 @@ export type ProviderLimits = {
  * Provider limits by type.
  */
 export const PROVIDER_LIMITS: Record<ProviderType, ProviderLimits> = {
-  ollama: { maxTokensPerBatch: 30_000, prioritization: 'longest-first' },
+  // Small local models struggle with large inputs - limit to ~10 short prompts
+  ollama: { maxTokensPerBatch: 3_000, prioritization: 'longest-first' },
   anthropic: { maxTokensPerBatch: 100_000, prioritization: 'chronological' },
   google: { maxTokensPerBatch: 500_000, prioritization: 'chronological' },
 } as const;

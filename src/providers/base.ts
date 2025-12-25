@@ -17,41 +17,18 @@ import {
  * System prompt template for AI analysis providers.
  * Defines the JSON schema and analysis guidelines.
  */
-export const SYSTEM_PROMPT = `You are an AI prompt quality analyzer. Your task is to analyze user prompts to Claude Code and identify patterns that could be improved for clarity, specificity, and effectiveness.
+export const SYSTEM_PROMPT = `Analyze prompts for quality issues. Return ONLY JSON, no other text.
 
-Analyze the provided prompts and return a JSON object with the following structure:
+Schema:
+{"issues":[{"name":"issue name","example":"bad prompt","fix":"better prompt"}],"score":75,"tip":"main suggestion"}
 
-{
-  "patterns": [
-    {
-      "id": "unique-kebab-case-id",
-      "name": "Pattern Name",
-      "frequency": <number of occurrences>,
-      "severity": "low" | "medium" | "high",
-      "examples": ["example prompt 1", "example prompt 2"],
-      "suggestion": "Clear, actionable suggestion for improvement",
-      "beforeAfter": {
-        "before": "Example of current prompt",
-        "after": "Example of improved prompt"
-      }
-    }
-  ],
-  "stats": {
-    "totalPrompts": <total number of prompts analyzed>,
-    "promptsWithIssues": <number of prompts with detected issues>,
-    "overallScore": <score from 0-100, where 100 is perfect>
-  },
-  "topSuggestion": "Most important single improvement to make"
-}
-
-Guidelines:
-- Focus on patterns that appear multiple times (frequency >= 2)
-- Severity: "high" for clarity issues, "medium" for specificity, "low" for style
-- Examples should be actual quotes from the prompts (or close paraphrases)
-- beforeAfter should show concrete, realistic improvements
-- topSuggestion should be the most impactful single change
-- If no issues found, return empty patterns array with score 100
-- Be constructive and specific in suggestions`;
+Rules:
+- issues: array of problems found (empty if none)
+- score: 0-100 quality score (100=perfect)
+- tip: single most important suggestion
+- name: short issue name (e.g. "vague request", "missing context")
+- example: actual prompt text showing the issue
+- fix: improved version of that prompt`;
 
 /**
  * Builds a user prompt for analysis from a list of prompts.
@@ -115,47 +92,213 @@ Please provide your analysis as a JSON object following the specified schema.`;
 }
 
 /**
+ * Simplified issue from AI response.
+ */
+type SimpleIssue = {
+  name: string;
+  example: string;
+  fix: string;
+};
+
+/**
+ * Simplified response schema for small models.
+ */
+type SimpleResponse = {
+  issues: SimpleIssue[];
+  score: number;
+  tip: string;
+};
+
+/**
+ * Converts a simple issue to a full AnalysisPattern.
+ */
+function issueToPattern(issue: SimpleIssue, index: number): AnalysisPattern {
+  const id = issue.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  return {
+    id: id || `issue-${String(index)}`,
+    name: issue.name,
+    frequency: 1,
+    severity: 'medium' as const,
+    examples: [issue.example],
+    suggestion: issue.fix,
+    beforeAfter: {
+      before: issue.example,
+      after: issue.fix,
+    },
+  };
+}
+
+/**
  * Parses and validates an AI response into an AnalysisResult.
- * Handles both raw JSON and markdown-wrapped JSON responses.
+ * Supports both simplified schema (for small models) and full schema.
  *
  * @param response - Raw response string from the AI provider
  * @param date - Date context for the analysis result
  * @returns Validated AnalysisResult object
  * @throws Error if response cannot be parsed or is invalid
  */
+/**
+ * Attempts to fix truncated JSON by closing open structures.
+ */
+function tryFixTruncatedJson(json: string): string {
+  let fixed = json.trim();
+
+  // Count open brackets
+  let openBraces = 0;
+  let openBrackets = 0;
+  let inString = false;
+  let escapeNext = false;
+
+  for (const char of fixed) {
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+    if (char === '\\') {
+      escapeNext = true;
+      continue;
+    }
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+
+    if (char === '{') openBraces++;
+    if (char === '}') openBraces--;
+    if (char === '[') openBrackets++;
+    if (char === ']') openBrackets--;
+  }
+
+  // Close any unclosed string
+  if (inString) {
+    fixed += '"';
+  }
+
+  // Remove trailing comma if present
+  fixed = fixed.replace(/,\s*$/, '');
+
+  // Close open brackets and braces
+  while (openBrackets > 0) {
+    fixed += ']';
+    openBrackets--;
+  }
+  while (openBraces > 0) {
+    fixed += '}';
+    openBraces--;
+  }
+
+  return fixed;
+}
+
 export function parseResponse(response: string, date: string): AnalysisResult {
   // Try to extract JSON from markdown code blocks
   const codeBlockRegex = /```(?:json)?\s*\n?([\s\S]*?)\n?```/;
   const jsonMatch = codeBlockRegex.exec(response);
-  const jsonString = jsonMatch?.[1]?.trim() ?? response.trim();
+  let jsonString = jsonMatch?.[1]?.trim() ?? response.trim();
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(jsonString);
-  } catch (error) {
-    throw new Error(
-      `Failed to parse response as JSON: ${error instanceof Error ? error.message : 'Unknown error'}`,
-    );
+  } catch {
+    // Try to fix truncated JSON
+    jsonString = tryFixTruncatedJson(jsonString);
+    try {
+      parsed = JSON.parse(jsonString);
+    } catch (error) {
+      throw new Error(
+        `Failed to parse response as JSON: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
   }
 
-  // Validate structure
-  if (!isValidAnalysisResponse(parsed)) {
-    throw new Error('Response does not match expected schema');
+  // Try simplified schema first (for small models)
+  if (isValidSimpleResponse(parsed)) {
+    const simple = extractSimpleResponse(parsed as Record<string, unknown>);
+    const patterns = simple.issues.map((issue, i) => issueToPattern(issue, i));
+    return {
+      date,
+      patterns,
+      stats: {
+        totalPrompts: 0, // Will be filled by caller
+        promptsWithIssues: simple.issues.length,
+        overallScore: simple.score,
+      },
+      topSuggestion: simple.tip,
+    };
   }
 
-  return {
-    date,
-    patterns: parsed.patterns,
-    stats: parsed.stats,
-    topSuggestion: parsed.topSuggestion,
-  };
+  // Try full schema (for larger models)
+  if (isValidFullResponse(parsed)) {
+    return {
+      date,
+      patterns: parsed.patterns,
+      stats: parsed.stats,
+      topSuggestion: parsed.topSuggestion,
+    };
+  }
+
+  throw new Error('Response does not match expected schema');
 }
 
 /**
- * Type guard to validate analysis response structure.
- * Performs runtime validation of the parsed JSON.
+ * Type guard for simplified response schema.
+ * Flexible validation - allows missing score/tip with defaults.
  */
-function isValidAnalysisResponse(value: unknown): value is {
+function isValidSimpleResponse(value: unknown): value is SimpleResponse {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const obj = value as Record<string, unknown>;
+
+  // Check issues array (required)
+  if (!Array.isArray(obj['issues'])) {
+    return false;
+  }
+
+  for (const issue of obj['issues']) {
+    if (typeof issue !== 'object' || issue === null) {
+      return false;
+    }
+    const i = issue as Record<string, unknown>;
+    if (
+      typeof i['name'] !== 'string' ||
+      typeof i['example'] !== 'string' ||
+      typeof i['fix'] !== 'string'
+    ) {
+      return false;
+    }
+  }
+
+  // Score and tip are optional - will use defaults if missing
+  return true;
+}
+
+/**
+ * Safely extracts SimpleResponse with defaults for missing fields.
+ */
+function extractSimpleResponse(obj: Record<string, unknown>): SimpleResponse {
+  const issues = obj['issues'] as SimpleIssue[];
+  const score = typeof obj['score'] === 'number' ? obj['score'] : 50;
+  const tip =
+    typeof obj['tip'] === 'string'
+      ? obj['tip']
+      : issues.length > 0
+        ? issues[0].fix
+        : 'No suggestions';
+
+  return { issues, score, tip };
+}
+
+/**
+ * Type guard for full response schema.
+ */
+function isValidFullResponse(value: unknown): value is {
   patterns: AnalysisPattern[];
   stats: {
     totalPrompts: number;

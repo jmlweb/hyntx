@@ -155,6 +155,7 @@ export class OllamaProvider implements AnalysisProvider {
             prompt: userPrompt,
             system: SYSTEM_PROMPT,
             stream: false,
+            format: 'json',
             options: {
               temperature: 0.3,
             },

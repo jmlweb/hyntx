@@ -356,7 +356,7 @@ describe('GoogleProvider', () => {
         contents: { role: string; parts: { text: string }[] }[];
       };
       expect(requestBody.systemInstruction.parts[0]?.text).toContain(
-        'prompt quality analyzer',
+        'Analyze prompts for quality issues',
       );
       expect(requestBody.contents[0]?.role).toBe('user');
     });

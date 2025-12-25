@@ -4,9 +4,11 @@ This roadmap organizes implementation tasks following a Vertical Slicing approac
 
 ---
 
-## Current Phase: Maintenance
+## Current Phase: Phase 6 - Reliability
 
-All planned features completed. Ready for new ideas and community feedback.
+### Active Tasks
+
+- [ ] [Improve Small Ollama Model Compatibility](../backlog/improve-small-model-compatibility.md) - P1
 
 ---
 

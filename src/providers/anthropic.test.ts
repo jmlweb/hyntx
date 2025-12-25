@@ -343,7 +343,9 @@ describe('AnthropicProvider', () => {
         system: string;
         messages: { role: string }[];
       };
-      expect(requestBody.system).toContain('prompt quality analyzer');
+      expect(requestBody.system).toContain(
+        'Analyze prompts for quality issues',
+      );
       expect(requestBody.messages[0]?.role).toBe('user');
     });
 

@@ -239,7 +239,7 @@ describe('OllamaProvider', () => {
       expect(body.stream).toBe(false);
       expect(body.options.temperature).toBe(0.3);
       expect(body.prompt).toContain('Test prompt');
-      expect(body.system).toContain('prompt quality analyzer');
+      expect(body.system).toContain('Analyze prompts for quality issues');
     });
 
     it('should handle markdown-wrapped JSON response', async () => {
