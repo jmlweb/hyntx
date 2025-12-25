@@ -1,3 +1,32 @@
+## [1.2.0](https://github.com/jmlweb/hyntx/compare/v1.1.0...v1.2.0) (2025-12-25)
+
+### Features
+
+- **cli:** add advanced filtering and output options ([e3623cd](https://github.com/jmlweb/hyntx/commit/e3623cd2cf7674268ce03082dd9c1b08d7848e06))
+- **history:** implement analysis history and comparison features ([9488ca8](https://github.com/jmlweb/hyntx/commit/9488ca8db888c2b2614ffc05364fb2351d466ec2))
+- **ideas:** add completed status and directory for implemented ideas ([ac41e81](https://github.com/jmlweb/hyntx/commit/ac41e811bc70216d11f38d0777ec2295c0639b88))
+
+### Bug Fixes
+
+- **error-handling:** complete error handling review and improvements ([42fa9df](https://github.com/jmlweb/hyntx/commit/42fa9df2e819fcd318a68818667c210ddbffd648))
+- **lint:** resolve ESLint errors across source files ([8a78e6b](https://github.com/jmlweb/hyntx/commit/8a78e6b66923e2f4199ddb878f3985a5b0713a80))
+- **security:** update vitest to resolve esbuild vulnerability ([9187039](https://github.com/jmlweb/hyntx/commit/9187039d0612edff156754bac9eb639a454da1b8))
+- **test:** mock process.env.SHELL in shell-config tests ([247601e](https://github.com/jmlweb/hyntx/commit/247601eb4ea7a8aad32a21cfe18bb3942003ae3a))
+- **test:** resolve E2E test failures in CLI tests ([23cbcc2](https://github.com/jmlweb/hyntx/commit/23cbcc2fa445d6a1844d5cba8922e2a1abb26767))
+- tests ([b6abb0f](https://github.com/jmlweb/hyntx/commit/b6abb0fca02419a41fb4868b9315eafaf8474316))
+- **tests:** resolve TypeScript errors in integration tests ([7c56cc5](https://github.com/jmlweb/hyntx/commit/7c56cc5494700826915c9d8aa9ead681b27f6d5f))
+
+### Performance
+
+- **log-reader:** parallelize file reading with concurrency limit ([859bd38](https://github.com/jmlweb/hyntx/commit/859bd38ca58ec1b730913533425c081e083a3f4d))
+
+### Code Refactoring
+
+- **core:** improve type safety in log reader ([f3a2c77](https://github.com/jmlweb/hyntx/commit/f3a2c77c1c41189a95106cc0bdd8f74628506823))
+- **docs:** reorganize project documentation and implement new test structure ([fd29988](https://github.com/jmlweb/hyntx/commit/fd29988f3453ab5aec01cd4bfd3116b353750b95))
+- **scripts:** reorganize test scripts and update documentation ([5560b96](https://github.com/jmlweb/hyntx/commit/5560b965ddeb12834d3074e378b4d99144451671))
+- **shell-config:** simplify edge case handling with marker validation ([434aa18](https://github.com/jmlweb/hyntx/commit/434aa186be8b06f5028ef523afe3b62b145b22cf))
+
 ## [1.1.0](https://github.com/jmlweb/hyntx/compare/v1.0.0...v1.1.0) (2025-12-24)
 
 ### Features
