@@ -15,52 +15,40 @@ import {
 import { type EnvConfig } from '../types/index.js';
 
 // Mock the provider modules
+// In Vitest 4.x, we use vi.fn() as a constructor with a function implementation
 vi.mock('./ollama.js', () => ({
-  OllamaProvider: vi.fn().mockImplementation((config) => ({
-    name: 'Ollama',
-    config,
-    isAvailable: vi.fn().mockResolvedValue(true),
-    analyze: vi.fn(),
-  })),
+  OllamaProvider: vi.fn(function (this: any, config: any) {
+    this.name = 'Ollama';
+    this.config = config;
+    this.isAvailable = vi.fn().mockResolvedValue(true);
+    this.analyze = vi.fn();
+    return this;
+  }),
 }));
 
 vi.mock('./anthropic.js', () => ({
-  AnthropicProvider: vi.fn().mockImplementation((config) => ({
-    name: 'Anthropic',
-    config,
-    isAvailable: vi.fn().mockResolvedValue(true),
-    analyze: vi.fn(),
-  })),
+  AnthropicProvider: vi.fn(function (this: any, config: any) {
+    this.name = 'Anthropic';
+    this.config = config;
+    this.isAvailable = vi.fn().mockResolvedValue(true);
+    this.analyze = vi.fn();
+    return this;
+  }),
 }));
 
 vi.mock('./google.js', () => ({
-  GoogleProvider: vi.fn().mockImplementation((config) => ({
-    name: 'Google',
-    config,
-    isAvailable: vi.fn().mockResolvedValue(true),
-    analyze: vi.fn(),
-  })),
+  GoogleProvider: vi.fn(function (this: any, config: any) {
+    this.name = 'Google';
+    this.config = config;
+    this.isAvailable = vi.fn().mockResolvedValue(true);
+    this.analyze = vi.fn();
+    return this;
+  }),
 }));
 
 import { OllamaProvider } from './ollama.js';
 import { AnthropicProvider } from './anthropic.js';
 import { GoogleProvider } from './google.js';
-
-// Helper to create mock provider implementation functions
-function createMockImpl(
-  name: string,
-  isAvailable: boolean | Error = true,
-): (config: any) => any {
-  return (config: any) => ({
-    name,
-    config,
-    isAvailable:
-      isAvailable instanceof Error
-        ? vi.fn().mockRejectedValue(isAvailable)
-        : vi.fn().mockResolvedValue(isAvailable),
-    analyze: vi.fn(),
-  });
-}
 
 describe('Provider Factory', () => {
   const mockConfig: EnvConfig = {
@@ -83,11 +71,36 @@ describe('Provider Factory', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset to default implementations
-    vi.mocked(OllamaProvider).mockImplementation(createMockImpl('Ollama'));
-    vi.mocked(AnthropicProvider).mockImplementation(
-      createMockImpl('Anthropic'),
-    );
-    vi.mocked(GoogleProvider).mockImplementation(createMockImpl('Google'));
+    vi.mocked(OllamaProvider).mockImplementation(function (
+      this: any,
+      config: any,
+    ) {
+      this.name = 'Ollama';
+      this.config = config;
+      this.isAvailable = vi.fn().mockResolvedValue(true);
+      this.analyze = vi.fn();
+      return this;
+    });
+    vi.mocked(AnthropicProvider).mockImplementation(function (
+      this: any,
+      config: any,
+    ) {
+      this.name = 'Anthropic';
+      this.config = config;
+      this.isAvailable = vi.fn().mockResolvedValue(true);
+      this.analyze = vi.fn();
+      return this;
+    });
+    vi.mocked(GoogleProvider).mockImplementation(function (
+      this: any,
+      config: any,
+    ) {
+      this.name = 'Google';
+      this.config = config;
+      this.isAvailable = vi.fn().mockResolvedValue(true);
+      this.analyze = vi.fn();
+      return this;
+    });
   });
 
   afterEach(() => {
@@ -143,9 +156,16 @@ describe('Provider Factory', () => {
     });
 
     it('should fall back when first provider is unavailable', async () => {
-      vi.mocked(OllamaProvider).mockImplementation(
-        createMockImpl('Ollama', false),
-      );
+      vi.mocked(OllamaProvider).mockImplementation(function (
+        this: any,
+        config: any,
+      ) {
+        this.name = 'Ollama';
+        this.config = config;
+        this.isAvailable = vi.fn().mockResolvedValue(false);
+        this.analyze = vi.fn();
+        return this;
+      });
 
       const provider = await getAvailableProvider(mockConfig);
 
@@ -153,9 +173,16 @@ describe('Provider Factory', () => {
     });
 
     it('should call fallback callback when falling back', async () => {
-      vi.mocked(OllamaProvider).mockImplementation(
-        createMockImpl('Ollama', false),
-      );
+      vi.mocked(OllamaProvider).mockImplementation(function (
+        this: any,
+        config: any,
+      ) {
+        this.name = 'Ollama';
+        this.config = config;
+        this.isAvailable = vi.fn().mockResolvedValue(false);
+        this.analyze = vi.fn();
+        return this;
+      });
 
       const onFallback: FallbackCallback = vi.fn();
       await getAvailableProvider(mockConfig, onFallback);
@@ -171,12 +198,26 @@ describe('Provider Factory', () => {
     });
 
     it('should fall back through multiple unavailable providers', async () => {
-      vi.mocked(OllamaProvider).mockImplementation(
-        createMockImpl('Ollama', false),
-      );
-      vi.mocked(AnthropicProvider).mockImplementation(
-        createMockImpl('Anthropic', false),
-      );
+      vi.mocked(OllamaProvider).mockImplementation(function (
+        this: any,
+        config: any,
+      ) {
+        this.name = 'Ollama';
+        this.config = config;
+        this.isAvailable = vi.fn().mockResolvedValue(false);
+        this.analyze = vi.fn();
+        return this;
+      });
+      vi.mocked(AnthropicProvider).mockImplementation(function (
+        this: any,
+        config: any,
+      ) {
+        this.name = 'Anthropic';
+        this.config = config;
+        this.isAvailable = vi.fn().mockResolvedValue(false);
+        this.analyze = vi.fn();
+        return this;
+      });
 
       const provider = await getAvailableProvider(mockConfig);
 
@@ -184,12 +225,26 @@ describe('Provider Factory', () => {
     });
 
     it('should call fallback callback with first and last available provider', async () => {
-      vi.mocked(OllamaProvider).mockImplementation(
-        createMockImpl('Ollama', false),
-      );
-      vi.mocked(AnthropicProvider).mockImplementation(
-        createMockImpl('Anthropic', false),
-      );
+      vi.mocked(OllamaProvider).mockImplementation(function (
+        this: any,
+        config: any,
+      ) {
+        this.name = 'Ollama';
+        this.config = config;
+        this.isAvailable = vi.fn().mockResolvedValue(false);
+        this.analyze = vi.fn();
+        return this;
+      });
+      vi.mocked(AnthropicProvider).mockImplementation(function (
+        this: any,
+        config: any,
+      ) {
+        this.name = 'Anthropic';
+        this.config = config;
+        this.isAvailable = vi.fn().mockResolvedValue(false);
+        this.analyze = vi.fn();
+        return this;
+      });
 
       const onFallback: FallbackCallback = vi.fn();
       await getAvailableProvider(mockConfig, onFallback);
@@ -209,15 +264,36 @@ describe('Provider Factory', () => {
     });
 
     it('should throw error if no provider is available', async () => {
-      vi.mocked(OllamaProvider).mockImplementation(
-        createMockImpl('Ollama', false),
-      );
-      vi.mocked(AnthropicProvider).mockImplementation(
-        createMockImpl('Anthropic', false),
-      );
-      vi.mocked(GoogleProvider).mockImplementation(
-        createMockImpl('Google', false),
-      );
+      vi.mocked(OllamaProvider).mockImplementation(function (
+        this: any,
+        config: any,
+      ) {
+        this.name = 'Ollama';
+        this.config = config;
+        this.isAvailable = vi.fn().mockResolvedValue(false);
+        this.analyze = vi.fn();
+        return this;
+      });
+      vi.mocked(AnthropicProvider).mockImplementation(function (
+        this: any,
+        config: any,
+      ) {
+        this.name = 'Anthropic';
+        this.config = config;
+        this.isAvailable = vi.fn().mockResolvedValue(false);
+        this.analyze = vi.fn();
+        return this;
+      });
+      vi.mocked(GoogleProvider).mockImplementation(function (
+        this: any,
+        config: any,
+      ) {
+        this.name = 'Google';
+        this.config = config;
+        this.isAvailable = vi.fn().mockResolvedValue(false);
+        this.analyze = vi.fn();
+        return this;
+      });
 
       await expect(getAvailableProvider(mockConfig)).rejects.toThrow(
         'No providers are currently available',
@@ -225,9 +301,18 @@ describe('Provider Factory', () => {
     });
 
     it('should handle availability check errors gracefully', async () => {
-      vi.mocked(OllamaProvider).mockImplementation(
-        createMockImpl('Ollama', new Error('Network error')),
-      );
+      vi.mocked(OllamaProvider).mockImplementation(function (
+        this: any,
+        config: any,
+      ) {
+        this.name = 'Ollama';
+        this.config = config;
+        this.isAvailable = vi
+          .fn()
+          .mockRejectedValue(new Error('Network error'));
+        this.analyze = vi.fn();
+        return this;
+      });
 
       const provider = await getAvailableProvider(mockConfig);
 
@@ -235,12 +320,28 @@ describe('Provider Factory', () => {
     });
 
     it('should handle mixed availability check errors and unavailable providers', async () => {
-      vi.mocked(OllamaProvider).mockImplementation(
-        createMockImpl('Ollama', new Error('Network error')),
-      );
-      vi.mocked(AnthropicProvider).mockImplementation(
-        createMockImpl('Anthropic', false),
-      );
+      vi.mocked(OllamaProvider).mockImplementation(function (
+        this: any,
+        config: any,
+      ) {
+        this.name = 'Ollama';
+        this.config = config;
+        this.isAvailable = vi
+          .fn()
+          .mockRejectedValue(new Error('Network error'));
+        this.analyze = vi.fn();
+        return this;
+      });
+      vi.mocked(AnthropicProvider).mockImplementation(function (
+        this: any,
+        config: any,
+      ) {
+        this.name = 'Anthropic';
+        this.config = config;
+        this.isAvailable = vi.fn().mockResolvedValue(false);
+        this.analyze = vi.fn();
+        return this;
+      });
 
       const provider = await getAvailableProvider(mockConfig);
 

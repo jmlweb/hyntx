@@ -642,14 +642,15 @@ describe('analyzeWithProgress', () => {
 });
 
 describe('displayResults', () => {
-  const mockLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+  let mockLog: ReturnType<typeof vi.spyOn<typeof console, 'log'>>;
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    mockLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    vi.clearAllMocks(); // Clear all mocks including printReport
   });
 
   afterEach(() => {
-    mockLog.mockClear();
+    mockLog.mockRestore();
   });
 
   it('calls printReport with result for terminal format', () => {
