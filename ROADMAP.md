@@ -10,13 +10,15 @@ All foundational phases (0-4) have been completed. The project is now in mainten
 
 ### Pending Tasks
 
-_No pending tasks. Use `/add-task` to add new tasks or `/feed-backlog` to convert accepted ideas._
+| Priority | Task                                     | Backlog File                                                 |
+| -------- | ---------------------------------------- | ------------------------------------------------------------ |
+| P2       | Add Security Workflow for GitHub Actions | [add-security-workflow.md](backlog/add-security-workflow.md) |
 
 ### Accepted Ideas Awaiting Implementation
 
-| ID       | Title                                    | Priority |
-| -------- | ---------------------------------------- | -------- |
-| IDEA-009 | Add Security Workflow for GitHub Actions | P2       |
+| ID       | Title                                           | Priority |
+| -------- | ----------------------------------------------- | -------- |
+| IDEA-010 | Add Lightweight Analysis History and Comparison | P2       |
 
 _Run `/feed-backlog` to convert these into backlog tasks._
 
@@ -67,7 +69,7 @@ _Run `/feed-backlog` to convert these into backlog tasks._
 - Centralized logging system
 - Configuration health check
 
-### Phase 4: Advanced Features (9 tasks)
+### Phase 4: Advanced Features (10 tasks)
 
 - Reminder system
 - Markdown format reporter
@@ -78,8 +80,9 @@ _Run `/feed-backlog` to convert these into backlog tasks._
 - Complete error handling
 - Shell config edge case refactor
 - Project-specific configuration file
+- Fix E2E tests (main module detection)
 
-**Total completed**: 36 tasks
+**Total completed**: 37 tasks
 
 ---
 

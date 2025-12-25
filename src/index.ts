@@ -1022,10 +1022,18 @@ export async function main(): Promise<void> {
 
 // Run main function if this is the main module
 // Use realpathSync to resolve symlinks (e.g., when running via npm link)
-const isMainModule =
-  process.argv[1] &&
-  realpathSync(fileURLToPath(import.meta.url)) ===
-    realpathSync(process.argv[1]);
+// Wrapped in try-catch to handle test environments where argv[1] may not exist
+const isMainModule = ((): boolean => {
+  try {
+    return (
+      process.argv[1] !== undefined &&
+      realpathSync(fileURLToPath(import.meta.url)) ===
+        realpathSync(process.argv[1])
+    );
+  } catch {
+    return false;
+  }
+})();
 
 if (isMainModule) {
   void main();

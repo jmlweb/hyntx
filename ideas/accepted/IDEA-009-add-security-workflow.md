@@ -96,3 +96,7 @@ Implement `.github/workflows/security.yml` with the following features:
 - **Security Workflow** (this idea): Runs on push/PR + weekly schedule, focuses on dependency vulnerabilities
 
 All three workflows complement each other for a complete CI/CD pipeline.
+
+## Related Tasks
+
+- [add-security-workflow.md](../../backlog/add-security-workflow.md) - P2, Phase 3
