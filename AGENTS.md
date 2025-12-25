@@ -250,8 +250,10 @@ pnpm test      # Run tests
 3. **Verification**: Run linting and tests to ensure the task works
 4. **Completion**:
    - Delete the task file from `backlog/`
-   - Update `docs/ROADMAP.md` (mark as completed or remove)
-   - Create a descriptive commit following Conventional Commits
+
+- **Do not delete the `backlog/` directory**, even if it becomes empty (keep a placeholder like `backlog/README.md` so git preserves it)
+  - Update `docs/ROADMAP.md` (mark as completed or remove)
+  - Create a descriptive commit following Conventional Commits
 
 ### Commands
 

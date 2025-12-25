@@ -97,4 +97,4 @@ Accepted during revalidation on 2025-12-24. High-value feature that addresses mu
 
 ## Related Tasks
 
-- [add-project-config-file.md](../../backlog/add-project-config-file.md) - P1, Phase 4
+- `add-project-config-file.md` - P1, Phase 4 (task file removed after completion)

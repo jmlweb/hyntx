@@ -99,6 +99,6 @@ All three workflows complement each other for a complete CI/CD pipeline.
 
 ## Related Tasks
 
-- [add-security-workflow.md](../../backlog/add-security-workflow.md) - P2, Phase 3
+- `add-security-workflow.md` - P2, Phase 3 (task file removed after completion)
 
 **Backlog tasks created**: 2025-12-25 via `/feed-backlog`

@@ -77,7 +77,8 @@ For each task, determine if it still makes sense:
 
 **If task should be removed** (obsolete, duplicate, or already implemented):
 
-- Delete the task file from `backlog/<task-name>.md`
+- Delete the **task file** from `backlog/<task-name>.md`
+- **Do not delete the `backlog/` directory**, even if it becomes empty (keep a placeholder like `backlog/README.md` so git preserves it)
 - Remove the task entry from `docs/ROADMAP.md`
 - Update any other tasks that reference this task as a dependency
 

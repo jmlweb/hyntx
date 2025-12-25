@@ -131,4 +131,4 @@ jobs:
 
 ## Related Tasks
 
-- [Parallelize CI Workflow Jobs](../backlog/parallelize-ci-workflow-jobs.md) - P3, Phase 3
+- `parallelize-ci-workflow-jobs.md` - P3, Phase 3 (task file removed after completion)

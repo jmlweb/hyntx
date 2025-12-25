@@ -517,10 +517,10 @@ Testing strategy uses Vitest for unit and integration tests with focus on core b
 
 For post-v1.0 ideas and long-term plans, see [FUTURE_PLANS.md](FUTURE_PLANS.md).
 
-**Note**: Some features originally planned for v1.1+ have been moved to the v1.0 backlog:
+**Note**: Some features originally planned for v1.1+ were implemented in v1.0:
 
-- **Project-Specific Configuration**: Now in backlog as [IDEA-007](../ideas/accepted/IDEA-007-project-specific-configuration-file.md)
-- **JSON Output Format**: Now in backlog as [IDEA-001](../ideas/accepted/IDEA-001-add-json-output-format.md)
+- **Project-Specific Configuration**: See [IDEA-007](../ideas/completed/IDEA-007-project-specific-configuration-file.md)
+- **JSON Output Format**: See [IDEA-001](../ideas/completed/IDEA-001-add-json-output-format.md)
 
 ---
 

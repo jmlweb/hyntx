@@ -255,7 +255,7 @@ Ideas are updated with:
 ```markdown
 ## Related Tasks
 
-- [add-csv-reporter.md](../backlog/add-csv-reporter.md) - P2, Phase 4
+- `backlog/add-csv-reporter.md` - P2, Phase 4
 ```
 
 ### /complete-idea
