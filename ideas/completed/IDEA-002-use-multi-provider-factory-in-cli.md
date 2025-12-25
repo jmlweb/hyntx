@@ -1,10 +1,11 @@
 ---
 id: IDEA-002
 title: Use Multi-Provider Factory in CLI
-status: accepted
+status: completed
 category: fix
 created_date: 2025-12-24
 validated_date: 2025-12-24
+completed_date: 2025-12-25
 effort: low
 impact: high
 rejection_reason: null

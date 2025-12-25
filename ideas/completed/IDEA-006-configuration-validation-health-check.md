@@ -1,10 +1,11 @@
 ---
 id: IDEA-006
 title: Add Configuration Validation and Health Check Command
-status: accepted
+status: completed
 category: improvement
 created_date: 2025-01-27
 validated_date: 2025-12-24
+completed_date: 2025-12-25
 effort: low
 impact: medium
 rejection_reason: null

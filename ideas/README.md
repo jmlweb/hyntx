@@ -17,6 +17,7 @@ The ideas system serves as a funnel for new features, improvements, and enhancem
 ideas/
 ├── on-validation/   # Ideas pending evaluation
 ├── accepted/        # Validated ideas approved for implementation
+├── completed/       # Ideas fully implemented (all tasks done)
 ├── rejected/        # Ideas rejected with documented reasons
 └── README.md        # This file
 ```
@@ -41,6 +42,10 @@ ideas/
    Use: /next-task
    ↓
 5. IMPLEMENTATION
+   ↓
+   Use: /complete-idea (when all tasks done)
+   ↓
+6. COMPLETED (ideas/completed/)
 ```
 
 ## Available Commands
@@ -179,6 +184,7 @@ Display ideas with optional filtering by status.
 /list-ideas                 # All ideas
 /list-ideas on-validation   # Only pending
 /list-ideas accepted        # Only accepted
+/list-ideas completed       # Only completed
 /list-ideas rejected        # Only rejected
 ```
 
@@ -197,12 +203,13 @@ Display ideas with optional filtering by status.
 ```markdown
 ## Ideas List - all
 
-Total: 12 ideas (3 on-validation, 7 accepted, 2 rejected)
+Total: 14 ideas (3 on-validation, 5 accepted, 4 completed, 2 rejected)
 
 | ID       | Title          | Status        | Category | Effort | Impact | Created    |
 | -------- | -------------- | ------------- | -------- | ------ | ------ | ---------- |
 | IDEA-012 | Add CSV export | accepted      | feature  | low    | medium | 2025-12-24 |
 | IDEA-011 | Dark mode      | on-validation | feature  | -      | -      | 2025-12-23 |
+| IDEA-007 | Add logging    | completed     | feature  | low    | high   | 2025-12-20 |
 ```
 
 ### /feed-backlog
@@ -251,6 +258,41 @@ Ideas are updated with:
 - [add-csv-reporter.md](../backlog/add-csv-reporter.md) - P2, Phase 4
 ```
 
+### /complete-idea
+
+Mark an idea as completed when all its related tasks are done.
+
+**Usage:**
+
+```bash
+/complete-idea IDEA-007
+```
+
+**What it does:**
+
+- Verifies idea exists in `ideas/accepted/`
+- Checks that all related tasks in backlog are completed
+- Updates frontmatter: `status: completed`, `completed_date: YYYY-MM-DD`
+- Moves file from `ideas/accepted/` to `ideas/completed/`
+- Reports completion status
+
+**Benefits:**
+
+- Quick status check: `ls ideas/completed/` shows all done ideas
+- Agent doesn't need to read file contents to know if idea is implemented
+- Clear separation of in-progress vs done ideas
+
+**Example output:**
+
+```text
+Checking IDEA-007 (Add dark mode toggle):
+- Related tasks: add-theme-system.md ✓, add-dark-mode-ui.md ✓
+- All 2 tasks completed
+
+✓ Moved IDEA-007 to ideas/completed/
+✓ Updated completed_date: 2025-12-25
+```
+
 ## File Format
 
 All idea files follow this structure:
@@ -259,10 +301,11 @@ All idea files follow this structure:
 ---
 id: IDEA-XXX
 title: Title of the Idea
-status: on-validation|accepted|rejected
+status: on-validation|accepted|completed|rejected
 category: feature|improvement|refactor|fix|documentation|other
 created_date: YYYY-MM-DD
 validated_date: YYYY-MM-DD or null
+completed_date: YYYY-MM-DD or null
 effort: low|medium|high or null
 impact: low|medium|high or null
 rejection_reason: "Reason text" or null
@@ -306,10 +349,11 @@ rejection_reason: "Reason text" or null
 | ------------------ | ----------- | --------------------------------------------------------- | ----------------------------------- |
 | `id`               | Yes         | IDEA-XXX                                                  | Auto-generated, sequential          |
 | `title`            | Yes         | String                                                    | Brief descriptive title             |
-| `status`           | Yes         | on-validation, accepted, rejected                         | Current state                       |
+| `status`           | Yes         | on-validation, accepted, completed, rejected              | Current state                       |
 | `category`         | Yes         | feature, improvement, refactor, fix, documentation, other | Type of idea                        |
 | `created_date`     | Yes         | YYYY-MM-DD                                                | When idea was created               |
 | `validated_date`   | No          | YYYY-MM-DD or null                                        | When validated                      |
+| `completed_date`   | No          | YYYY-MM-DD or null                                        | When all tasks completed            |
 | `effort`           | No          | low, medium, high, null                                   | Estimated effort                    |
 | `impact`           | No          | low, medium, high, null                                   | Expected impact                     |
 | `rejection_reason` | Conditional | String or null                                            | **MANDATORY if status is rejected** |
@@ -367,6 +411,7 @@ IDEAS SYSTEM          BACKLOG SYSTEM
 /feed-backlog     →   backlog/*.md + docs/ROADMAP.md
                   →   /next-task
                   →   Implementation
+/complete-idea    →   ideas/completed/
 ```
 
 Key differences:

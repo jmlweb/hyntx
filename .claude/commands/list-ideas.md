@@ -11,6 +11,7 @@ Display all ideas with optional filtering by status. Shows a formatted table wit
 1. **Accept optional filter parameter**:
    - `on-validation` - only pending ideas
    - `accepted` - only accepted ideas
+   - `completed` - only completed ideas
    - `rejected` - only rejected ideas
    - `all` or no parameter - all ideas from all directories
 
@@ -18,9 +19,10 @@ Display all ideas with optional filtering by status. Shows a formatted table wit
    - Based on filter, read from appropriate directories:
      - `ideas/on-validation/`
      - `ideas/accepted/`
+     - `ideas/completed/`
      - `ideas/rejected/`
    - Parse frontmatter from each file
-   - Extract: id, title, status, category, effort, impact, created_date, validated_date, rejection_reason
+   - Extract: id, title, status, category, effort, impact, created_date, validated_date, completed_date, rejection_reason
 
 3. **Sort ideas**:
    - Primary sort: by created_date (newest first)
@@ -66,8 +68,9 @@ Total: 2 rejected ideas
 | --------------- | ---------------------- | ------------------------------- |
 | `on-validation` | `ideas/on-validation/` | See what needs validation       |
 | `accepted`      | `ideas/accepted/`      | See what's approved for backlog |
+| `completed`     | `ideas/completed/`     | See what's fully implemented    |
 | `rejected`      | `ideas/rejected/`      | Review past decisions           |
-| `all` or none   | All three directories  | Complete overview               |
+| `all` or none   | All four directories   | Complete overview               |
 
 ## Execute Now
 

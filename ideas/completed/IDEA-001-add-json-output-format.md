@@ -1,10 +1,11 @@
 ---
 id: IDEA-001
 title: Add JSON Output Format for Analysis Results
-status: accepted
+status: completed
 category: feature
 created_date: 2025-12-24
 validated_date: 2025-12-24
+completed_date: 2025-12-25
 effort: low
 impact: high
 rejection_reason: null

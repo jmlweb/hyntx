@@ -1,10 +1,11 @@
 ---
 id: IDEA-004
 title: Implement Centralized Logging and Warning Collection System
-status: accepted
+status: completed
 category: improvement
 created_date: 2025-01-27
 validated_date: 2025-12-24
+completed_date: 2025-12-25
 effort: medium
 impact: high
 rejection_reason: null

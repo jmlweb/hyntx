@@ -1,10 +1,11 @@
 ---
 id: IDEA-003
 title: Add Verbose/Debug Mode for Troubleshooting
-status: accepted
+status: completed
 category: improvement
 created_date: 2025-12-24
 validated_date: 2025-12-24
+completed_date: 2025-12-25
 effort: low
 impact: medium
 rejection_reason: null

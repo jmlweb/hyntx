@@ -1,10 +1,11 @@
 ---
 id: IDEA-007
 title: Add Project-Specific Configuration File Support (.hyntxrc.json)
-status: accepted
+status: completed
 category: feature
 created_date: 2025-01-27
 validated_date: 2025-12-24
+completed_date: 2025-12-25
 effort: medium
 impact: high
 rejection_reason: null
