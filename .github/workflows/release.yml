@@ -59,9 +59,8 @@ jobs:
       - name: Verify commit conventions
         run: pnpm exec commitlint --from ${{ steps.last-tag.outputs.from }} --to HEAD --verbose
 
-      - name: Run tests
-        run: pnpm test
-
+      # Tests are already validated by CI workflow on push to main
+      # Build step serves as minimal validation for workflow_dispatch manual triggers
       - name: Build
         run: pnpm build
 
