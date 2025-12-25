@@ -33,6 +33,7 @@ Move a fully implemented idea from `ideas/accepted/` to `ideas/completed/`. This
 5. **Move file**:
    - Move from `ideas/accepted/` to `ideas/completed/`
    - Preserve filename
+   - Do not delete `ideas/accepted/` even if it becomes empty (keep a placeholder file like `ideas/accepted/README.md` so git preserves the directory)
 
 6. **Report completion**:
    - Confirm the move

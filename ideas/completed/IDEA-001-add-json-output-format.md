@@ -62,4 +62,4 @@ Accepted. High impact + low effort = P1 priority. Enables automation, CI/CD inte
 
 ## Related Tasks
 
-- [add-json-output-format.md](../../backlog/add-json-output-format.md) - P1, Phase 3
+- `add-json-output-format.md` - P1, Phase 3 (task file removed after completion)

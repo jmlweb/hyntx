@@ -12,11 +12,13 @@ Convert accepted ideas into actionable backlog tasks using the existing `add-tas
    - Scan `ideas/accepted/` directory
    - Parse frontmatter and content
    - Identify ideas that don't have associated tasks yet
+   - If `ideas/accepted/` does not exist, create it (and keep a placeholder file like `ideas/accepted/README.md` so git preserves the directory)
 
 2. **Check for existing tasks**:
    - For each idea, search backlog/ for files containing IDEA-XXX reference
    - Skip ideas that already have tasks
    - Report which ideas already have tasks
+   - If `backlog/` does not exist, create it (and keep a placeholder file like `backlog/README.md` so git preserves the directory)
 
 3. **Convert acceptance criteria to tasks**:
    - For each new idea:

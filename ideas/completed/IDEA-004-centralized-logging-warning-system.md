@@ -84,4 +84,4 @@ Accepted during revalidation on 2025-12-24. Directly addresses docs/TECHNICAL_DE
 
 ## Related Tasks
 
-- [add-centralized-logging.md](../../backlog/add-centralized-logging.md) - P1, Phase 3
+- `add-centralized-logging.md` - P1, Phase 3 (task file removed after completion)

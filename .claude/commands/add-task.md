@@ -13,6 +13,7 @@ Add a new task to `backlog/` and update `docs/ROADMAP.md`.
    - Priority: High (P1) / Medium (P2) / Low (P3)
 
 2. **Generate task file**:
+   - Ensure `backlog/` exists (create it if missing). Never delete the `backlog/` directory; keep a placeholder file (for example `backlog/README.md`) so git preserves the folder even when it has no tasks.
    - Filename: kebab-case from description (e.g., `add-dark-mode.md`)
    - Location: `backlog/<filename>.md`
    - Phase: P1 → Phase 2, P2 → Phase 3, P3 → Phase 4

@@ -73,7 +73,9 @@ If checks fail:
 
 Once verified:
 
-1. **Delete task file**: `rm backlog/<task-name>.md`
+1. **Delete task file**: `rm -f backlog/<task-name>.md`
+   - **Do not delete the `backlog/` directory**, even if it becomes empty.
+   - If `backlog/` is missing, create it and ensure a placeholder file exists (for example `backlog/README.md`) so git keeps the directory.
 2. **Update docs/ROADMAP.md**: Remove the task entry or mark as completed
 3. **Create commit** using `/commit` skill with message format:
    ```
@@ -96,6 +98,7 @@ Once verified:
    Pass → Continue
    Fail → Fix and retry
 7. Delete backlog/<task>.md
+   - Delete the **file only**; never remove the `backlog/` directory.
 8. Update docs/ROADMAP.md (remove task entry)
 9. /commit with descriptive message
 10. Report completion to user

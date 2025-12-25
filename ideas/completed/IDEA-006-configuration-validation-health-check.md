@@ -106,4 +106,4 @@ Accepted during revalidation on 2025-12-24. Focused, actionable improvement that
 
 ## Related Tasks
 
-- [add-config-health-check.md](../../backlog/add-config-health-check.md) - P2, Phase 3
+- `add-config-health-check.md` - P2, Phase 3 (task file removed after completion)

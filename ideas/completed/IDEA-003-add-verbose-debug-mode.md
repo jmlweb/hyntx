@@ -77,4 +77,4 @@ Accepted during revalidation on 2025-12-24. Complements existing `cli-completo.m
 
 ## Related Tasks
 
-- [add-verbose-debug-mode.md](../../backlog/add-verbose-debug-mode.md) - P2, Phase 3
+- `add-verbose-debug-mode.md` - P2, Phase 3 (task file removed after completion)
