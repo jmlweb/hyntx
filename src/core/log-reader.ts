@@ -517,10 +517,17 @@ export async function readLogs(
   const allPrompts: ExtractedPrompt[] = [];
   const allWarnings: string[] = [];
 
-  for (const file of files) {
-    const { prompts, warnings } = await readJsonlFile(file);
-    allPrompts.push(...prompts);
-    allWarnings.push(...warnings);
+  // Process files in parallel with concurrency limit to prevent I/O saturation
+  const CONCURRENCY_LIMIT = 10;
+
+  for (let i = 0; i < files.length; i += CONCURRENCY_LIMIT) {
+    const chunk = files.slice(i, i + CONCURRENCY_LIMIT);
+    const results = await Promise.all(chunk.map(readJsonlFile));
+
+    for (const { prompts, warnings } of results) {
+      allPrompts.push(...prompts);
+      allWarnings.push(...warnings);
+    }
   }
 
   logger.debug(
