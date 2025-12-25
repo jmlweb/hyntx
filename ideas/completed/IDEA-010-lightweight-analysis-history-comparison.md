@@ -124,7 +124,7 @@ This idea provides a **lighter-weight version** that:
 
 ## Related Tasks
 
-- [add-analysis-history-comparison.md](../../backlog/add-analysis-history-comparison.md) - P1, Phase 4
+- `add-analysis-history-comparison.md` - P1, Phase 4 (task file removed after completion)
 
 **Backlog tasks created**: 2025-12-25 via `/feed-backlog`
 

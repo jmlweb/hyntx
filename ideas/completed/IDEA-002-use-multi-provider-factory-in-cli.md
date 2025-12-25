@@ -77,4 +77,4 @@ Accepted. High impact + low effort = P1 priority. Critical fix to enable all con
 
 ## Related Tasks
 
-- [integrate-multi-provider-factory.md](../../backlog/integrate-multi-provider-factory.md) - P1, Phase 3
+- `integrate-multi-provider-factory.md` - P1, Phase 3 (task file removed after completion)
