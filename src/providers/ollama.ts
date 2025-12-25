@@ -13,6 +13,9 @@ import {
   type AnalysisResult,
   type OllamaConfig,
   type ProjectContext,
+  type ProviderLimits,
+  type BatchStrategyType,
+  BATCH_STRATEGIES,
 } from '../types/index.js';
 import { logger } from '../utils/logger.js';
 import { SYSTEM_PROMPT, buildUserPrompt, parseResponse } from './base.js';
@@ -38,20 +41,96 @@ const ANALYSIS_TIMEOUT_MS = 60000;
 const BASE_RETRY_DELAY_MS = 1000;
 
 /**
+ * Model-to-strategy mapping for known Ollama models.
+ * Maps model names to their optimal batch strategy.
+ */
+const MODEL_STRATEGY_MAP: Record<string, BatchStrategyType> = {
+  // Micro (< 4GB)
+  'llama3.2': 'micro',
+  'phi3:mini': 'micro',
+  'gemma3:4b': 'micro',
+  'gemma2:2b': 'micro',
+
+  // Small (4-7GB)
+  'mistral:7b': 'small',
+  'llama3:8b': 'small',
+  'codellama:7b': 'small',
+
+  // Standard (> 7GB)
+  'llama3:70b': 'standard',
+  mixtral: 'standard',
+  'qwen2.5:14b': 'standard',
+};
+
+/**
+ * Detects the optimal batch strategy for a given model.
+ * Uses exact and partial matching against known model names.
+ *
+ * @param modelName - Name of the Ollama model
+ * @returns Batch strategy type
+ *
+ * @example
+ * ```typescript
+ * detectBatchStrategy('llama3.2') // 'micro'
+ * detectBatchStrategy('llama3.2:latest') // 'micro' (partial match)
+ * detectBatchStrategy('unknown-model') // 'micro' (safe default)
+ * ```
+ */
+export function detectBatchStrategy(modelName: string): BatchStrategyType {
+  // Check exact match first
+  if (MODEL_STRATEGY_MAP[modelName]) {
+    return MODEL_STRATEGY_MAP[modelName];
+  }
+
+  // Check partial match (e.g., "llama3.2:latest" matches "llama3.2")
+  for (const [pattern, strategy] of Object.entries(MODEL_STRATEGY_MAP)) {
+    if (modelName.includes(pattern)) {
+      return strategy;
+    }
+  }
+
+  // Default to micro for unknown models (safest)
+  return 'micro';
+}
+
+/**
  * Ollama provider for local AI analysis.
  * Implements the AnalysisProvider interface for Ollama instances.
  */
 export class OllamaProvider implements AnalysisProvider {
   public readonly name = 'Ollama';
   private readonly config: OllamaConfig;
+  private readonly batchStrategy: BatchStrategyType;
 
   /**
    * Creates a new OllamaProvider instance.
+   * Automatically detects the optimal batch strategy based on model name.
    *
    * @param config - Ollama configuration with model and host
    */
   constructor(config: OllamaConfig) {
     this.config = config;
+    this.batchStrategy = detectBatchStrategy(config.model);
+
+    const strategy = BATCH_STRATEGIES[this.batchStrategy];
+    logger.debug(
+      `Detected batch strategy: ${this.batchStrategy} (${strategy.description})`,
+      'ollama',
+    );
+  }
+
+  /**
+   * Returns dynamic batch limits based on detected model strategy.
+   *
+   * @returns Provider limits with model-specific constraints
+   */
+  public getBatchLimits(): ProviderLimits {
+    const strategy = BATCH_STRATEGIES[this.batchStrategy];
+    return {
+      maxTokensPerBatch: strategy.maxTokensPerBatch,
+      maxPromptsPerBatch: strategy.maxPromptsPerBatch,
+      prioritization: 'longest-first',
+    };
   }
 
   /**

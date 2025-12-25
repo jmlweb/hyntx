@@ -9,8 +9,8 @@
 /* eslint-disable @typescript-eslint/no-confusing-void-expression */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { OllamaProvider } from './ollama.js';
-import { type OllamaConfig } from '../types/index.js';
+import { OllamaProvider, detectBatchStrategy } from './ollama.js';
+import { type OllamaConfig, BATCH_STRATEGIES } from '../types/index.js';
 
 describe('OllamaProvider', () => {
   const mockConfig: OllamaConfig = {
@@ -589,6 +589,167 @@ describe('OllamaProvider', () => {
       expect(result.patterns[0]?.id).toBe('pattern-1');
       expect(result.patterns[1]?.id).toBe('pattern-2');
       expect(result.patterns[2]?.id).toBe('pattern-3');
+    });
+  });
+
+  describe('getBatchLimits', () => {
+    it('should return micro strategy limits for llama3.2', () => {
+      const provider = new OllamaProvider({
+        model: 'llama3.2',
+        host: 'http://localhost:11434',
+      });
+
+      const limits = provider.getBatchLimits();
+
+      expect(limits.maxTokensPerBatch).toBe(500);
+      expect(limits.maxPromptsPerBatch).toBe(3);
+      expect(limits.prioritization).toBe('longest-first');
+    });
+
+    it('should return small strategy limits for mistral:7b', () => {
+      const provider = new OllamaProvider({
+        model: 'mistral:7b',
+        host: 'http://localhost:11434',
+      });
+
+      const limits = provider.getBatchLimits();
+
+      expect(limits.maxTokensPerBatch).toBe(1500);
+      expect(limits.maxPromptsPerBatch).toBe(10);
+      expect(limits.prioritization).toBe('longest-first');
+    });
+
+    it('should return standard strategy limits for mixtral', () => {
+      const provider = new OllamaProvider({
+        model: 'mixtral',
+        host: 'http://localhost:11434',
+      });
+
+      const limits = provider.getBatchLimits();
+
+      expect(limits.maxTokensPerBatch).toBe(3000);
+      expect(limits.maxPromptsPerBatch).toBe(50);
+      expect(limits.prioritization).toBe('longest-first');
+    });
+
+    it('should return micro strategy limits for unknown models', () => {
+      const provider = new OllamaProvider({
+        model: 'unknown-model',
+        host: 'http://localhost:11434',
+      });
+
+      const limits = provider.getBatchLimits();
+
+      expect(limits.maxTokensPerBatch).toBe(500);
+      expect(limits.maxPromptsPerBatch).toBe(3);
+      expect(limits.prioritization).toBe('longest-first');
+    });
+  });
+});
+
+describe('detectBatchStrategy', () => {
+  describe('exact match', () => {
+    it('should detect micro strategy for llama3.2', () => {
+      expect(detectBatchStrategy('llama3.2')).toBe('micro');
+    });
+
+    it('should detect micro strategy for phi3:mini', () => {
+      expect(detectBatchStrategy('phi3:mini')).toBe('micro');
+    });
+
+    it('should detect micro strategy for gemma3:4b', () => {
+      expect(detectBatchStrategy('gemma3:4b')).toBe('micro');
+    });
+
+    it('should detect micro strategy for gemma2:2b', () => {
+      expect(detectBatchStrategy('gemma2:2b')).toBe('micro');
+    });
+
+    it('should detect small strategy for mistral:7b', () => {
+      expect(detectBatchStrategy('mistral:7b')).toBe('small');
+    });
+
+    it('should detect small strategy for llama3:8b', () => {
+      expect(detectBatchStrategy('llama3:8b')).toBe('small');
+    });
+
+    it('should detect small strategy for codellama:7b', () => {
+      expect(detectBatchStrategy('codellama:7b')).toBe('small');
+    });
+
+    it('should detect standard strategy for llama3:70b', () => {
+      expect(detectBatchStrategy('llama3:70b')).toBe('standard');
+    });
+
+    it('should detect standard strategy for mixtral', () => {
+      expect(detectBatchStrategy('mixtral')).toBe('standard');
+    });
+
+    it('should detect standard strategy for qwen2.5:14b', () => {
+      expect(detectBatchStrategy('qwen2.5:14b')).toBe('standard');
+    });
+  });
+
+  describe('partial match', () => {
+    it('should detect micro strategy for llama3.2:latest', () => {
+      expect(detectBatchStrategy('llama3.2:latest')).toBe('micro');
+    });
+
+    it('should detect micro strategy for llama3.2:3b', () => {
+      expect(detectBatchStrategy('llama3.2:3b')).toBe('micro');
+    });
+
+    it('should detect small strategy for mistral:7b-instruct', () => {
+      expect(detectBatchStrategy('mistral:7b-instruct')).toBe('small');
+    });
+
+    it('should detect standard strategy for mixtral:8x7b', () => {
+      expect(detectBatchStrategy('mixtral:8x7b')).toBe('standard');
+    });
+
+    it('should detect standard strategy for mixtral-8x7b-instruct', () => {
+      expect(detectBatchStrategy('mixtral-8x7b-instruct')).toBe('standard');
+    });
+  });
+
+  describe('default fallback', () => {
+    it('should default to micro for unknown models', () => {
+      expect(detectBatchStrategy('unknown-model')).toBe('micro');
+    });
+
+    it('should default to micro for custom model names', () => {
+      expect(detectBatchStrategy('my-custom-model:latest')).toBe('micro');
+    });
+
+    it('should default to micro for empty string', () => {
+      expect(detectBatchStrategy('')).toBe('micro');
+    });
+
+    it('should default to micro for random strings', () => {
+      expect(detectBatchStrategy('random-123')).toBe('micro');
+    });
+  });
+
+  describe('batch strategy constants', () => {
+    it('should have correct micro strategy configuration', () => {
+      const micro = BATCH_STRATEGIES.micro;
+      expect(micro.maxTokensPerBatch).toBe(500);
+      expect(micro.maxPromptsPerBatch).toBe(3);
+      expect(micro.description).toBe('For models < 4GB');
+    });
+
+    it('should have correct small strategy configuration', () => {
+      const small = BATCH_STRATEGIES.small;
+      expect(small.maxTokensPerBatch).toBe(1500);
+      expect(small.maxPromptsPerBatch).toBe(10);
+      expect(small.description).toBe('For models 4-7GB');
+    });
+
+    it('should have correct standard strategy configuration', () => {
+      const standard = BATCH_STRATEGIES.standard;
+      expect(standard.maxTokensPerBatch).toBe(3000);
+      expect(standard.maxPromptsPerBatch).toBe(50);
+      expect(standard.description).toBe('For models > 7GB');
     });
   });
 });

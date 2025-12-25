@@ -14,6 +14,7 @@ import {
   type AnalysisPattern,
   type PatternSeverity,
   type ProviderType,
+  type ProviderLimits,
   type ProjectContext,
   PROVIDER_LIMITS,
   CACHE_DEFAULTS,
@@ -81,6 +82,7 @@ type Batch = {
 type BatchPromptsOptions = {
   readonly prompts: readonly string[];
   readonly maxTokensPerBatch: number;
+  readonly maxPromptsPerBatch?: number;
   readonly prioritization: 'longest-first' | 'chronological';
 };
 
@@ -107,6 +109,40 @@ type AnalyzePromptsOptions = {
 // =============================================================================
 // Helper Functions
 // =============================================================================
+
+/**
+ * Type guard to check if a provider supports dynamic batch limits.
+ *
+ * @param provider - Any analysis provider
+ * @returns True if provider has getBatchLimits method
+ */
+function hasDynamicLimits(
+  provider: AnalysisProvider,
+): provider is AnalysisProvider & { getBatchLimits(): ProviderLimits } {
+  return (
+    typeof (provider as { getBatchLimits?: unknown }).getBatchLimits ===
+    'function'
+  );
+}
+
+/**
+ * Determines if an error should trigger batch fallback retry.
+ * Parse errors, schema errors, and network errors are good candidates.
+ *
+ * @param error - Error from provider.analyze()
+ * @returns True if error warrants fallback retry
+ */
+function shouldFallback(error: Error): boolean {
+  const message = error.message.toLowerCase();
+  return (
+    message.includes('parse') ||
+    message.includes('schema') ||
+    message.includes('json') ||
+    message.includes('timeout') ||
+    message.includes('network') ||
+    message.includes('failed')
+  );
+}
 
 /**
  * Calculates the average of an array of numbers.
@@ -220,6 +256,110 @@ function maxSeverity(severities: readonly PatternSeverity[]): PatternSeverity {
 // =============================================================================
 
 /**
+ * Recursively analyzes a batch with automatic fallback on failure.
+ * When a batch fails with a retryable error, splits it in half and retries each part.
+ * Single-prompt failures are skipped gracefully.
+ *
+ * @param provider - Analysis provider
+ * @param prompts - Prompts to analyze
+ * @param date - Date context
+ * @param context - Optional project context
+ * @param model - Model identifier for cache
+ * @param noCache - Whether to skip cache
+ * @returns Array of successful analysis results (may be empty if all fail)
+ */
+async function analyzeWithFallback(
+  provider: AnalysisProvider,
+  prompts: readonly string[],
+  date: string,
+  context: ProjectContext | undefined,
+  model: string,
+  noCache: boolean,
+): Promise<readonly AnalysisResult[]> {
+  if (prompts.length === 0) {
+    return [];
+  }
+
+  try {
+    // Check cache first (unless noCache is true)
+    if (!noCache) {
+      const cachedResult = await getCachedResult(
+        prompts,
+        model,
+        CACHE_DEFAULTS,
+      );
+      if (cachedResult) {
+        logger.debug(
+          `Using cached result for batch of ${String(prompts.length)} prompt(s)`,
+          'analyzer',
+        );
+        return [{ ...cachedResult, date }];
+      }
+    }
+
+    // Attempt analysis
+    const result = await provider.analyze(prompts, date, context);
+
+    // Store in cache (unless noCache is true)
+    if (!noCache) {
+      await setCachedResult(prompts, model, result);
+    }
+
+    return [result];
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+
+    // Check if this is a retryable error
+    if (shouldFallback(err)) {
+      // If batch has multiple prompts, split and retry
+      if (prompts.length > 1) {
+        const mid = Math.ceil(prompts.length / 2);
+        const leftPrompts = prompts.slice(0, mid);
+        const rightPrompts = prompts.slice(mid);
+
+        logger.debug(
+          `Batch of ${String(prompts.length)} failed, splitting into ${String(leftPrompts.length)} + ${String(rightPrompts.length)}`,
+          'analyzer',
+        );
+
+        // Recursively retry both halves
+        const [leftResults, rightResults] = await Promise.all([
+          analyzeWithFallback(
+            provider,
+            leftPrompts,
+            date,
+            context,
+            model,
+            noCache,
+          ),
+          analyzeWithFallback(
+            provider,
+            rightPrompts,
+            date,
+            context,
+            model,
+            noCache,
+          ),
+        ]);
+
+        return [...leftResults, ...rightResults];
+      }
+
+      // Single prompt failed - skip it gracefully
+      const promptPreview = prompts[0]?.slice(0, 50) ?? 'unknown';
+      logger.warn(
+        `Skipped single prompt due to error: ${promptPreview}... (${err.message})`,
+        'analyzer',
+      );
+      return [];
+    }
+
+    // Non-retryable error - propagate it
+    throw err;
+  }
+}
+
+/**
  * Estimates the token count for a given text.
  *
  * Uses a simple approximation: 1 token ≈ 4 characters.
@@ -253,12 +393,14 @@ export function estimateTokens(text: string): number {
  * const batches = batchPrompts({
  *   prompts: ['short', 'medium prompt', 'very long prompt...'],
  *   maxTokensPerBatch: 1000,
+ *   maxPromptsPerBatch: 5,
  *   prioritization: 'longest-first'
  * });
  * ```
  */
 export function batchPrompts(options: BatchPromptsOptions): readonly Batch[] {
-  const { prompts, maxTokensPerBatch, prioritization } = options;
+  const { prompts, maxTokensPerBatch, maxPromptsPerBatch, prioritization } =
+    options;
 
   if (prompts.length === 0) {
     return [];
@@ -298,8 +440,14 @@ export function batchPrompts(options: BatchPromptsOptions): readonly Batch[] {
       continue;
     }
 
-    // Check if adding this prompt would exceed the limit
-    if (currentTokens + tokens > effectiveLimit && currentBatch.length > 0) {
+    // Check if adding this prompt would exceed token limit or prompt count limit
+    const wouldExceedTokens =
+      currentTokens + tokens > effectiveLimit && currentBatch.length > 0;
+    const wouldExceedPrompts =
+      maxPromptsPerBatch !== undefined &&
+      currentBatch.length >= maxPromptsPerBatch;
+
+    if (wouldExceedTokens || wouldExceedPrompts) {
       // Flush current batch and start new one
       batches.push({ prompts: currentBatch, tokens: currentTokens });
       currentBatch = [prompt];
@@ -515,19 +663,22 @@ export async function analyzePrompts(
     );
   }
 
-  // Step 2: Infer provider type and get limits
-  const providerType = inferProviderType(provider.name);
-  const limits = PROVIDER_LIMITS[providerType];
+  // Step 2: Get provider limits (dynamic if supported, static otherwise)
+  const limits = hasDynamicLimits(provider)
+    ? provider.getBatchLimits()
+    : PROVIDER_LIMITS[inferProviderType(provider.name)];
 
-  logger.debug(
-    `Using provider type: ${providerType} (limit: ${String(limits.maxTokensPerBatch)} tokens/batch)`,
-    'analyzer',
-  );
+  const limitsInfo = limits.maxPromptsPerBatch
+    ? `${String(limits.maxTokensPerBatch)} tokens/batch, max ${String(limits.maxPromptsPerBatch)} prompts/batch`
+    : `${String(limits.maxTokensPerBatch)} tokens/batch`;
+
+  logger.debug(`Using batch limits: ${limitsInfo}`, 'analyzer');
 
   // Step 3: Batch prompts
   const batches = batchPrompts({
     prompts: sanitizedPrompts,
     maxTokensPerBatch: limits.maxTokensPerBatch,
+    maxPromptsPerBatch: limits.maxPromptsPerBatch,
     prioritization: limits.prioritization,
   });
 
@@ -550,50 +701,61 @@ export async function analyzePrompts(
     // Extract model identifier for cache key
     const model = extractModelFromProvider(provider.name);
 
-    // Check cache first (unless noCache is true)
-    if (!noCache) {
-      const cachedResult = await getCachedResult(
-        batch.prompts,
-        model,
-        CACHE_DEFAULTS,
-      );
-
-      if (cachedResult) {
-        logger.debug('Using cached result for single batch', 'analyzer');
-        if (onProgress) {
-          onProgress(1, 1);
-        }
-        // Override date to match current request
-        return { ...cachedResult, date };
-      }
-    }
-
     logger.debug(
-      `Processing single batch (${String(batch.tokens)} tokens)`,
+      `Processing single batch (${String(batch.tokens)} tokens, ${String(batch.prompts.length)} prompts)`,
       'analyzer',
     );
     const startTime = Date.now();
 
-    const result = await provider.analyze(batch.prompts, date, context);
+    // Use fallback logic for resilience
+    const results = await analyzeWithFallback(
+      provider,
+      batch.prompts,
+      date,
+      context,
+      model,
+      noCache ?? false,
+    );
 
     const elapsed = Date.now() - startTime;
     logger.debug(`Batch completed in ${String(elapsed)}ms`, 'analyzer');
-
-    // Store in cache (unless noCache is true)
-    if (!noCache) {
-      await setCachedResult(batch.prompts, model, result);
-    }
 
     if (onProgress) {
       onProgress(1, 1);
     }
 
+    // If fallback resulted in multiple results, merge them
+    if (results.length === 0) {
+      throw new Error('All prompts failed analysis');
+    }
+
+    if (results.length === 1) {
+      const result = results[0];
+      if (!result) {
+        throw new Error('Analysis returned empty result');
+      }
+
+      logger.debug(
+        `Analysis complete: ${String(result.patterns.length)} patterns found`,
+        'analyzer',
+      );
+
+      return result;
+    }
+
+    // Multiple results from fallback - merge them
     logger.debug(
-      `Analysis complete: ${String(result.patterns.length)} patterns found`,
+      `Merging ${String(results.length)} fallback results`,
+      'analyzer',
+    );
+    const mergedResult = mergeBatchResults({ results, date });
+
+    logger.debug(
+      `Analysis complete: ${String(mergedResult.patterns.length)} patterns found`,
       'analyzer',
     );
 
-    return result;
+    return mergedResult;
   }
 
   // Step 4: Process batches sequentially with progress updates
@@ -609,44 +771,39 @@ export async function analyzePrompts(
       onProgress(i, totalBatches);
     }
 
-    // Check cache for this batch (unless noCache is true)
-    let result: AnalysisResult | null = null;
-    if (!noCache) {
-      result = await getCachedResult(batch.prompts, model, CACHE_DEFAULTS);
-      if (result) {
-        logger.debug(
-          `Using cached result for batch ${String(i + 1)}/${String(totalBatches)}`,
-          'analyzer',
-        );
-        // Override date to match current request
-        results.push({ ...result, date });
-        continue;
-      }
-    }
-
     logger.debug(
-      `Processing batch ${String(i + 1)}/${String(totalBatches)} (${String(batch.tokens)} tokens)`,
+      `Processing batch ${String(i + 1)}/${String(totalBatches)} (${String(batch.tokens)} tokens, ${String(batch.prompts.length)} prompts)`,
       'analyzer',
     );
     const startTime = Date.now();
 
-    result = await provider.analyze(batch.prompts, date, context);
-    results.push(result);
+    // Use fallback logic for resilience
+    const batchResults = await analyzeWithFallback(
+      provider,
+      batch.prompts,
+      date,
+      context,
+      model,
+      noCache ?? false,
+    );
 
-    // Store in cache (unless noCache is true)
-    if (!noCache) {
-      await setCachedResult(batch.prompts, model, result);
-    }
+    // Add all successful results (may be 0 if all failed)
+    results.push(...batchResults);
 
     const elapsed = Date.now() - startTime;
     logger.debug(
-      `Batch ${String(i + 1)}/${String(totalBatches)} completed in ${String(elapsed)}ms`,
+      `Batch ${String(i + 1)}/${String(totalBatches)} completed in ${String(elapsed)}ms (${String(batchResults.length)} result(s))`,
       'analyzer',
     );
   }
 
   if (onProgress) {
     onProgress(totalBatches, totalBatches);
+  }
+
+  // Check if we have any results
+  if (results.length === 0) {
+    throw new Error('All batches failed analysis');
   }
 
   // Step 5: Merge results

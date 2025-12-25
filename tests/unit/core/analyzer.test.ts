@@ -754,12 +754,13 @@ describe('analyzePrompts', () => {
       },
     };
 
+    // With fallback logic, retryable errors result in "All prompts failed analysis"
     await expect(
       analyzePrompts({
         provider,
         prompts: ['test'],
         date: '2025-01-15',
       }),
-    ).rejects.toThrow('Provider failed');
+    ).rejects.toThrow('All prompts failed analysis');
   });
 });

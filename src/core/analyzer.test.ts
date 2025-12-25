@@ -204,6 +204,165 @@ describe('batchPrompts', () => {
     expect(result).toHaveLength(1);
     expect(result[0]?.tokens).toBeGreaterThan(1000);
   });
+
+  describe('maxPromptsPerBatch constraint', () => {
+    it('should respect maxPromptsPerBatch limit', () => {
+      const prompts = ['short', 'text', 'here', 'more', 'prompts'];
+
+      const result = batchPrompts({
+        prompts,
+        maxTokensPerBatch: 10000,
+        maxPromptsPerBatch: 3,
+        prioritization: 'chronological',
+      });
+
+      // With 5 prompts and max 3 per batch, should create 2 batches
+      expect(result.length).toBeGreaterThanOrEqual(2);
+      expect(result[0]?.prompts.length).toBeLessThanOrEqual(3);
+      expect(result[1]?.prompts.length).toBeLessThanOrEqual(3);
+    });
+
+    it('should create single batch when prompts fit within limit', () => {
+      const prompts = ['one', 'two', 'three'];
+
+      const result = batchPrompts({
+        prompts,
+        maxTokensPerBatch: 10000,
+        maxPromptsPerBatch: 5,
+        prioritization: 'chronological',
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result[0]?.prompts).toHaveLength(3);
+    });
+
+    it('should prioritize maxPromptsPerBatch over token limit', () => {
+      const prompts = ['tiny', 'small', 'short', 'brief', 'micro'];
+
+      const result = batchPrompts({
+        prompts,
+        maxTokensPerBatch: 100000, // Very high token limit
+        maxPromptsPerBatch: 2, // But only 2 prompts per batch
+        prioritization: 'chronological',
+      });
+
+      // Should create 3 batches: [tiny, small], [short, brief], [micro]
+      expect(result).toHaveLength(3);
+      expect(result[0]?.prompts).toHaveLength(2);
+      expect(result[1]?.prompts).toHaveLength(2);
+      expect(result[2]?.prompts).toHaveLength(1);
+    });
+
+    it('should handle maxPromptsPerBatch = 1', () => {
+      const prompts = ['one', 'two', 'three'];
+
+      const result = batchPrompts({
+        prompts,
+        maxTokensPerBatch: 10000,
+        maxPromptsPerBatch: 1,
+        prioritization: 'chronological',
+      });
+
+      // Each prompt in its own batch
+      expect(result).toHaveLength(3);
+      result.forEach((batch) => {
+        expect(batch.prompts).toHaveLength(1);
+      });
+    });
+
+    it('should work with longest-first prioritization', () => {
+      const prompts = [
+        'short',
+        'this is a much longer prompt',
+        'medium length',
+        'tiny',
+        'another long prompt here',
+      ];
+
+      const result = batchPrompts({
+        prompts,
+        maxTokensPerBatch: 10000,
+        maxPromptsPerBatch: 2,
+        prioritization: 'longest-first',
+      });
+
+      // Should create 3 batches with max 2 prompts each
+      expect(result.length).toBeGreaterThanOrEqual(3);
+      result.forEach((batch) => {
+        expect(batch.prompts.length).toBeLessThanOrEqual(2);
+      });
+
+      // First batch should have the two longest prompts
+      const firstBatch = result[0];
+      expect(firstBatch?.prompts).toContain('this is a much longer prompt');
+      expect(firstBatch?.prompts).toContain('another long prompt here');
+    });
+
+    it('should combine token and prompt constraints', () => {
+      const prompts = [
+        'x'.repeat(4000), // ~1000 tokens
+        'y'.repeat(4000), // ~1000 tokens
+        'z'.repeat(4000), // ~1000 tokens
+        'a'.repeat(4000), // ~1000 tokens
+      ];
+
+      const result = batchPrompts({
+        prompts,
+        maxTokensPerBatch: 6000, // 6000 - 2000 = 4000 effective (fits 4 prompts)
+        maxPromptsPerBatch: 2, // But only 2 prompts allowed
+        prioritization: 'chronological',
+      });
+
+      // Should create 2 batches, constrained by maxPromptsPerBatch
+      expect(result).toHaveLength(2);
+      expect(result[0]?.prompts).toHaveLength(2);
+      expect(result[1]?.prompts).toHaveLength(2);
+    });
+
+    it('should work without maxPromptsPerBatch (backward compatibility)', () => {
+      const prompts = ['one', 'two', 'three', 'four', 'five'];
+
+      const result = batchPrompts({
+        prompts,
+        maxTokensPerBatch: 10000,
+        prioritization: 'chronological',
+      });
+
+      // Without maxPromptsPerBatch, should create single batch if tokens fit
+      expect(result).toHaveLength(1);
+      expect(result[0]?.prompts).toHaveLength(5);
+    });
+
+    it('should handle maxPromptsPerBatch with oversized prompts', () => {
+      const prompts = [
+        'small',
+        'x'.repeat(20000), // Oversized (~5000 tokens)
+        'tiny',
+        'micro',
+      ];
+
+      const result = batchPrompts({
+        prompts,
+        maxTokensPerBatch: 5000, // 5000 - 2000 = 3000 effective
+        maxPromptsPerBatch: 2,
+        prioritization: 'chronological',
+      });
+
+      // Oversized prompt gets its own batch
+      const oversizedBatch = result.find((b) =>
+        b.prompts.includes('x'.repeat(20000)),
+      );
+      expect(oversizedBatch?.prompts).toHaveLength(1);
+
+      // Other prompts should respect maxPromptsPerBatch
+      const regularBatches = result.filter(
+        (b) => !b.prompts.includes('x'.repeat(20000)),
+      );
+      regularBatches.forEach((batch) => {
+        expect(batch.prompts.length).toBeLessThanOrEqual(2);
+      });
+    });
+  });
 });
 
 describe('mergeBatchResults', () => {
@@ -754,12 +913,13 @@ describe('analyzePrompts', () => {
       },
     };
 
+    // With fallback logic, retryable errors result in "All prompts failed analysis"
     await expect(
       analyzePrompts({
         provider,
         prompts: ['test'],
         date: '2025-01-15',
       }),
-    ).rejects.toThrow('Provider failed');
+    ).rejects.toThrow('All prompts failed analysis');
   });
 });

@@ -137,11 +137,50 @@ export type PromptAnalysis = Omit<AnalysisResult, 'date'>;
 export type ProviderType = 'ollama' | 'anthropic' | 'google';
 
 /**
+ * Batch strategy type identifier.
+ */
+export type BatchStrategyType = 'micro' | 'small' | 'standard';
+
+/**
+ * Batch strategy configuration for different model sizes.
+ */
+export type BatchStrategy = {
+  readonly maxTokensPerBatch: number;
+  readonly maxPromptsPerBatch: number;
+  readonly description: string;
+};
+
+/**
+ * Available batch strategies by model size.
+ */
+export const BATCH_STRATEGIES: Record<BatchStrategyType, BatchStrategy> = {
+  // For models < 4GB
+  micro: {
+    maxTokensPerBatch: 500,
+    maxPromptsPerBatch: 3,
+    description: 'For models < 4GB',
+  },
+  // For models 4-7GB
+  small: {
+    maxTokensPerBatch: 1_500,
+    maxPromptsPerBatch: 10,
+    description: 'For models 4-7GB',
+  },
+  // For models > 7GB
+  standard: {
+    maxTokensPerBatch: 3_000,
+    maxPromptsPerBatch: 50,
+    description: 'For models > 7GB',
+  },
+} as const;
+
+/**
  * Context limits for each provider.
  * Used for intelligent batching of prompts.
  */
 export type ProviderLimits = {
   readonly maxTokensPerBatch: number;
+  readonly maxPromptsPerBatch?: number;
   readonly prioritization: 'longest-first' | 'chronological';
 };
 
@@ -179,6 +218,7 @@ export type AnalysisProvider = {
     date: string,
     context?: ProjectContext,
   ): Promise<AnalysisResult>;
+  getBatchLimits?(): ProviderLimits;
 };
 
 // =============================================================================
