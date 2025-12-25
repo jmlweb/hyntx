@@ -84,6 +84,4 @@ The `src/index.ts` file (main CLI entry point) has only 65% line coverage compar
 
 ## Related Tasks
 
-- [improve-cli-entry-point-test-coverage.md](../../backlog/improve-cli-entry-point-test-coverage.md) - P2, Phase 4
-
-**Backlog tasks created**: 2025-12-25 via `/feed-backlog`
+{Links to backlog tasks created from this idea - filled by feed-backlog}
