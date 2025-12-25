@@ -1,118 +1,107 @@
----
-description: Mark an idea as completed when all related tasks are done
----
-
 # Complete Idea
 
-Move a fully implemented idea from `ideas/accepted/` to `ideas/completed/`. This provides a quick way to check which ideas are done without reading file contents.
+Mark an accepted idea as completed after all its tasks are done.
 
-## Workflow
+## Instructions
 
-1. **Find the idea**:
-   - Accept IDEA-XXX ID as parameter
-   - Locate file in `ideas/accepted/` directory
-   - Read and parse frontmatter and content
+When the user runs `/complete-idea #N`:
 
-2. **Check related tasks**:
-   - Look for "Related Tasks" section in the idea file
-   - For each linked task in backlog/:
-     - Check if task file still exists (deleted = completed)
-     - Or check if task has status: completed in frontmatter
-   - Verify ALL related tasks are completed
+### Step 1 - Fetch the Idea
 
-3. **Validate completion**:
-   - If no related tasks: Ask user to confirm the idea was implemented directly
-   - If some tasks incomplete: Report which tasks are still pending and abort
-   - If all tasks complete: Proceed to mark as completed
-
-4. **Update idea file**:
-   - Set `status: completed`
-   - Set `completed_date` to current date
-   - Add completion note to "Validation Notes" section
-
-5. **Move file**:
-   - Move from `ideas/accepted/` to `ideas/completed/`
-   - Preserve filename
-   - Do not delete `ideas/accepted/` even if it becomes empty (keep a placeholder file like `ideas/accepted/README.md` so git preserves the directory)
-
-6. **Report completion**:
-   - Confirm the move
-   - Show completed_date
-
-## Task Completion Detection
-
-Tasks are considered complete when:
-
-- Task file no longer exists in backlog/ (was removed after implementation)
-- Task references appear in git history as completed
-- User explicitly confirms task was implemented
-
-## Benefits
-
-- **Quick status check**: `ls ideas/completed/` shows all done ideas
-- **No file parsing needed**: Directory location indicates status
-- **Clear separation**: In-progress vs done ideas are visually distinct
-- **Audit trail**: completed_date provides implementation timeline
-
-## Output Format
-
-```text
-Checking IDEA-XXX ({title}):
-
-Related tasks:
-- add-feature-a.md ✓ (not in backlog - completed)
-- add-feature-b.md ✓ (not in backlog - completed)
-
-All 2 tasks completed.
-
-✓ Updated status: completed
-✓ Set completed_date: 2025-12-25
-✓ Moved to ideas/completed/IDEA-XXX-{slug}.md
-
-Idea IDEA-XXX is now marked as completed.
+```bash
+gh issue view N --json number,title,body,labels,state
 ```
 
-## Error Cases
+Verify:
 
-### Idea not found
+- Has `idea:accepted` label
+- Is still open
 
-```text
-Error: IDEA-XXX not found in ideas/accepted/
+### Step 2 - Find Related Tasks
 
-Check if:
-- The ID is correct (use /list-ideas accepted)
-- The idea is still in on-validation/ (not yet accepted)
-- The idea was already completed or rejected
+Search for tasks that reference this idea:
+
+```bash
+gh issue list --search "idea #N in:body" --state all --json number,title,state
 ```
 
-### Tasks still pending
+Also check the idea's body/comments for task references.
+
+### Step 3 - Verify Task Completion
+
+Check if all related tasks are closed. If any are still open:
 
 ```text
-Cannot complete IDEA-XXX ({title}):
+Cannot complete idea #N:
 
-Pending tasks:
-- add-feature-c.md (still in backlog/)
+Open tasks:
+- #25: Implement validation (still open)
 
-Complete all related tasks first, or remove them from the idea's Related Tasks section if they're no longer needed.
+Complete all related tasks first.
 ```
 
-### No related tasks
+### Step 4 - Mark as Completed
+
+If all tasks are closed (or user confirms direct implementation):
+
+```bash
+gh issue edit N \
+  --remove-label "idea:accepted" \
+  --add-label "idea:completed"
+
+gh issue comment N --body "$(cat <<'EOF'
+## Idea Completed
+
+All tasks derived from this idea have been implemented.
+
+**Completed on:** $(date +%Y-%m-%d)
+EOF
+)"
+
+gh issue close N
+```
+
+### Step 5 - Confirm
 
 ```text
-IDEA-XXX ({title}) has no related tasks in backlog.
+Idea #N completed!
+
+- Status: idea:completed
+- Closed on: 2025-12-26
+- Related tasks: #25, #26, #27 (all closed)
+```
+
+## Edge Cases
+
+**No related tasks found:**
+
+```text
+Idea #N has no linked tasks.
 
 This could mean:
-1. Tasks were completed and removed
+1. Tasks were completed and closed
 2. Idea was implemented without creating tasks
 3. /feed-backlog was never run for this idea
 
 Confirm this idea is fully implemented? [y/n]
 ```
 
-## Execute Now
+**Idea not found or wrong status:**
 
-1. Find and read the specified idea file from `ideas/accepted/`
-2. Parse the "Related Tasks" section
-3. Check each task's completion status
-4. If all complete (or user confirms): update frontmatter and move file
-5. Report completion status
+```text
+Error: Issue #N is not an accepted idea.
+
+Current status: idea:pending (or idea:completed, etc.)
+
+Use /list-ideas accepted to see ideas ready for completion.
+```
+
+## Idea Lifecycle
+
+```text
+/add-idea       -> Creates idea (idea:pending)
+/validate-idea  -> Accepts or rejects (idea:accepted | idea:rejected)
+/feed-backlog   -> Creates tasks from accepted ideas
+/next-task      -> Implements tasks
+/complete-idea  -> Closes the cycle (idea:completed)
+```

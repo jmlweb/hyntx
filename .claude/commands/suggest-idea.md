@@ -1,26 +1,28 @@
----
-description: Analyze project state and proactively suggest a new idea
----
-
 # Suggest Idea
 
-Analyze the current state of the project, identify improvement opportunities, and automatically create a new idea using `/new-idea`.
+Analyze the current state of the project and proactively suggest a new idea.
 
-## Workflow
+## Instructions
 
-### 1. Analyze Project State
+When the user runs `/suggest-idea`:
+
+### Step 1 - Analyze Project State
 
 Gather comprehensive context by reading:
 
-- **docs/ROADMAP.md**: Current tasks, priorities, and phases
-- **backlog/\*.md**: Pending tasks and their specifications
-- **TECHNICAL_DEBT.md**: Known technical debt items
-- **ideas/accepted/\*.md**: Previously accepted ideas (to avoid duplicates)
-- **ideas/on-validation/\*.md**: Ideas currently under review
-- **ideas/rejected/\*.md**: Previously rejected ideas (to avoid suggesting duplicates, especially with same rejection reasons)
+- **AGENTS.md**: Project goals and conventions
+- **README.md**: Project purpose and current features
+- **docs/TECHNICAL_DEBT.md**: Known technical debt items
 - **src/**: Sample of codebase to identify patterns, gaps, or issues
 
-### 2. Identify Improvement Opportunities
+Also check existing ideas to avoid duplicates:
+
+```bash
+# Get all ideas (open and closed)
+gh issue list --label "idea" --state all --json number,title --limit 100
+```
+
+### Step 2 - Identify Improvement Opportunities
 
 Based on the analysis, look for:
 
@@ -34,43 +36,34 @@ Based on the analysis, look for:
 - **Performance**: Optimization opportunities
 - **Security**: Potential vulnerabilities or hardening opportunities
 
-### 3. Evaluate and Prioritize
+### Step 3 - Evaluate and Prioritize
 
 For each potential idea identified:
 
-- **Uniqueness**: Ensure it's not already covered by existing ideas (accepted, on-validation, or rejected) or tasks. Check all idea directories to avoid duplicates, including rejected ideas which document why similar concepts were previously dismissed.
+- **Uniqueness**: Ensure it's not already covered by existing ideas or tasks
 - **Value**: Estimate potential impact on project quality/velocity
 - **Feasibility**: Consider effort and technical complexity
 - **Alignment**: Check fit with project goals and current phase
 
 Select the **most valuable and actionable** idea.
 
-### 4. Generate Idea Description
+### Step 4 - Create the Idea
 
-Create a comprehensive idea description including:
-
-- **Clear title**: Descriptive and specific
-- **Problem statement**: What issue or gap does this address?
-- **Proposed solution**: High-level approach to implement
-- **Expected benefits**: Concrete improvements this would bring
-- **Category**: feature, improvement, refactor, fix, documentation, other
-- **Initial criteria**: 2-3 acceptance criteria
-
-### 5. Create Idea Using `/new-idea`
-
-Invoke the `/new-idea` skill with the generated description:
+Use `/add-idea` to create the idea:
 
 ```bash
-/new-idea {generated idea description}
+/add-idea [generated idea description]
 ```
 
-### 6. Report Results
+The idea will be created with `idea:pending` label for validation.
+
+### Step 5 - Report Results
 
 Confirm to the user:
 
 - What was analyzed
 - What opportunity was identified
-- Which idea was created (IDEA-XXX)
+- Which idea was created (issue #N)
 - Suggested next step (validate the idea with `/validate-idea`)
 
 ## Analysis Checklist
@@ -98,34 +91,28 @@ A good suggested idea should be:
 4. **Feasible**: Realistic given current project context
 5. **Novel**: Not duplicating existing ideas or tasks
 
-## Example Execution
+## Example
 
-**Analysis findings:**
+```text
+/suggest-idea
 
-- TECHNICAL_DEBT.md mentions lack of E2E tests for checkout flow
-- backlog/ has multiple testing-related tasks but none for E2E
-- ideas/accepted/ doesn't have any testing infrastructure ideas
-- ideas/rejected/ checked - no similar ideas were previously rejected
+Analyzing project state...
 
-**Opportunity identified:**
-Implement E2E testing for critical user flows
+Checked:
+- AGENTS.md: Project goals and conventions
+- docs/TECHNICAL_DEBT.md: 0 items (clean)
+- Existing ideas: 15 (13 completed, 2 rejected)
+- Open tasks: 0
 
-**Generated idea:**
-"Implement Playwright E2E testing infrastructure for checkout and authentication flows"
+Opportunity identified:
+The project has comprehensive analysis features but no way to
+export results for use in external tools or dashboards.
 
-**Action:**
+Creating idea...
 
-```bash
-/new-idea "Implement Playwright E2E testing infrastructure for checkout and authentication flows. The project currently lacks E2E tests for critical user journeys, which increases risk of regressions. This idea proposes setting up Playwright with initial coverage for checkout flow and user authentication."
+Created: Issue #24 - [IDEA] Add export formats for analysis results
+
+Labels: idea, idea:pending
+
+Next step: Use /validate-idea #24 to evaluate this idea.
 ```
-
-**Result:**
-Created IDEA-015 in ideas/on-validation/ with category "improvement" and recommended effort "medium", impact "high".
-
-## Execute Now
-
-1. Read and analyze project state (ROADMAP, backlog, TECHNICAL_DEBT, all ideas directories including accepted/on-validation/rejected, sample codebase)
-2. Identify the most valuable improvement opportunity (ensuring it's not a duplicate of existing or rejected ideas)
-3. Generate a comprehensive idea description
-4. Invoke `/new-idea` with the generated description
-5. Report what was created and suggest validation as next step

@@ -1,85 +1,81 @@
----
-description: Add a new task to backlog and update roadmap
----
+# Add Task
 
-# Add Task to Backlog
+Create a new task as a GitHub Issue.
 
-Add a new task to `backlog/` and update `docs/ROADMAP.md`.
+## Instructions
 
-## Workflow
+When the user runs `/add-task <description>`:
 
-1. **Ask for task details** using AskUserQuestion:
-   - Description: What should this task accomplish?
-   - Priority: High (P1) / Medium (P2) / Low (P3)
+### Step 1 - Analyze the Task
 
-2. **Generate task file**:
-   - Ensure `backlog/` exists (create it if missing). Never delete the `backlog/` directory; keep a placeholder file (for example `backlog/README.md`) so git preserves the folder even when it has no tasks.
-   - Filename: kebab-case from description (e.g., `add-dark-mode.md`)
-   - Location: `backlog/<filename>.md`
-   - Phase: P1 → Phase 2, P2 → Phase 3, P3 → Phase 4
+Parse the user's description to determine:
 
-3. **Update docs/ROADMAP.md**:
-   - Add entry in corresponding phase section
-   - Include link to backlog file
+- A clear, concise title (max 80 chars)
+- A detailed description with acceptance criteria if applicable
+- Task type: `type:feature`, `type:bug`, or `type:chore`
+- Priority: `priority:critical`, `priority:high`, `priority:medium`, or `priority:low`
 
-## Task Template
+### Step 2 - Create the Issue
 
-Use this template for the generated file:
-
-```markdown
-# {Title}
-
-## Metadata
-
-- **Priority**: {P1/P2/P3}
-- **Phase**: {2/3/4}
-- **Dependencies**: TBD
-- **Estimation**: TBD
-
+```bash
+gh issue create \
+  --title "Title here" \
+  --body "$(cat <<'EOF'
 ## Description
 
-{Expanded description based on user input}
-
-## Objective
-
-{Inferred from description}
-
-## Scope
-
-- Includes: {Main deliverables}
-- Excludes: Out of scope items
-
-## Files to Create/Modify
-
-- TBD
-
-## Implementation
-
-TBD
+[Task description]
 
 ## Acceptance Criteria
 
-- [ ] Implementation complete
-- [ ] Tests pass
-- [ ] Linting passes
+- [ ] Criterion 1
+- [ ] Criterion 2
 
-## Test Cases
-
-- TBD
-
-## References
-
-- See docs/ROADMAP.md for context
+---
+*Created via /add-task*
+EOF
+)" \
+  --label "type:feature,priority:medium"
 ```
 
-## Priority Mapping
+### Step 3 - Confirm Creation
 
-| Selection | Priority | Phase | ROADMAP Section            |
-| --------- | -------- | ----- | -------------------------- |
-| High      | P1       | 2     | Phase 2: Core Functional   |
-| Medium    | P2       | 3     | Phase 3: CLI and Providers |
-| Low       | P3       | 4     | Phase 4: Advanced Features |
+Display:
 
-## Execute Now
+- Issue number and URL
+- Title, type, and priority labels
+- Next steps
 
-Ask the user for description and priority, then create the task file and update docs/ROADMAP.md.
+## Priority Guidelines
+
+| Priority | Description                                          |
+| -------- | ---------------------------------------------------- |
+| critical | Blocks deployments, security issues, production bugs |
+| high     | Important feature, significant bug, deadline-driven  |
+| medium   | Standard work, normal feature requests               |
+| low      | Nice-to-have, minor improvements, can wait           |
+
+## Type Guidelines
+
+| Type    | Description                                     |
+| ------- | ----------------------------------------------- |
+| feature | New functionality, new capability               |
+| bug     | Something is broken or not working as expected  |
+| chore   | Refactoring, dependencies, documentation, CI/CD |
+
+## Example
+
+User: `/add-task Add dark mode support to the CLI output`
+
+Creates:
+
+```text
+Issue #25: Add dark mode support to CLI output
+
+Labels: type:feature, priority:medium
+
+Description:
+Add dark mode support to the CLI output for better visibility
+in dark terminal themes...
+
+Created! Use /next-task to start working on it.
+```

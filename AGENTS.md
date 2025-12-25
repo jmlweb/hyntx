@@ -234,113 +234,75 @@ pnpm test      # Run tests
 
 ---
 
-## Backlog Management
+## Task and Idea Management
 
-### Structure
+All tasks and ideas are managed via **GitHub Issues**. No local files are used for task tracking.
 
-| File              | Purpose                                          |
-| ----------------- | ------------------------------------------------ |
-| `docs/ROADMAP.md` | Prioritized roadmap with phases and dependencies |
-| `backlog/*.md`    | Individual task specifications                   |
+### Label Taxonomy
 
-### Workflow
-
-1. **Task Selection**: Pick tasks from `docs/ROADMAP.md` following priority order (P0 → P1 → P2 → P3)
-2. **Implementation**: Follow the task specification in `backlog/<task-name>.md`
-3. **Verification**: Run linting and tests to ensure the task works
-4. **Completion**:
-   - Delete the task file from `backlog/`
-
-- **Do not delete the `backlog/` directory**, even if it becomes empty (keep a placeholder like `backlog/README.md` so git preserves it)
-  - Update `docs/ROADMAP.md` (mark as completed or remove)
-  - Create a descriptive commit following Conventional Commits
+| Category       | Labels                                                                     | Purpose           |
+| -------------- | -------------------------------------------------------------------------- | ----------------- |
+| Idea Lifecycle | `idea`, `idea:pending`, `idea:accepted`, `idea:rejected`, `idea:completed` | Track idea status |
+| Task Type      | `type:feature`, `type:bug`, `type:chore`                                   | Categorize work   |
+| Priority       | `priority:critical`, `priority:high`, `priority:medium`, `priority:low`    | Task ordering     |
+| Effort         | `effort:low`, `effort:medium`, `effort:high`                               | Estimation        |
+| Impact         | `impact:low`, `impact:medium`, `impact:high`                               | Value assessment  |
 
 ### Commands
 
-| Command         | Purpose                                                                                                             |
-| --------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `/next-task`    | Pick next task, execute, verify, cleanup, commit (full workflow)                                                    |
-| `/add-task`     | Add a new task to backlog and update roadmap                                                                        |
-| `/do-task`      | Orchestrate agents to complete a task (global)                                                                      |
-| `/groom-tasks`  | Evaluate task specifications, update outdated tasks, remove obsolete tasks from backlog and roadmap                 |
-| `/reprioritize` | Evaluate and reorder tasks in roadmap to ensure optimal implementation order respecting dependencies and priorities |
+| Command           | Purpose                                        |
+| ----------------- | ---------------------------------------------- |
+| `/add-idea`       | Create idea pending validation                 |
+| `/validate-idea`  | Accept or reject pending idea                  |
+| `/validate-ideas` | Batch validate all pending ideas               |
+| `/feed-backlog`   | Convert accepted ideas to tasks                |
+| `/complete-idea`  | Mark idea as completed                         |
+| `/list-ideas`     | Display ideas with filtering                   |
+| `/add-task`       | Create new task                                |
+| `/next-task`      | Pick and execute highest priority task         |
+| `/reprioritize`   | Reorder task priorities                        |
+| `/suggest-idea`   | AI-suggested improvement idea                  |
+| `/groom-tasks`    | Clean up obsolete tasks                        |
+| `/do-task`        | Orchestrate agents to complete a task (global) |
+| `/analyze-debt`   | Update TECHNICAL_DEBT.md                       |
 
-### Task Completion Workflow
+### Idea Lifecycle
 
-**Recommended**: Use `/next-task` to automate the full workflow.
-
-**Manual workflow**:
-
-1. **Implement**: Use `/do-task <task-name>` to implement
-2. **Verify**: Run `pnpm check && pnpm test && pnpm build`
-3. **Cleanup**: Delete `backlog/<task>.md`, update `docs/ROADMAP.md`
-4. **Commit**: Use `/commit` with descriptive message
-
-**Required Steps After Completing Any Task**:
-
-Every completed task must go through these validation and maintenance steps:
-
-1. **Validation**: Run linting, testing, and build verification
-   - Execute `pnpm check` (types + lint + format)
-   - Run `pnpm test` to ensure all tests pass
-   - Verify `pnpm build` completes successfully
-
-2. **Documentation Update**: Keep documentation current
-   - Update relevant docs in `docs/` if the task affects architecture, specs, or CLI
-   - Update `README.md` if user-facing features changed
-   - Add/update code comments if implementation details require clarification
-
-3. **Rules Review**: Evaluate if rules need updates
-   - Review `AGENTS.md` to determine if new patterns or conventions emerged
-   - Consider if existing rules should be updated or new rules added
-   - Document any new conventions or patterns discovered during implementation
-
-### Task File Template
-
-```markdown
-# Task Title
-
-## Metadata
-
-- **Priority**: P0/P1/P2/P3
-- **Phase**: 1-5
-- **Dependencies**: list of dependencies
-- **Estimation**: time estimate
-
-## Description
-
-What the task accomplishes.
-
-## Objective
-
-Why this task is needed.
-
-## Scope
-
-- Includes: what is in scope
-- Excludes: what is out of scope
-
-## Files to Create/Modify
-
-- List of files
-
-## Implementation
-
-Detailed implementation steps.
-
-## Acceptance Criteria
-
-- [ ] Criteria 1
-- [ ] Criteria 2
-
-## Test Cases
-
-- Test case descriptions
-
-## References
-
-- Links to relevant docs
+```text
+/add-idea       -> Creates idea (idea:pending)
+/validate-idea  -> Accepts or rejects (idea:accepted | idea:rejected)
+/feed-backlog   -> Creates tasks from accepted ideas
+/next-task      -> Implements tasks
+/complete-idea  -> Closes the cycle (idea:completed)
 ```
+
+### Task Workflow
+
+1. **Find task**: `/next-task` picks highest priority open task
+2. **Implement**: Follow task description and acceptance criteria
+3. **Verify**: Run `pnpm check && pnpm test && pnpm build`
+4. **Close**: Task is closed via `gh issue close`
+5. **Commit**: Use `/commit` with descriptive message
+
+### Priority Guidelines
+
+| Priority | Description                                          |
+| -------- | ---------------------------------------------------- |
+| critical | Blocks deployments, security issues, production bugs |
+| high     | Important feature, significant bug, deadline-driven  |
+| medium   | Standard work, normal feature requests               |
+| low      | Nice-to-have, minor improvements, can wait           |
+
+### Effort-Impact to Priority Mapping
+
+| Effort | Impact | Priority   |
+| ------ | ------ | ---------- |
+| Low    | High   | critical   |
+| Low    | Medium | high       |
+| Medium | High   | high       |
+| Medium | Medium | medium     |
+| High   | High   | high       |
+| Others | -      | medium/low |
 
 ---
 

@@ -1,160 +1,148 @@
----
-description: Evaluate and update task specifications, remove obsolete tasks from backlog and roadmap
----
-
 # Groom Tasks
 
-Evaluate all tasks in the backlog for correctness, currency, and relevance. Update task specifications when needed, and remove tasks that are no longer relevant.
+Evaluate all open tasks for relevance and update priorities.
 
-## Workflow
+## Instructions
 
-### 1. Read All Tasks
+When the user runs `/groom-tasks`:
 
-1. Read `docs/ROADMAP.md` to get the list of all tasks
-2. Read each task file from `backlog/<task-name>.md`
-3. Keep track of tasks that need updates or removal
+### Step 1 - Fetch All Open Tasks
 
-### 2. Evaluate Task Specifications
+```bash
+gh issue list --state open --json number,title,labels,body,createdAt --limit 100
+```
+
+Filter for task issues (have `type:` label, not `idea` label).
+
+### Step 2 - Evaluate Each Task
 
 For each task, check:
 
-**Template Compliance**:
+**Relevance:**
 
-- Compare task structure with the template in `AGENTS.md` (Task File Template section)
-- Verify all required sections exist: Metadata, Description, Objective, Scope, Files to Create/Modify, Implementation, Acceptance Criteria, Test Cases, References
-- Check that Metadata fields are present and correctly formatted
+- Is the task still needed?
+- Has the functionality already been implemented?
+- Has the requirement changed?
 
-**Specification Currency**:
+**Priority Accuracy:**
 
-- Read relevant sections from `docs/SPECS.md`, `docs/ARCHITECTURE.md`, and other documentation
-- Compare task descriptions with current architecture and specifications
-- Verify that referenced documentation sections still exist and are accurate
-- Check if implementation details in the task match current design patterns
-- Verify that file paths and module structures match current codebase structure
+- Does the current priority still make sense?
+- Are there new factors that affect priority?
 
-**Dependencies Validity**:
+**Specification Quality:**
 
-- Check if dependencies listed in the task are still valid (exist in docs/ROADMAP.md)
-- Verify that dependencies haven't been completed and removed from roadmap
-- Check if dependencies are correctly marked as completed in roadmap
+- Is the description clear and actionable?
+- Are acceptance criteria defined?
 
-### 3. Evaluate Task Relevance
+### Step 3 - Identify Actions
 
-For each task, determine if it still makes sense:
+For each task, determine:
 
-**Check Implementation Status**:
+**Update if:**
 
-- Verify if the task has already been implemented (check if files mentioned in "Files to Create/Modify" already exist)
-- Check if the functionality described in the task already exists in the codebase
-- Look for code that might have been implemented without updating the task
+- Priority needs adjustment
+- Description needs clarification
+- Labels are incorrect or missing
 
-**Check for Duplication**:
+**Close if:**
 
-- Look for other tasks with similar objectives or overlapping scope
-- Identify tasks that might be redundant or superseded by other tasks
+- Already implemented (check codebase)
+- No longer relevant
+- Duplicate of another task
 
-**Check for Obsolescence**:
+**Keep as-is if:**
 
-- Determine if the task is still aligned with project goals
-- Check if architectural decisions have changed in ways that make the task obsolete
-- Verify if dependencies make the task impossible or unnecessary
+- Specification is clear
+- Priority is appropriate
+- Still relevant
 
-**Check Priority Appropriateness**:
+### Step 4 - Present Summary
 
-- Review if the priority (P0/P1/P2/P3) still matches current project needs
-- Consider if the task's phase assignment is still appropriate
+```text
+Task Grooming Analysis:
 
-### 4. Update or Remove Tasks
+| #   | Title                    | Current  | Action           |
+|-----|--------------------------|----------|------------------|
+| #25 | Add validation           | medium   | Keep             |
+| #26 | Dark mode support        | high     | Lower to medium  |
+| #27 | Fix auth bug             | low      | Raise to high    |
+| #28 | Rewrite in Rust          | medium   | Close (obsolete) |
 
-**If task needs updates** (specifications outdated or incomplete):
+Details:
+- #26: Not urgent, can wait - suggest medium
+- #27: Security issue, should be high priority
+- #28: Out of scope, recommend closing
 
-- Update the task file with correct information
-- Fix template compliance issues
-- Update references to documentation
-- Correct file paths and module structures
-- Update dependencies if they've changed
-- Ensure all sections are complete and accurate
+Apply these changes? [Yes/Select/Cancel]
+```
 
-**If task should be removed** (obsolete, duplicate, or already implemented):
+### Step 5 - Apply Changes
 
-- Delete the **task file** from `backlog/<task-name>.md`
-- **Do not delete the `backlog/` directory**, even if it becomes empty (keep a placeholder like `backlog/README.md` so git preserves it)
-- Remove the task entry from `docs/ROADMAP.md`
-- Update any other tasks that reference this task as a dependency
+For approved changes:
 
-### 5. Report Changes
+```bash
+# Update priority
+gh issue edit N --remove-label "priority:old" --add-label "priority:new"
 
-Provide a summary of:
+# Close obsolete task
+gh issue close N --comment "Closed during grooming: [reason]"
+```
 
-- Tasks updated (with brief explanation of changes)
-- Tasks removed (with reason for removal)
-- Tasks that were checked and found to be correct
+### Step 6 - Report Summary
+
+```text
+Grooming complete:
+
+- Updated: 2 tasks
+  - #26: priority:high -> priority:medium
+  - #27: priority:low -> priority:high
+- Closed: 1 task
+  - #28: Obsolete (out of scope)
+- Unchanged: 5 tasks
+
+Use /next-task to continue working.
+```
 
 ## Decision Criteria
 
-### Update Task If:
+### Raise Priority If:
 
-- Task structure doesn't match template
-- Documentation references are outdated
-- File paths or module names are incorrect
-- Dependencies list is inaccurate
-- Metadata fields are missing or incorrect
-- Implementation details don't match current architecture
-- Description or scope needs clarification
+- Security-related keywords (vulnerability, auth, XSS)
+- Production blockers
+- Bug affecting core functionality
+- Issue has been open for too long
 
-### Remove Task If:
+### Lower Priority If:
+
+- "Nice to have" language
+- Purely cosmetic changes
+- Low-impact improvements
+- Workaround exists
+
+### Close If:
 
 - Functionality already exists in codebase
-- Task is a duplicate of another task
+- Task is duplicate of another
 - Task is obsolete due to architectural changes
-- Dependencies make the task impossible to complete
-- Task no longer aligns with project goals
-- Task has been superseded by a different approach
+- Out of project scope
 
-### Keep Task As-Is If:
+## Example
 
-- Specification is complete and accurate
-- References are current
-- Implementation path is clear
-- Dependencies are valid
-- Task is still relevant to project goals
+```text
+/groom-tasks
 
-## Example Execution
+Analyzing 8 open tasks...
 
+| #   | Title                    | Priority | Action          |
+|-----|--------------------------|----------|-----------------|
+| #12 | Fix auth token leak      | medium   | Raise: critical |
+| #15 | Add dark mode            | high     | Lower: medium   |
+| #18 | Button not working       | low      | Raise: high     |
+| #20 | Update README            | medium   | Keep            |
+| #22 | Refactor to classes      | medium   | Close: obsolete |
+
+Apply? [Yes/Select/Cancel]
+> Yes
+
+Done! 3 updated, 1 closed, 4 unchanged.
 ```
-1. Read docs/ROADMAP.md → 18 tasks found
-2. Read backlog/schema-validator.md
-   - Check template compliance → Missing "References" section
-   - Check SPECS.md → Section 10 still exists and matches
-   - Check implementation → File doesn't exist, task still relevant
-   - Action: Add missing "References" section
-3. Read backlog/provider-base-ollama.md
-   - Check template compliance → All sections present
-   - Check SPECS.md → References outdated, section number changed
-   - Check implementation → Task still relevant
-   - Action: Update reference to new section number
-4. Read backlog/obsolete-feature.md
-   - Check implementation → Feature already exists in src/core/feature.ts
-   - Action: Remove task file and entry from docs/ROADMAP.md
-5. Report:
-   - Updated: schema-validator.md (added References section)
-   - Updated: provider-base-ollama.md (fixed SPECS.md reference)
-   - Removed: obsolete-feature.md (already implemented)
-```
-
-## Error Handling
-
-- **Missing task file**: Report warning, remove from docs/ROADMAP.md if referenced
-- **Circular dependencies**: Report error, mark for manual review
-- **Invalid documentation references**: Update to correct references or remove if section doesn't exist
-- **File already exists**: Check if it matches task description; remove task if implemented
-
-## Execute Now
-
-1. Read docs/ROADMAP.md to get all task references
-2. For each task:
-   - Read the task file
-   - Evaluate specification completeness and currency
-   - Check if task is still relevant
-   - Update or remove as needed
-3. Report summary of changes made

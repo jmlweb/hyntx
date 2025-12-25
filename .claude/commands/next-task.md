@@ -1,26 +1,45 @@
----
-description: Pick next task from roadmap, execute it, and complete the full workflow
----
-
 # Next Task
 
-Automatically pick the next task from `docs/ROADMAP.md`, execute it, and complete the full workflow (implement → verify → cleanup → commit).
+Pick the next highest-priority task, work on it, and close it.
 
-## Workflow
+## Instructions
 
-### 1. Select Next Task
+When the user runs `/next-task`:
 
-Read `docs/ROADMAP.md` and select the next task following priority order:
+### Step 1 - Find the Next Task
 
-- P0 (Critical) → P1 (High) → P2 (Medium) → P3 (Low)
-- Within same priority, follow the order listed in roadmap
-- Skip tasks whose dependencies are not completed
+Get open issues sorted by priority:
 
-**Check dependencies**: Read the task file to verify all dependencies are marked as completed in roadmap.
+```bash
+gh issue list --state open --json number,title,labels,body --limit 50
+```
 
-### 2. Assess Complexity
+Filter for task issues (have `type:` label, not `idea` label).
 
-Read `backlog/<task-name>.md` and assess complexity:
+Priority order (pick the first available):
+
+1. `priority:critical` - Do these first
+2. `priority:high` - Important tasks
+3. `priority:medium` - Normal tasks
+4. `priority:low` - When nothing else is available
+
+If multiple issues share the same priority, pick the oldest one (lowest issue number).
+
+### Step 2 - Assign and Start
+
+Assign the issue to yourself and show what you're working on:
+
+```bash
+gh issue edit <number> --add-assignee @me
+```
+
+Display:
+
+- Issue number and title
+- Priority and type labels
+- Full description/body
+
+### Step 3 - Assess Complexity
 
 **Simple** (execute directly):
 
@@ -36,22 +55,21 @@ Read `backlog/<task-name>.md` and assess complexity:
 - Requires planning/architecture decisions
 - New patterns or integrations
 - Security-sensitive code
-- Database changes
 
-### 3. Execute Task
+### Step 4 - Implement the Task
 
-**For simple tasks**:
+**For simple tasks:**
 
 1. Read task specification thoroughly
 2. Implement directly using Read + Edit tools
 3. Write tests if required by acceptance criteria
 
-**For complex tasks**:
+**For complex tasks:**
 
 1. Invoke `/do-task` skill with task description
 2. Let subagents handle implementation
 
-### 4. Verify
+### Step 5 - Verify
 
 Run verification commands:
 
@@ -61,7 +79,7 @@ pnpm test     # Run tests
 pnpm build    # Ensure it builds
 ```
 
-**All checks must pass before proceeding to cleanup.**
+**All checks must pass before closing.**
 
 If checks fail:
 
@@ -69,66 +87,63 @@ If checks fail:
 - Re-run verification
 - Only proceed when all pass
 
-### 5. Cleanup
+### Step 6 - Complete and Close
 
-Once verified:
+After implementation:
 
-1. **Delete task file**: `rm -f backlog/<task-name>.md`
-   - **Do not delete the `backlog/` directory**, even if it becomes empty.
-   - If `backlog/` is missing, create it and ensure a placeholder file exists (for example `backlog/README.md`) so git keeps the directory.
-2. **Update docs/ROADMAP.md**: Remove the task entry or mark as completed
-3. **Create commit** using `/commit` skill with message format:
-   ```
-   feat(<module>): implement <task description>
-   ```
+1. Show a summary of changes made
+2. Close the issue with a comment:
 
-## Decision Tree
-
-```
-1. Read docs/ROADMAP.md
-2. Find first incomplete task (P0 first)
-3. Check dependencies → all completed?
-   No → Skip, try next task
-   Yes → Continue
-4. Read backlog/<task>.md
-5. Assess complexity:
-   Simple → Execute directly
-   Complex → Invoke /do-task
-6. Run pnpm check && pnpm test && pnpm build
-   Pass → Continue
-   Fail → Fix and retry
-7. Delete backlog/<task>.md
-   - Delete the **file only**; never remove the `backlog/` directory.
-8. Update docs/ROADMAP.md (remove task entry)
-9. /commit with descriptive message
-10. Report completion to user
+```bash
+gh issue close <number> --comment "Completed: <brief summary of what was done>"
 ```
 
-## Example Execution
+3. Create commit using `/commit` skill
 
+### Step 7 - Report
+
+```text
+Task #42 completed!
+
+Changes:
+- Added Zod schema for config validation
+- Updated parser to validate on load
+- Added tests for validation errors
+
+Issue closed.
+Commit: feat(config): add validation schema
 ```
-Orchestrator:
-1. Reads docs/ROADMAP.md → Next task: "tipos-base.md" (P0, no deps)
-2. Reads backlog/tipos-base.md → Simple (single file, type definitions)
-3. Implements src/types/index.ts directly
-4. Runs pnpm check → Pass
-5. Runs pnpm test → Pass
-6. Runs pnpm build → Pass
-7. Deletes backlog/tipos-base.md
-8. Updates docs/ROADMAP.md (removes tipos-base entry)
-9. Creates commit: "feat(types): implement TypeScript type system"
-10. Reports: "✓ Completed: tipos-base.md"
+
+## Edge Cases
+
+- **No open tasks**: Inform the user there are no pending tasks
+- **Implementation blocked**: Ask the user for clarification, don't close the issue
+- **Task too complex**: Break it down into subtasks if needed, create new issues
+
+## Example Output
+
+```text
+Next Task: #42 - Add validation to config parser
+
+Priority: high | Type: feature
+
+Description:
+Add schema validation for the configuration file...
+
+---
+
+Working on this now...
+
+[Implementation happens]
+
+---
+
+Task #42 completed!
+
+Changes:
+- Added Zod schema for config validation
+- Updated parser to validate on load
+- Added tests for validation errors
+
+Issue closed.
 ```
-
-## Error Handling
-
-- **Dependency not met**: Skip task, report which dependency is missing
-- **Verification fails**: Fix issues, do not proceed to cleanup until passing
-- **No tasks available**: Report "All tasks completed" or "Remaining tasks have unmet dependencies"
-
-## Execute Now
-
-1. Read docs/ROADMAP.md to find next task
-2. Verify dependencies are met
-3. Assess complexity and execute appropriately
-4. Complete full workflow (verify → cleanup → commit)

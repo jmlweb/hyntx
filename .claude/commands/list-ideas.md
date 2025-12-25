@@ -1,82 +1,109 @@
----
-description: List ideas filtered by status
----
-
 # List Ideas
 
-Display all ideas with optional filtering by status. Shows a formatted table with key metadata.
+Display ideas filtered by status.
 
-## Workflow
+## Instructions
 
-1. **Accept optional filter parameter**:
-   - `on-validation` - only pending ideas
-   - `accepted` - only accepted ideas
-   - `completed` - only completed ideas
-   - `rejected` - only rejected ideas
-   - `all` or no parameter - all ideas from all directories
+When the user runs `/list-ideas [status]`:
 
-2. **Read idea files**:
-   - Based on filter, read from appropriate directories:
-     - `ideas/on-validation/`
-     - `ideas/accepted/`
-     - `ideas/completed/`
-     - `ideas/rejected/`
-   - Parse frontmatter from each file
-   - Extract: id, title, status, category, effort, impact, created_date, validated_date, completed_date, rejection_reason
+### Status Options
 
-3. **Sort ideas**:
-   - Primary sort: by created_date (newest first)
-   - Secondary sort: by status (on-validation, accepted, rejected)
+- `/list-ideas` or `/list-ideas all` - Show all ideas
+- `/list-ideas pending` - Show only pending validation
+- `/list-ideas accepted` - Show only accepted
+- `/list-ideas rejected` - Show only rejected
+- `/list-ideas completed` - Show only completed
 
-4. **Display formatted table**:
-   - Show summary count at top
-   - Display table with columns: ID, Title, Status, Category, Effort, Impact, Created
-   - For rejected ideas, show rejection_reason in expandable section
+### Step 1 - Fetch Ideas
 
-## Output Format
+Based on status filter:
 
-### For All Ideas or Filtered
+```bash
+# All ideas
+gh issue list --label "idea" --state all --json number,title,labels,createdAt,state --limit 100
 
-```markdown
-## Ideas List - {Filter}
+# Pending only
+gh issue list --label "idea:pending" --json number,title,labels,createdAt --limit 50
 
-Total: X ideas ({Y on-validation, Z accepted, W rejected})
+# Accepted only
+gh issue list --label "idea:accepted" --json number,title,labels,createdAt --limit 50
 
-| ID       | Title           | Status        | Category | Effort | Impact | Created    |
-| -------- | --------------- | ------------- | -------- | ------ | ------ | ---------- |
-| IDEA-003 | Add CSV export  | accepted      | feature  | low    | medium | 2025-12-24 |
-| IDEA-002 | Rewrite in Rust | rejected      | refactor | high   | low    | 2025-12-24 |
-| IDEA-001 | Add dark mode   | on-validation | feature  | -      | -      | 2025-12-23 |
+# Rejected only
+gh issue list --label "idea:rejected" --state closed --json number,title,labels,createdAt --limit 50
+
+# Completed only
+gh issue list --label "idea:completed" --state closed --json number,title,labels,createdAt --limit 50
 ```
 
-### For Rejected Ideas (Show Reasons)
+### Step 2 - Format Output
 
-```markdown
-## Ideas List - rejected
+Display as a formatted table:
 
-Total: 2 rejected ideas
+```text
+Ideas (pending):
 
-| ID       | Title           | Category | Effort | Impact | Rejection Reason                             |
-| -------- | --------------- | -------- | ------ | ------ | -------------------------------------------- |
-| IDEA-002 | Rewrite in Rust | refactor | high   | low    | Out of scope - TypeScript is core to project |
-| IDEA-005 | Add blockchain  | feature  | high   | low    | Not aligned with project vision              |
+| #   | Title                          | Effort | Impact | Created    |
+|-----|--------------------------------|--------|--------|------------|
+| #22 | Add Vitest config package      | -      | -      | 2025-12-25 |
+| #23 | CLI improvements               | -      | -      | 2025-12-25 |
+
+2 ideas pending validation
 ```
 
-## Filter Options
+For accepted ideas, include effort/impact from labels:
 
-| Filter          | Directories Read       | Use Case                        |
-| --------------- | ---------------------- | ------------------------------- |
-| `on-validation` | `ideas/on-validation/` | See what needs validation       |
-| `accepted`      | `ideas/accepted/`      | See what's approved for backlog |
-| `completed`     | `ideas/completed/`     | See what's fully implemented    |
-| `rejected`      | `ideas/rejected/`      | Review past decisions           |
-| `all` or none   | All four directories   | Complete overview               |
+```text
+Ideas (accepted):
 
-## Execute Now
+| #   | Title                          | Effort | Impact | Created    |
+|-----|--------------------------------|--------|--------|------------|
+| #12 | JSON schema validation         | Low    | High   | 2025-12-20 |
+| #15 | Generate TS types              | Medium | High   | 2025-12-21 |
 
-1. Determine filter from user input (default to "all")
-2. Read idea files from appropriate directories
-3. Parse frontmatter from each file
-4. Sort by created_date (newest first)
-5. Display formatted table with summary
-6. For rejected filter, include rejection reasons
+2 ideas ready for /feed-backlog
+```
+
+### Step 3 - Show Summary Stats
+
+At the end, show overview:
+
+```text
+Summary:
+- Pending: 2
+- Accepted: 3
+- Rejected: 2
+- Completed: 10
+- Total: 17
+```
+
+## Sorting
+
+- Default: Newest first (by creation date)
+- Accepted ideas: Can sort by priority (effort/impact matrix)
+
+## Example
+
+```text
+/list-ideas
+
+Ideas Overview:
+
+PENDING (2):
+| #   | Title                     | Created    |
+|-----|---------------------------|------------|
+| #22 | Add Vitest config         | 2025-12-25 |
+| #23 | CLI improvements          | 2025-12-25 |
+
+ACCEPTED (2):
+| #   | Title                     | Effort | Impact | Created    |
+|-----|---------------------------|--------|--------|------------|
+| #12 | JSON schema validation    | Low    | High   | 2025-12-20 |
+| #15 | Generate TS types         | Medium | High   | 2025-12-21 |
+
+REJECTED (1):
+| #   | Title                     | Reason                    |
+|-----|---------------------------|---------------------------|
+| #18 | Dark mode for docs        | Out of scope              |
+
+Summary: 2 pending, 2 accepted, 1 rejected, 10 completed (15 total)
+```

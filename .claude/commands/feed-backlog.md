@@ -1,122 +1,165 @@
----
-description: Extract tasks from accepted ideas and add to backlog
----
+# Feed Backlog
 
-# Feed Backlog from Ideas
+Convert accepted ideas into actionable tasks (GitHub Issues).
 
-Convert accepted ideas into actionable backlog tasks using the existing `add-task` skill. Ensures traceability between ideas and implementation tasks.
+## Instructions
 
-## Workflow
+When the user runs `/feed-backlog`:
 
-1. **Read all accepted ideas**:
-   - Scan `ideas/accepted/` directory
-   - Parse frontmatter and content
-   - Identify ideas that don't have associated tasks yet
-   - If `ideas/accepted/` does not exist, create it (and keep a placeholder file like `ideas/accepted/README.md` so git preserves the directory)
+### Step 1 - Fetch Accepted Ideas
 
-2. **Check for existing tasks**:
-   - For each idea, search backlog/ for files containing IDEA-XXX reference
-   - Skip ideas that already have tasks
-   - Report which ideas already have tasks
-   - If `backlog/` does not exist, create it (and keep a placeholder file like `backlog/README.md` so git preserves the directory)
+```bash
+gh issue list --label "idea:accepted" --json number,title,body,labels --limit 50
+```
 
-3. **Convert acceptance criteria to tasks**:
-   - For each new idea:
-     - Extract acceptance criteria from idea file
-     - Break down into discrete, actionable tasks
-     - Map idea impact/effort to task priority:
-       - High impact + low/medium effort → P1
-       - Medium impact + low/medium effort → P2
-       - Low impact or high effort → P3
+If no accepted ideas, inform user and exit.
 
-4. **Create tasks using add-task skill**:
-   - For each task derived from idea:
-     - Use `Skill` tool to invoke `add-task`
-     - Include reference to source IDEA-XXX in task description
-     - Set appropriate priority based on impact/effort
-     - Add to docs/ROADMAP.md in correct phase
+### Step 2 - Analyze Each Idea
 
-5. **Update idea files**:
-   - Add "Related Tasks" section to idea file
-   - List all created backlog tasks with links
-   - Add note in "Validation Notes" about backlog tasks created
+For each accepted idea:
 
-## Priority Mapping
+1. Read the full issue content
+2. Extract acceptance criteria
+3. Determine task breakdown (if needed)
+4. Map effort/impact to priority:
 
-Map idea metrics to task priority:
+| Effort | Impact | Priority |
+| ------ | ------ | -------- |
+| Low    | High   | critical |
+| Low    | Medium | high     |
+| Low    | Low    | medium   |
+| Medium | High   | high     |
+| Medium | Medium | medium   |
+| Medium | Low    | low      |
+| High   | High   | high     |
+| High   | Medium | medium   |
+| High   | Low    | low      |
+
+5. Determine task type:
+   - feature/improvement -> `type:feature`
+   - refactor -> `type:chore`
+   - fix -> `type:bug`
+   - documentation -> `type:chore`
+
+### Step 3 - Present Conversion Plan
 
 ```text
-Impact  | Effort | Priority | Reasoning
---------|--------|----------|----------
-high    | low    | P1       | Quick wins, high value
-high    | medium | P1       | Core features, worth investment
-high    | high   | P2       | Major features, requires planning
-medium  | low    | P2       | Nice enhancements
-medium  | medium | P2       | Standard improvements
-medium  | high   | P3       | Lower priority enhancements
-low     | low    | P3       | Minor improvements
-low     | medium | P3       | Low value, defer
-low     | high   | P3       | Avoid or reject
+Ready to convert 3 accepted ideas to tasks:
+
+| Idea  | Title                      | Tasks | Priority |
+|-------|----------------------------|-------|----------|
+| #12   | JSON schema validation     | 1     | critical |
+| #15   | Generate TS types          | 2     | high     |
+| #20   | Add logging utility        | 1     | medium   |
+
+Breakdown:
+- #12 -> 1 task: "Implement JSON schema validation"
+- #15 -> 2 tasks: "Create type generator CLI", "Add tests for generator"
+- #20 -> 1 task: "Add logging utility package"
+
+Proceed? [Yes/No]
 ```
 
-## Task Description Template
+### Step 4 - Create Tasks
 
-When creating tasks from ideas, include reference:
+For each task:
 
-```markdown
-# {Task Title}
-
-## Metadata
-
-- **Priority**: {P1/P2/P3}
-- **Phase**: {2/3/4}
-- **Dependencies**: TBD
-- **Estimation**: TBD
-- **Source**: IDEA-XXX - {idea title}
-
+```bash
+gh issue create \
+  --title "Task title here" \
+  --body "$(cat <<'EOF'
 ## Description
 
-{Derived from idea's acceptance criteria}
+[Task description derived from idea]
 
-{Rest of task template...}
+## Acceptance Criteria
+
+- [ ] Criterion 1
+- [ ] Criterion 2
+
+## Source
+
+Derived from idea #N: [Idea title]
+
+---
+*Created via /feed-backlog*
+EOF
+)" \
+  --label "type:feature,priority:high"
 ```
 
-## Output Format
+### Step 5 - Update Idea Issues
 
-Show progress and results:
+After creating tasks, update the original idea:
 
-```markdown
-## Feed Backlog Summary
+```bash
+gh issue comment N --body "$(cat <<'EOF'
+## Converted to Backlog
 
-Total accepted ideas: X
-Ideas with existing tasks: Y
-New ideas to process: Z
+This idea has been converted to the following task(s):
+- #X: Task title 1
+- #Y: Task title 2
 
-### Creating Tasks
-
-Processing IDEA-001 (Add CSV export):
-✓ Created task: add-csv-reporter.md (P2, Phase 4)
-✓ Updated idea file with task reference
-
-Processing IDEA-003 (Dark mode toggle):
-
-- Already has tasks: add-theme-system.md, add-dark-mode-ui.md
-- Skipping
-
-### Results
-
-Created: N new tasks
-Skipped: M ideas (already have tasks)
-Updated: K idea files with task references
+The idea will remain open until all tasks are completed.
+Use `/complete-idea #N` when done.
+EOF
+)"
 ```
 
-## Execute Now
+### Step 6 - Show Summary
 
-1. Read all ideas from `ideas/accepted/`
-2. For each idea:
-   - Check if tasks already exist (search backlog for IDEA-XXX)
-   - If no tasks, break down acceptance criteria
-   - Determine priority from impact/effort
-   - Use `add-task` skill to create each task
-   - Update idea file with task references
-3. Report summary of created tasks
+```text
+Backlog updated!
+
+Created tasks:
+- #25: Implement JSON schema validation (from #12)
+- #26: Create type generator CLI (from #15)
+- #27: Add tests for generator (from #15)
+- #28: Add logging utility package (from #20)
+
+Ideas updated with task references.
+Use /next-task to start working!
+```
+
+## Task Breakdown Guidelines
+
+**Single task when:**
+
+- Clear, atomic deliverable
+- Can be completed in one session
+- No logical sub-parts
+
+**Multiple tasks when:**
+
+- Multiple components needed
+- Separate testing required
+- Can be parallelized
+- Different skill sets needed
+
+## Example
+
+```text
+/feed-backlog
+
+Found 2 accepted ideas:
+
+| Idea | Title              | Effort | Impact | Priority |
+|------|--------------------|--------|--------|----------|
+| #12  | Schema validation  | Low    | High   | critical |
+| #15  | TS type generator  | Medium | High   | high     |
+
+Tasks to create:
+1. #12 -> "Implement JSON schema validation" (priority:critical)
+2. #15 -> "Create type generator CLI" (priority:high)
+3. #15 -> "Add generator tests" (priority:high)
+
+Create these 3 tasks? [Yes/No]
+> Yes
+
+Created:
+- #25: Implement JSON schema validation
+- #26: Create type generator CLI
+- #27: Add generator tests
+
+Ideas #12 and #15 updated with task references.
+```

@@ -1,96 +1,114 @@
----
-description: Review ideas in on-validation and move them if appropriate
----
+# Validate Ideas (Batch)
 
-# Validate Ideas
+Review and validate all pending ideas in a single session.
 
-Batch review all ideas currently in `ideas/on-validation/` and suggest moving them to `ideas/accepted/` or `ideas/rejected/` based on current project context.
+## Instructions
 
-## Workflow
+When the user runs `/validate-ideas`:
 
-1. **List all pending ideas**:
-   - Read all files in `ideas/on-validation/`
-   - Parse frontmatter and descriptions
-   - Count total pending ideas
+### Step 1 - Fetch All Pending Ideas
 
-2. **Analyze each idea**:
-   - Read current docs/ROADMAP.md for context
-   - Read AGENTS.md for project goals
-   - Evaluate each idea against:
-     - Current project phase and priorities
-     - Existing backlog tasks
-     - Technical feasibility
-     - Impact vs effort ratio
+```bash
+gh issue list --label "idea:pending" --json number,title,body --limit 50
+```
 
-3. **Generate recommendations**:
-   - For each idea, suggest: accept or reject
-   - Provide reasoning based on analysis
-   - Assign effort and impact estimates
-   - Draft rejection reasons for rejected ideas
+If no pending ideas, inform the user and exit.
 
-4. **Present to user**:
-   - Show summary table of all ideas with recommendations
-   - For each idea, display:
-     - ID and title
-     - Recommendation (accept/reject)
-     - Reasoning
-     - Suggested effort/impact (if accepting)
+### Step 2 - Analyze Each Idea
 
-5. **Execute decisions**:
-   - Ask user to approve/modify recommendations
-   - For each approved action:
-     - Update idea frontmatter
-     - Move file to appropriate directory
-   - Report final counts (accepted, rejected, still pending)
+For each pending idea:
 
-## Analysis Criteria
+1. Read the issue content
+2. Evaluate effort and impact
+3. Determine recommendation (accept/reject)
+4. Note reasoning
 
-### Context to Consider
+### Step 3 - Present Summary Table
 
-- **Current roadmap phase**: What phase is the project in?
-- **Existing tasks**: Does this duplicate or conflict with backlog?
-- **Recent completed work**: Has context changed?
-- **Technical debt**: Does this address or add to debt?
-
-### Prioritization Matrix
+Display all ideas with recommendations:
 
 ```text
-High Impact, Low Effort  → ACCEPT (Quick wins)
-High Impact, High Effort → ACCEPT if aligns with roadmap
-Low Impact, Low Effort   → ACCEPT if nice-to-have
-Low Impact, High Effort  → REJECT (Poor ROI)
+Pending Ideas Analysis:
+
+| #   | Title                          | Effort | Impact | Recommendation |
+|-----|--------------------------------|--------|--------|----------------|
+| #12 | Add JSON schema validation     | Low    | High   | Accept         |
+| #15 | Generate TS types from schemas | Medium | High   | Accept         |
+| #18 | Dark mode for docs             | High   | Low    | Reject         |
+| #20 | Add logging utility            | Low    | Medium | Accept         |
+
+Details:
+- #12: Quick win, improves data integrity
+- #15: Significant DX improvement, worth the effort
+- #18: High effort for cosmetic change, out of scope
+- #20: Useful utility, easy to implement
 ```
 
-### Red Flags for Rejection
+### Step 4 - Ask for Confirmation
 
-- Duplicates existing functionality
-- Out of project scope
-- Blocked by missing dependencies
-- Conflicts with code style or architecture
-- Security/quality concerns
+Options:
 
-## Output Format
+1. **Apply all** - Accept/reject all as recommended
+2. **Select** - Let user choose which to apply
+3. **Cancel** - Make no changes
 
-Show a table like this:
+### Step 5 - Apply Decisions
 
-```markdown
-## Validation Summary
+For each confirmed decision, execute the same logic as `/validate-idea`:
 
-Total ideas in validation: X
+```bash
+# For accepted ideas
+gh issue edit N \
+  --remove-label "idea:pending" \
+  --add-label "idea:accepted,effort:low,impact:high"
 
-| ID       | Title           | Recommendation | Effort | Impact | Reasoning                           |
-| -------- | --------------- | -------------- | ------ | ------ | ----------------------------------- |
-| IDEA-001 | Add dark mode   | Accept         | medium | high   | Aligns with Phase 4, user-requested |
-| IDEA-002 | Rewrite in Rust | Reject         | high   | low    | Out of scope, TypeScript is core    |
-| IDEA-003 | Add CSV export  | Accept         | low    | medium | Natural extension of reporters      |
+gh issue comment N --body "## Validation: ACCEPTED..."
+
+# For rejected ideas
+gh issue edit N \
+  --remove-label "idea:pending" \
+  --add-label "idea:rejected"
+
+gh issue comment N --body "## Validation: REJECTED..."
+
+gh issue close N
 ```
 
-## Execute Now
+### Step 6 - Show Summary
 
-1. Read all ideas from `ideas/on-validation/`
-2. Analyze against current project context (docs/ROADMAP.md, backlog/)
-3. Generate recommendations for each idea
-4. Present summary table to user
-5. Ask for approval to proceed
-6. Update and move approved ideas
-7. Report final results
+```text
+Validation complete:
+
+Accepted: #12, #15, #20
+Rejected: #18
+
+3 ideas ready for /feed-backlog
+1 idea rejected and closed
+```
+
+## Efficiency Tips
+
+- Process ideas in priority order (quick wins first)
+- Group similar ideas for consistent evaluation
+- Note dependencies between ideas
+- Flag potential duplicates
+
+## Example
+
+```text
+/validate-ideas
+
+Found 4 pending ideas. Analyzing...
+
+| #   | Title                      | Effort | Impact | Rec.   |
+|-----|----------------------------|--------|--------|--------|
+| #12 | JSON schema validation     | Low    | High   | Accept |
+| #15 | Generate TS types          | Medium | High   | Accept |
+| #18 | Dark mode for docs         | High   | Low    | Reject |
+| #20 | Add logging utility        | Low    | Medium | Accept |
+
+Apply all recommendations? [Yes/Select/Cancel]
+> Yes
+
+Done! 3 accepted, 1 rejected.
+```

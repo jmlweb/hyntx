@@ -1,88 +1,104 @@
----
-description: Evaluate an idea and move it to accepted or rejected
----
-
 # Validate Idea
 
-Evaluate an idea from `ideas/on-validation/` and move it to either `ideas/accepted/` or `ideas/rejected/` based on viability, impact, and effort analysis.
+Evaluate a pending idea and decide whether to accept or reject it.
 
-## Workflow
+## Instructions
 
-1. **Find the idea**:
-   - Accept IDEA-XXX ID or search by title/keywords in on-validation directory
-   - Read the idea file
-   - Parse frontmatter and content
+When the user runs `/validate-idea #N`:
 
-2. **Analyze viability**:
-   - Evaluate alignment with project goals (see docs/ROADMAP.md, AGENTS.md)
-   - Consider technical feasibility
-   - Assess impact on codebase and users
-   - Estimate effort (low, medium, high)
-   - Ask user questions if needed for clarification
+### Step 1 - Fetch the Idea
 
-3. **Make decision**:
-   - Ask user: "Accept or reject this idea?"
-   - If unclear, present analysis and recommendation first
-   - Get explicit confirmation
+```bash
+gh issue view N --json number,title,body,labels
+```
 
-4. **Update idea file**:
-   - Set `validated_date` to current date (2025-12-24)
-   - Set `effort` (low, medium, high)
-   - Set `impact` (low, medium, high)
-   - Update `status` to "accepted" or "rejected"
-   - If rejected: **MANDATORY** add `rejection_reason` explaining why
-   - Add validation notes to "Validation Notes" section
+Verify it has the `idea:pending` label. If not, inform user.
 
-5. **Move file**:
-   - Move to `ideas/accepted/` if accepted
-   - Move to `ideas/rejected/` if rejected
-   - Preserve filename
+### Step 2 - Analyze the Idea
 
-## Decision Criteria
+Evaluate against project context:
 
-### High Priority for Acceptance
+1. Read relevant files:
+   - `README.md`, `AGENTS.md` for project goals
+   - Existing codebase structure
 
-- **High impact, low effort**: Quick wins
-- **Aligns with current roadmap phase**: Fits current priorities
-- **Solves real pain point**: Clear user or developer benefit
-- **Enhances existing features**: Natural extension
+2. Check for duplicates:
+   - Search existing issues for similar concepts
+   - Check if functionality already exists in codebase
 
-### Consider Rejection
+3. Assess feasibility:
+   - Technical complexity
+   - Dependencies required
+   - Integration with existing architecture
 
-- **Low impact, high effort**: Poor ROI
-- **Out of project scope**: Doesn't align with project vision
-- **Already exists**: Functionality already implemented
-- **Technical infeasibility**: Cannot be reasonably implemented
-- **Security/safety concerns**: Introduces risks
+### Step 3 - Estimate Effort and Impact
 
-### Effort Levels
+**Effort levels:**
 
-- **low**: < 2 hours, single file, minimal testing
-- **medium**: 2-8 hours, multiple files, moderate testing
-- **high**: > 8 hours, significant changes, extensive testing
+| Level  | Time     | Scope                            |
+| ------ | -------- | -------------------------------- |
+| Low    | <2 hours | Single file, minimal testing     |
+| Medium | 2-8 hrs  | Multiple files, moderate testing |
+| High   | >8 hours | Significant changes, extensive   |
 
-### Impact Levels
+**Impact levels:**
 
-- **low**: Nice to have, minimal user benefit
-- **medium**: Noticeable improvement, moderate user benefit
-- **high**: Game changer, significant user benefit
+| Level  | Description                              |
+| ------ | ---------------------------------------- |
+| Low    | Nice to have, minimal user benefit       |
+| Medium | Noticeable improvement, moderate benefit |
+| High   | Game changer, significant benefit        |
 
-## Rejection Reasons - Examples
+### Step 4 - Apply Decision
 
-Be specific and constructive:
+**If ACCEPTED:**
 
-- "Already covered by existing ROADMAP task: [task-name]"
-- "Out of scope - project focuses on X, this is Y"
-- "Technical constraint: dependency Z not compatible"
-- "Low ROI: high effort (8+ hours) for minimal user benefit"
-- "Premature - blocked by unfinished task: [task-name]"
-- "Duplicates existing functionality in [file/module]"
+```bash
+gh issue edit N \
+  --remove-label "idea:pending" \
+  --add-label "idea:accepted,effort:medium,impact:high"
 
-## Execute Now
+gh issue comment N --body "$(cat <<'EOF'
+## Validation: ACCEPTED
 
-1. Find and read the specified idea file
-2. Analyze against decision criteria
-3. Present analysis and ask user for accept/reject decision
-4. Update frontmatter with validation data
-5. Move file to appropriate directory
-6. Confirm completion with new file path
+**Effort:** [level] | **Impact:** [level]
+
+**Reasoning:** [Why accepted]
+
+*Ready for /feed-backlog*
+EOF
+)"
+```
+
+**If REJECTED:**
+
+```bash
+gh issue edit N \
+  --remove-label "idea:pending" \
+  --add-label "idea:rejected"
+
+gh issue comment N --body "$(cat <<'EOF'
+## Validation: REJECTED
+
+**Reason:** [Why rejected]
+EOF
+)"
+
+gh issue close N
+```
+
+## Decision Guidelines
+
+**Accept when:**
+
+- High impact + low effort (quick wins)
+- Aligns with current project goals
+- Solves real pain point
+- Not duplicated
+
+**Reject when:**
+
+- Low ROI (low impact + high effort)
+- Out of scope for project
+- Duplicate of existing work
+- Infeasible or unmaintainable
