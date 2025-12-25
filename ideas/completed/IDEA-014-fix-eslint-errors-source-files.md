@@ -75,4 +75,4 @@ Fix all 125 ESLint errors across the 4 affected source files:
 
 ## Related Tasks
 
-- [fix-eslint-errors.md](../backlog/fix-eslint-errors.md) - P0, Maintenance Phase
+- [fix-eslint-errors.md](../../backlog/fix-eslint-errors.md) - P0, Maintenance Phase
