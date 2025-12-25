@@ -42,6 +42,20 @@ import {
   getDaysElapsed,
   shouldShowReminder,
 } from './core/reminder.js';
+import {
+  saveAnalysisResult,
+  loadAnalysisResult,
+  listAvailableDates,
+  compareResults,
+  getDateOneWeekAgo,
+  getDateOneMonthAgo,
+} from './core/history.js';
+import {
+  printComparison,
+  printHistoryList,
+  printHistorySummary,
+  formatComparisonJson,
+} from './core/reporter.js';
 import type {
   AnalysisProvider,
   AnalysisResult,
@@ -49,6 +63,8 @@ import type {
   ProjectContext,
   LogReadResult,
   ExtractedPrompt,
+  HistoryMetadata,
+  HistoryEntry,
 } from './types/index.js';
 
 // =============================================================================
@@ -72,6 +88,12 @@ type ParsedArgs = {
   readonly checkConfig: boolean;
   readonly format: 'terminal' | 'json';
   readonly compact: boolean;
+  readonly compareWith?: string;
+  readonly compareWeek: boolean;
+  readonly compareMonth: boolean;
+  readonly history: boolean;
+  readonly historySummary: boolean;
+  readonly noHistory: boolean;
 };
 
 // =============================================================================
@@ -143,6 +165,29 @@ export function parseArguments(): ParsedArgs {
           type: 'boolean',
           default: false,
         },
+        'compare-with': {
+          type: 'string',
+        },
+        'compare-week': {
+          type: 'boolean',
+          default: false,
+        },
+        'compare-month': {
+          type: 'boolean',
+          default: false,
+        },
+        history: {
+          type: 'boolean',
+          default: false,
+        },
+        'history-summary': {
+          type: 'boolean',
+          default: false,
+        },
+        'no-history': {
+          type: 'boolean',
+          default: false,
+        },
         help: {
           type: 'boolean',
           short: 'h',
@@ -171,6 +216,12 @@ export function parseArguments(): ParsedArgs {
       checkConfig: values['check-config'] || false,
       format: (values.format || 'terminal') as 'terminal' | 'json',
       compact: values.compact || false,
+      compareWith: values['compare-with'],
+      compareWeek: values['compare-week'] || false,
+      compareMonth: values['compare-month'] || false,
+      history: values.history || false,
+      historySummary: values['history-summary'] || false,
+      noHistory: values['no-history'] || false,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -234,6 +285,45 @@ export function validateArguments(args: ParsedArgs): void {
   // Prevent output in dry-run mode
   if (args.dryRun && args.output) {
     throw new Error('Cannot use --output with --dry-run mode.');
+  }
+
+  // Check for conflicting comparison flags
+  const comparisonFlags = [
+    args.compareWith,
+    args.compareWeek,
+    args.compareMonth,
+  ].filter(Boolean);
+  if (comparisonFlags.length > 1) {
+    throw new Error(
+      'Cannot use multiple comparison flags together. Choose one: --compare-with, --compare-week, or --compare-month.',
+    );
+  }
+
+  // Check for conflicting history flags
+  if (args.history && args.historySummary) {
+    throw new Error(
+      'Cannot use --history and --history-summary together. Choose one.',
+    );
+  }
+
+  // Comparison and history flags are read-only operations
+  const isComparisonMode = Boolean(
+    args.compareWith || args.compareWeek || args.compareMonth,
+  );
+  const isHistoryMode = args.history || args.historySummary;
+
+  if (isComparisonMode && args.from) {
+    throw new Error('Cannot use comparison flags with --from/--to date range.');
+  }
+
+  if (isHistoryMode && (args.from || args.to || args.date !== 'today')) {
+    throw new Error(
+      'Cannot use history listing flags with date filters (--date, --from, --to).',
+    );
+  }
+
+  if (isHistoryMode && isComparisonMode) {
+    throw new Error('Cannot use history listing flags with comparison flags.');
   }
 }
 
@@ -430,6 +520,16 @@ ${chalk.bold('Options:')}
   -o, --output <file>  Write results to file (.md or .json extension)
   --dry-run            Preview prompts without performing analysis
 
+  ${chalk.bold('Comparison:')}
+  --compare-with <date>  Compare current analysis with a specific date (YYYY-MM-DD)
+  --compare-week         Compare current analysis with one week ago
+  --compare-month        Compare current analysis with one month ago
+
+  ${chalk.bold('History:')}
+  --history              List all analysis history entries
+  --history-summary      Show summary statistics of analysis history
+  --no-history           Skip saving this analysis to history
+
   ${chalk.bold('Configuration:')}
   -v, --verbose        Enable debug output to stderr
   --check-config       Validate configuration and test provider connectivity
@@ -468,6 +568,16 @@ ${chalk.bold('Examples:')}
   ${chalk.bold('Dry run:')}
   hyntx --dry-run                     # Preview without analysis
   hyntx --from 2025-01-20 --to 2025-01-25 --dry-run  # Preview date range
+
+  ${chalk.bold('Comparison:')}
+  hyntx --compare-week                # Compare today with one week ago
+  hyntx --compare-month               # Compare today with one month ago
+  hyntx --compare-with 2025-01-15     # Compare with specific date
+
+  ${chalk.bold('History:')}
+  hyntx --history                     # List all history entries
+  hyntx --history-summary             # Show history statistics
+  hyntx --no-history                  # Analyze without saving to history
 
   ${chalk.bold('Status checks:')}
   hyntx --check-config                # Validate configuration
@@ -842,6 +952,27 @@ export async function main(): Promise<void> {
       showReminderStatus();
     }
 
+    // Handle history listing commands (read-only, exit early)
+    if (args.history || args.historySummary) {
+      const dates = await listAvailableDates();
+      const entries: [string, HistoryEntry][] = [];
+
+      for (const date of dates) {
+        const entry = await loadAnalysisResult(date);
+        if (entry) {
+          entries.push([date, entry]);
+        }
+      }
+
+      if (args.history) {
+        printHistoryList(entries);
+      } else {
+        printHistorySummary(entries);
+      }
+
+      process.exit(EXIT_CODES.SUCCESS);
+    }
+
     // 3. Check for first run and run setup if needed
     await checkAndRunSetup(isJsonMode);
 
@@ -992,6 +1123,56 @@ export async function main(): Promise<void> {
       // Display results
       if (!args.output || !isJsonMode) {
         displayResults(result, args.format, args.compact);
+      }
+
+      // Save to history (unless disabled or dry-run)
+      if (!args.noHistory && !args.dryRun) {
+        const projects = Array.from(
+          new Set(logResult.prompts.map((p) => p.project)),
+        );
+        const metadata: HistoryMetadata = {
+          provider: provider.name,
+          promptCount: prompts.length,
+          projects,
+        };
+        await saveAnalysisResult(result, metadata);
+      }
+
+      // Handle comparison if requested
+      if (args.compareWith || args.compareWeek || args.compareMonth) {
+        const compareDate = args.compareWith
+          ? args.compareWith
+          : args.compareWeek
+            ? getDateOneWeekAgo(result.date)
+            : getDateOneMonthAgo(result.date);
+
+        const beforeEntry = await loadAnalysisResult(compareDate);
+
+        if (!beforeEntry) {
+          if (isJsonMode) {
+            const errorResponse: JsonErrorResponse = {
+              error: `No history found for ${compareDate}`,
+              code: 'NO_DATA',
+            };
+            console.log(JSON.stringify(errorResponse));
+          } else {
+            logger.error(`No history found for ${compareDate}`);
+            process.stderr.write(
+              chalk.dim(
+                '\nRun analysis for that date first to enable comparison.\n',
+              ),
+            );
+          }
+          process.exit(EXIT_CODES.NO_DATA);
+        }
+
+        const comparison = compareResults(beforeEntry.result, result);
+
+        if (isJsonMode) {
+          console.log(formatComparisonJson(comparison, args.compact));
+        } else {
+          printComparison(comparison);
+        }
       }
     }
 

@@ -13,7 +13,6 @@ All foundational phases (0-4) have been completed. The project is now in mainten
 | Task                                                                                      | Priority | Phase | Source   |
 | ----------------------------------------------------------------------------------------- | -------- | ----- | -------- |
 | [Add Security Workflow](backlog/add-security-workflow.md)                                 | P2       | 3     | IDEA-009 |
-| [Add Analysis History and Comparison](backlog/add-analysis-history-comparison.md)         | P1       | 4     | IDEA-010 |
 | [Improve CLI Entry Point Test Coverage](backlog/improve-cli-entry-point-test-coverage.md) | P2       | 4     | IDEA-011 |
 | [Parallelize CI Workflow Jobs](backlog/parallelize-ci-workflow-jobs.md)                   | P3       | 3     | IDEA-012 |
 | [Parallel Log File Reading](backlog/parallel-log-file-reading.md)                         | P3       | 4     | IDEA-013 |
@@ -70,7 +69,7 @@ No ideas awaiting implementation. All accepted ideas have been converted to back
 - Configuration health check
 - Security workflow (pending)
 
-### Phase 4: Advanced Features (12 tasks)
+### Phase 4: Advanced Features (13 tasks)
 
 - Reminder system
 - Markdown format reporter
@@ -82,10 +81,10 @@ No ideas awaiting implementation. All accepted ideas have been converted to back
 - Shell config edge case refactor
 - Project-specific configuration file
 - Fix E2E tests (main module detection)
-- Analysis history and comparison (pending)
+- Analysis history and comparison
 - Improve CLI entry point test coverage (pending)
 
-**Total completed**: 38 tasks
+**Total completed**: 39 tasks
 
 ---
 

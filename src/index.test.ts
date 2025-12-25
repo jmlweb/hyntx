@@ -125,6 +125,12 @@ describe('parseArguments', () => {
       checkConfig: false,
       format: 'terminal',
       compact: false,
+      compareWith: undefined,
+      compareWeek: false,
+      compareMonth: false,
+      history: false,
+      historySummary: false,
+      noHistory: false,
     });
   });
 
@@ -169,6 +175,12 @@ describe('parseArguments', () => {
       checkConfig: false,
       format: 'terminal',
       compact: false,
+      compareWith: undefined,
+      compareWeek: false,
+      compareMonth: false,
+      history: false,
+      historySummary: false,
+      noHistory: false,
     });
   });
 
@@ -847,6 +859,12 @@ describe('parseArguments - New Features', () => {
       checkConfig: false,
       format: 'terminal',
       compact: false,
+      compareWith: undefined,
+      compareWeek: false,
+      compareMonth: false,
+      history: false,
+      historySummary: false,
+      noHistory: false,
     });
   });
 });

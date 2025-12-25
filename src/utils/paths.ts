@@ -30,3 +30,14 @@ export const CLAUDE_PROJECTS_DIR =
  * Used by the reminder system to track when analysis was last run.
  */
 export const LAST_RUN_FILE = join(HOME, '.hyntx-last-run');
+
+/**
+ * Path to Hyntx history directory.
+ * Contains analysis history files organized by date (YYYY-MM-DD.json).
+ *
+ * Structure: ~/.hyntx/history/YYYY-MM-DD.json
+ *
+ * Can be overridden via HYNTX_HISTORY_DIR environment variable.
+ */
+export const HYNTX_HISTORY_DIR =
+  process.env['HYNTX_HISTORY_DIR'] ?? join(HOME, '.hyntx', 'history');

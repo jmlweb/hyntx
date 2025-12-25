@@ -312,3 +312,66 @@ export type ReportContext = {
   readonly date: string;
   readonly projects: readonly string[];
 };
+
+// =============================================================================
+// History Types
+// =============================================================================
+
+/**
+ * Metadata about the analysis execution.
+ */
+export type HistoryMetadata = {
+  readonly provider: string;
+  readonly promptCount: number;
+  readonly projects: readonly string[];
+};
+
+/**
+ * Complete history entry stored in history files.
+ */
+export type HistoryEntry = {
+  readonly result: AnalysisResult;
+  readonly metadata: HistoryMetadata;
+};
+
+/**
+ * Options for listing history entries.
+ */
+export type ListHistoryOptions = {
+  readonly provider?: string;
+  readonly project?: string;
+  readonly minScore?: number;
+  readonly maxScore?: number;
+};
+
+/**
+ * Change detected in a pattern between two analyses.
+ */
+export type PatternChange = {
+  readonly id: string;
+  readonly name: string;
+  readonly status: 'new' | 'resolved' | 'changed';
+  readonly frequencyBefore?: number;
+  readonly frequencyAfter?: number;
+  readonly severityBefore?: PatternSeverity;
+  readonly severityAfter?: PatternSeverity;
+};
+
+/**
+ * All detected changes between two analyses.
+ */
+export type ComparisonChanges = {
+  readonly scoreDelta: number;
+  readonly newPatterns: readonly AnalysisPattern[];
+  readonly resolvedPatterns: readonly AnalysisPattern[];
+  readonly changedPatterns: readonly PatternChange[];
+};
+
+/**
+ * Result of comparing two analysis results.
+ */
+export type ComparisonResult = {
+  readonly before: AnalysisResult;
+  readonly after: AnalysisResult;
+  readonly changes: ComparisonChanges;
+};
