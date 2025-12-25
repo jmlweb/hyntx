@@ -5,7 +5,8 @@ export default defineConfig({
   format: ['esm'],
   dts: true,
   clean: true,
-  sourcemap: true,
+  // Enable source maps for debugging: SOURCE_MAP=true pnpm build
+  sourcemap: process.env.SOURCE_MAP === 'true',
   target: 'node22',
   shims: false,
   splitting: false,

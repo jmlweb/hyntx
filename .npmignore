@@ -1,7 +1,10 @@
-# Source files (not needed in package)
+# Source files (not needed in package - only dist/ is included)
 src/
 *.ts
 !*.d.ts
+
+# Source maps (not needed for CLI end users)
+*.map
 
 # Development files
 *.test.ts
@@ -9,32 +12,38 @@ src/
 *.config.*
 tsconfig.json
 vitest.config.ts
+vitest.config.e2e.ts
 eslint.config.js
 prettier.config.js
 tsup.config.ts
+commitlint.config.js
 
-# Documentation (keep README.md and LICENSE)
+# Documentation (npm auto-includes README.md and LICENSE)
 docs/
 CHANGELOG.md
 ROADMAP.md
 AGENTS.md
 TECHNICAL_DEBT.md
 backlog/
+ideas/
 
 # CI/CD
 .github/
+.husky/
 
 # Development scripts
 next-tasks.sh
 
-# Lock files (pnpm-lock.yaml is fine, but be explicit)
+# Lock files
 package-lock.json
 yarn.lock
+# Note: pnpm-lock.yaml is excluded by default
 
 # Coverage and test files
 coverage/
 .nyc_output/
 *.lcov
+tests/
 
 # Environment files
 .env*
@@ -44,14 +53,19 @@ coverage/
 .vscode/
 .idea/
 *.sublime-*
+*.code-workspace
 
 # OS files
 .DS_Store
 Thumbs.db
+._*
 
 # Git
 .git/
 .gitignore
 .gitattributes
+
+# Node
+node_modules/
 
 

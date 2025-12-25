@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build": "tsup",
+    "build:debug": "SOURCE_MAP=true tsup",
     "dev": "tsup --watch",
     "start": "node dist/index.js",
     "lint": "eslint src/",
@@ -65,7 +66,8 @@
     "hyntx": "./dist/index.js"
   },
   "files": [
-    "dist"
+    "dist/index.js",
+    "dist/index.d.ts"
   ],
   "lint-staged": {
     "*.ts": [
