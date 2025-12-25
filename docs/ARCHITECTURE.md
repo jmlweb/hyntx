@@ -21,7 +21,9 @@ Hyntx follows a layered architecture with clear separation of concerns:
 │ • Sanitizing  │   │ • Anthropic   │   │ • Shell config│
 │ • Analysis    │   │ • Google      │   │ • Paths       │
 │ • Reporting   │   │ • Factory     │   │ • Terminal    │
-│ • Setup       │   │               │   │               │
+│ • Setup       │   │               │   │ • Logger      │
+│ • Watcher     │   │               │   │ • Retry       │
+│ • History     │   │               │   │               │
 └───────────────┘   └───────────────┘   └───────────────┘
         │                   │
         └───────────────────┘
@@ -50,6 +52,8 @@ Each module has one clear purpose:
 | `analyzer.ts`   | Orchestrate analysis with batching    |
 | `reporter.ts`   | Format output for terminal/file       |
 | `setup.ts`      | Interactive first-run configuration   |
+| `watcher.ts`    | Real-time log file monitoring         |
+| `history.ts`    | Analysis history persistence          |
 
 ### 2. Dependency Inversion
 
@@ -265,6 +269,58 @@ function showManualInstructions(config: EnvConfig): void;
 - `prompts` - Interactive menus and user input
 - `chalk` - Terminal colors and styling
 - `boxen` - Boxed sections for visual appeal
+
+#### watcher.ts
+
+Real-time file watcher for Claude Code logs.
+
+```typescript
+function createLogWatcher(options?: WatcherOptions): LogWatcher;
+```
+
+**Responsibilities**:
+
+- Monitor JSONL log files for changes
+- Detect new user prompts in real-time
+- Emit events for new prompts, errors, and ready state
+- Handle debouncing to prevent excessive reads
+- Graceful shutdown on signals (SIGINT, SIGTERM)
+
+**Events**:
+
+- `prompt` - Emitted when new prompt detected
+- `error` - Emitted on watcher errors
+- `ready` - Emitted when watcher is ready
+
+#### history.ts
+
+Analysis history persistence and comparison.
+
+```typescript
+async function saveAnalysisResult(
+  result: AnalysisResult,
+  metadata: HistoryMetadata,
+): Promise<void>;
+
+async function loadAnalysisResult(date: string): Promise<HistoryEntry | null>;
+
+async function listAvailableDates(
+  options?: ListHistoryOptions,
+): Promise<readonly string[]>;
+
+function compareResults(
+  before: AnalysisResult,
+  after: AnalysisResult,
+): ComparisonResult;
+```
+
+**Responsibilities**:
+
+- Save analysis results with atomic writes
+- Sanitize pattern examples before saving
+- Load historical analysis by date
+- List available history with optional filtering
+- Compare analyses to detect pattern changes
 
 ### Utility Modules
 

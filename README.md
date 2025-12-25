@@ -28,6 +28,7 @@ Think of it as a **retrospective code review for your prompts**.
 - **Flexible date filtering**: Analyze today, yesterday, specific dates, or date ranges
 - **Project filtering**: Focus on specific Claude Code projects
 - **Multiple output formats**: Beautiful terminal output or markdown reports
+- **Watch mode**: Real-time monitoring and analysis of prompts as you work
 - **Smart reminders**: Oh-my-zsh style periodic reminders (configurable)
 - **Auto-configuration**: Saves settings to your shell config automatically
 - **Dry-run mode**: Preview what will be analyzed before sending to AI
@@ -97,6 +98,12 @@ hyntx --dry-run
 
 # Check reminder status
 hyntx --check-reminder
+
+# Watch mode - real-time analysis
+hyntx --watch
+
+# Watch specific project only
+hyntx --watch --project my-app
 ```
 
 ### Combining Options
@@ -376,7 +383,9 @@ hyntx/
 │   │   ├── schema-validator.ts # Log schema validation
 │   │   ├── sanitizer.ts     # Secret redaction
 │   │   ├── analyzer.ts      # Analysis orchestration + batching
-│   │   └── reporter.ts      # Output formatting (Before/After)
+│   │   ├── reporter.ts      # Output formatting (Before/After)
+│   │   ├── watcher.ts       # Real-time log file monitoring
+│   │   └── history.ts       # Analysis history management
 │   ├── providers/            # AI providers
 │   │   ├── base.ts          # Interface & prompts
 │   │   ├── ollama.ts        # Ollama integration

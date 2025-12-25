@@ -416,7 +416,74 @@ The terminal reporter must provide an **attractive and visually engaging** user 
 
 ---
 
-## 18. Error Handling
+## 18. File Watcher (src/core/watcher.ts)
+
+✅ **Implemented** - File watcher for real-time log monitoring is implemented in `src/core/watcher.ts`.
+
+**Functions**:
+
+- `createLogWatcher()` - Creates a log watcher instance with event-based API
+
+**Features**:
+
+- Real-time monitoring of Claude Code JSONL log files
+- Event-based architecture (prompt, error, ready events)
+- Per-file debouncing to prevent excessive reads
+- Incremental reading (only processes new content)
+- Project filtering support
+- Graceful shutdown with signal handling (SIGINT, SIGTERM)
+- AbortSignal support for programmatic control
+
+**Events**:
+
+| Event    | Payload                | Description                      |
+| -------- | ---------------------- | -------------------------------- |
+| `prompt` | `{ prompt, filePath }` | Emitted when new prompt detected |
+| `error`  | `Error`                | Emitted on watcher errors        |
+| `ready`  | -                      | Emitted when watcher is ready    |
+
+---
+
+## 19. History Management (src/core/history.ts)
+
+✅ **Implemented** - History management for analysis persistence is implemented in `src/core/history.ts`.
+
+**Functions**:
+
+- `saveAnalysisResult()` - Saves analysis with atomic write and privacy sanitization
+- `loadAnalysisResult()` - Loads analysis for a specific date
+- `listAvailableDates()` - Lists all available history dates with optional filtering
+- `compareResults()` - Compares two analyses and identifies changes
+- `getDateOneWeekAgo()` / `getDateOneMonthAgo()` - Date calculation helpers
+
+**Features**:
+
+- History files stored in `~/.hyntx/history/` as `YYYY-MM-DD.json`
+- Atomic writes using temp files to prevent corruption
+- Privacy protection: sanitizes pattern examples before saving
+- Comparison: detects new patterns, resolved patterns, and changes
+- Filtering: by provider, project, and score range
+
+**Storage Format**:
+
+```json
+{
+  "result": {
+    "date": "2025-01-20",
+    "patterns": [...],
+    "stats": {...}
+  },
+  "metadata": {
+    "provider": "ollama",
+    "projects": ["my-app"],
+    "analyzedAt": "2025-01-20T14:30:00.000Z"
+  }
+}
+```
+
+---
+
+## 20. Error Handling
 
 The system uses a three-tier error handling strategy:
 
@@ -432,7 +499,7 @@ Exit codes: 0 (success), 1 (general error), 2 (no data), 3 (all providers unavai
 
 ---
 
-## 19. Testing
+## 21. Testing
 
 Testing strategy uses Vitest for unit and integration tests with focus on core business logic, provider behavior validation, and edge case coverage.
 
@@ -446,7 +513,7 @@ Testing strategy uses Vitest for unit and integration tests with focus on core b
 
 ---
 
-## 20. Future Enhancements
+## 22. Future Enhancements
 
 For post-v1.0 ideas and long-term plans, see [FUTURE_PLANS.md](FUTURE_PLANS.md).
 
@@ -457,9 +524,9 @@ For post-v1.0 ideas and long-term plans, see [FUTURE_PLANS.md](FUTURE_PLANS.md).
 
 ---
 
-## 21. Documentation Standards
+## 23. Documentation Standards
 
-### 21.1 File Organization
+### 23.1 File Organization
 
 Documentation is organized in single files by topic, stored in the `docs/` directory:
 
@@ -472,7 +539,7 @@ Documentation is organized in single files by topic, stored in the `docs/` direc
 | `DEVELOPMENT.md`  | Development setup, build configuration, and tooling             |
 | `TESTING.md`      | Testing strategy, mocking, and coverage goals                   |
 
-### 21.2 File Splitting Rules
+### 23.2 File Splitting Rules
 
 When a documentation file becomes too large to maintain effectively, it should be split into smaller files following this convention:
 

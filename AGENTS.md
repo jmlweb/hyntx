@@ -57,6 +57,52 @@ import { type AnalysisResult } from './types/index.js'
 - Classes only for stateful providers
 - Early returns over nested conditionals
 
+### Event-Based Modules
+
+For real-time features, use EventEmitter pattern:
+
+```typescript
+// ✅ Factory function returning event-based interface
+export function createLogWatcher(options?: WatcherOptions): LogWatcher {
+  const emitter = new EventEmitter();
+  return {
+    start: () => {
+      /* ... */
+    },
+    stop: () => {
+      /* ... */
+    },
+    on: (event, callback) => emitter.on(event, callback),
+  };
+}
+
+// ✅ Support AbortSignal for graceful shutdown
+if (signal?.aborted) {
+  await stop();
+  return;
+}
+```
+
+### File Persistence
+
+For atomic file operations:
+
+```typescript
+// ✅ Use temp file + rename for atomic writes
+const tmpFile = `${filePath}.tmp`;
+await writeFile(tmpFile, content, 'utf-8');
+await rename(tmpFile, filePath);
+
+// ✅ Always sanitize before persisting
+const sanitizedResult = {
+  ...result,
+  patterns: result.patterns.map((p) => ({
+    ...p,
+    examples: p.examples.map((e) => sanitize(e).text),
+  })),
+};
+```
+
 ### CLI Output
 
 ```typescript
@@ -96,12 +142,14 @@ class ProviderError extends Error {
 ### Core Modules (src/core/)
 
 - `analyzer.ts` - Analysis orchestration with batching and Map-Reduce
+- `history.ts` - Analysis history management (save, load, compare)
 - `log-reader.ts` - Claude Code log parsing with date/project filtering
 - `reminder.ts` - Periodic reminder system with configurable frequency
 - `reporter.ts` - Output formatting (terminal, markdown, JSON)
 - `sanitizer.ts` - Secret redaction for privacy
 - `schema-validator.ts` - Log schema validation with graceful degradation
 - `setup.ts` - Interactive first-run configuration
+- `watcher.ts` - Real-time log file monitoring for watch mode
 
 ### Provider Modules (src/providers/)
 
@@ -127,12 +175,18 @@ class ProviderError extends Error {
 
 ## Security Rules
 
-**Privacy is critical** - Always sanitize before sending to AI:
+**Privacy is critical** - Always sanitize sensitive data:
 
 - Redact API keys (`sk-*`, `claude-*`, `AKIA*`)
 - Redact Bearer tokens, HTTP credentials in URLs
 - Redact email addresses, PEM private keys
 - Pattern: `[REDACTED_<TYPE>]`
+
+**When to sanitize**:
+
+- Before sending to AI providers
+- Before persisting to disk (history, logs)
+- Before displaying in verbose/debug output
 
 See `src/core/sanitizer.ts` for implementation.
 
