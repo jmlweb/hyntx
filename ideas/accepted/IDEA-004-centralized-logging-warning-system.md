@@ -14,7 +14,7 @@ rejection_reason: null
 
 ## Description
 
-Currently, the codebase has inconsistent error handling with silent error swallowing in multiple locations (`log-reader.ts`, `shell-config.ts`) and direct `console.log`/`error`/`warn` calls scattered throughout. This makes debugging difficult and violates the error handling strategy defined in `TECHNICAL_DEBT.md` items #3 and #4.
+Currently, the codebase has inconsistent error handling with silent error swallowing in multiple locations (`log-reader.ts`, `shell-config.ts`) and direct `console.log`/`error`/`warn` calls scattered throughout. This makes debugging difficult and violates the error handling strategy defined in `docs/TECHNICAL_DEBT.md` items #3 and #4.
 
 The system should provide a unified logging interface that:
 
@@ -28,7 +28,7 @@ The system should provide a unified logging interface that:
 
 - **Debugging**: Silent error swallowing makes it impossible to diagnose issues when they occur
 - **User Experience**: Users should see warnings about non-fatal issues (e.g., skipped log entries, schema validation warnings)
-- **Technical Debt**: Directly addresses TECHNICAL_DEBT.md items #3 (Inconsistent Error Handling) and #4 (Silent Error Swallowing)
+- **Technical Debt**: Directly addresses docs/TECHNICAL_DEBT.md items #3 (Inconsistent Error Handling) and #4 (Silent Error Swallowing)
 - **Maintainability**: Centralized logging makes it easier to change logging behavior (e.g., add file logging, structured logging)
 - **Consistency**: Provides a single interface for all logging needs across the codebase
 
@@ -79,7 +79,7 @@ The system should provide a unified logging interface that:
 
 ## Validation Notes
 
-Accepted during revalidation on 2025-12-24. Directly addresses TECHNICAL_DEBT.md items #3 and #4. High impact for code quality and maintainability. Should be prioritized in Phase 2.5 or Phase 3. Coordinates well with IDEA-003 (verbose/debug mode).
+Accepted during revalidation on 2025-12-24. Directly addresses docs/TECHNICAL_DEBT.md items #3 and #4. High impact for code quality and maintainability. Should be prioritized in Phase 2.5 or Phase 3. Coordinates well with IDEA-003 (verbose/debug mode).
 
 ## Related Tasks
 

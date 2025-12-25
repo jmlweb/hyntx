@@ -10,9 +10,9 @@ All foundational phases (0-4) have been completed. The project is now in mainten
 
 ### Pending Tasks
 
-| Priority | Task                                     | Backlog File                                                 |
-| -------- | ---------------------------------------- | ------------------------------------------------------------ |
-| P2       | Add Security Workflow for GitHub Actions | [add-security-workflow.md](backlog/add-security-workflow.md) |
+| Priority | Task                                     | Backlog File                                                    |
+| -------- | ---------------------------------------- | --------------------------------------------------------------- |
+| P2       | Add Security Workflow for GitHub Actions | [add-security-workflow.md](../backlog/add-security-workflow.md) |
 
 ### Accepted Ideas Awaiting Implementation
 

@@ -1059,9 +1059,8 @@ tsup.config.ts
 # Documentation (keep README.md and LICENSE)
 docs/
 CHANGELOG.md
-ROADMAP.md
+docs/ROADMAP.md
 AGENTS.md
-TECHNICAL_DEBT.md
 backlog/
 
 # CI/CD

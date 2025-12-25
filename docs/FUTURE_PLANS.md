@@ -2,7 +2,7 @@
 
 This document captures **future-looking ideas** for Hyntx that are **beyond the v1.0 scope**. These are ideas that may be considered after the CLI is complete and stable.
 
-> **Important**: This is **not** a task list. Items here should **not** be started until the CLI reaches v1.0 and explicit decision is made to proceed. For current work, see [ROADMAP.md](../ROADMAP.md).
+> **Important**: This is **not** a task list. Items here should **not** be started until the CLI reaches v1.0 and explicit decision is made to proceed. For current work, see [ROADMAP.md](ROADMAP.md).
 
 ---
 

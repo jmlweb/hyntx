@@ -14,7 +14,7 @@ Evaluate an idea from `ideas/on-validation/` and move it to either `ideas/accept
    - Parse frontmatter and content
 
 2. **Analyze viability**:
-   - Evaluate alignment with project goals (see ROADMAP.md, AGENTS.md)
+   - Evaluate alignment with project goals (see docs/ROADMAP.md, AGENTS.md)
    - Consider technical feasibility
    - Assess impact on codebase and users
    - Estimate effort (low, medium, high)

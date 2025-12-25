@@ -16,13 +16,31 @@ Hyntx uses Vitest for unit and integration testing with a focus on:
 ```text
 hyntx/
 ├── src/
-│   ├── core/
-│   │   ├── log-reader.ts
-│   │   └── log-reader.test.ts     # Co-located unit tests
-│   └── ...
+│   └── ...                        # Source code (tests moved to tests/)
 └── tests/
-    ├── integration/               # Integration tests
-    │   └── providers.test.ts
+    ├── unit/                      # Unit tests (isolated, mocked dependencies)
+    │   ├── core/
+    │   │   ├── sanitizer.test.ts
+    │   │   ├── schema-validator.test.ts
+    │   │   └── analyzer.test.ts
+    │   ├── utils/
+    │   │   ├── retry.test.ts
+    │   │   ├── rate-limiter.test.ts
+    │   │   ├── env.test.ts
+    │   │   └── paths.test.ts
+    │   └── providers/
+    │       └── base.test.ts
+    ├── integration/               # Integration tests (real fs, mocked APIs)
+    │   ├── core/
+    │   │   ├── log-reader-analyzer.test.ts
+    │   │   └── edge-cases.test.ts
+    │   ├── providers/
+    │   │   └── index.test.ts
+    │   └── cli.test.ts
+    ├── e2e/                       # True end-to-end tests (optional)
+    │   └── ...                    # Reserved for process-spawning tests
+    ├── helpers/                   # Test utilities
+    │   └── test-utils.ts
     └── fixtures/                  # Test data
         ├── sample-logs.jsonl
         └── mock-responses.json
@@ -33,42 +51,73 @@ hyntx/
 ## Running Tests
 
 ```bash
-# Single run (unit tests only)
+# Run all tests (unit + integration)
 pnpm test
 
 # Watch mode (development)
 pnpm test:watch
 
-# E2E tests (local-only, not run in CI)
+# Run unit tests only
+pnpm test:unit
+
+# Run integration tests only
+pnpm test:integration
+
+# E2E tests (local-only, optional true E2E tests)
 pnpm test:e2e
-
-# E2E tests in watch mode
-pnpm test:e2e:watch
-
-# All tests (unit + E2E)
-pnpm test:all
 
 # With coverage
 pnpm test:coverage
 
 # Specific file
-pnpm test src/core/sanitizer.test.ts
+pnpm test tests/unit/core/sanitizer.test.ts
 
 # Pattern matching
 pnpm test --grep "sanitizer"
 ```
 
-**Note**: E2E tests (31 of 59 currently failing) are being actively improved. See `E2E_TEST_IMPLEMENTATION_NOTES.md` for status and implementation details.
-
 ---
 
 ## Test Categories
 
-### Unit Tests
+### Integration Tests
 
-Test individual functions in isolation.
+Integration tests are located in `tests/integration/` and test module interactions with real file system operations but mocked external APIs.
 
-#### log-reader.test.ts
+**Characteristics:**
+
+- Real file system operations (temp directories)
+- Mocked external APIs (providers, fetch)
+- Test complete workflows
+- Slower than unit tests but faster than true E2E
+
+**Examples:**
+
+- `log-reader-analyzer.test.ts` - Tests log reading and analysis flow with real files
+- `providers/index.test.ts` - Tests provider selection and fallback with mocked APIs
+- `cli.test.ts` - Tests CLI workflow end-to-end
+- `edge-cases.test.ts` - Tests error handling and edge cases
+
+### E2E Tests
+
+True end-to-end tests (optional) would be in `tests/e2e/` and would spawn actual processes with real everything. Currently, integration tests serve this purpose using mocked APIs.
+
+## Testing Philosophy
+
+**Key Principles:**
+
+1. **Test behavior, not implementation**: We avoid testing internal constants, exact string content in prompts, or implementation details that don't affect user-visible behavior.
+
+2. **Unit vs Integration separation**:
+   - Unit tests = pure functions, isolated logic
+   - Integration tests = real file system, mocked APIs
+   - E2E tests = real everything (optional, for critical paths)
+
+3. **Meaningful tests only**: We focus on tests that provide value and catch real bugs, avoiding tests that check library internals or overly-specific implementation details.
+
+## Legacy Test Files
+
+Tests in `src/**/*.test.ts` are maintained for backward compatibility during migration but will be gradually moved to the new structure. The new test structure takes precedence.
 
 ```typescript
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -528,42 +577,9 @@ open coverage/index.html
 
 ---
 
-## E2E Testing
+## Integration Test Isolation
 
-End-to-end tests validate the complete application workflow from log reading to report generation. These tests are local-only and excluded from CI/CD to avoid dependency on real Claude Code logs.
-
-### Test Structure
-
-```text
-tests/
-├── e2e/                           # E2E tests (local-only)
-│   ├── core.e2e.test.ts          # Core module integration
-│   ├── providers.e2e.test.ts     # Provider selection & fallback
-│   ├── cli.e2e.test.ts           # CLI workflow
-│   └── edge-cases.e2e.test.ts    # Edge cases & error handling
-├── helpers/                       # Test utilities
-│   └── test-utils.ts             # Mock data generators
-└── fixtures/                      # Test data
-    ├── sample-logs.jsonl         # Sample log entries
-    └── mock-responses.json       # Mock provider responses
-```
-
-### Running E2E Tests
-
-```bash
-# Run all E2E tests
-pnpm test:e2e
-
-# Run E2E tests in watch mode
-pnpm test:e2e:watch
-
-# Run both unit and E2E tests
-pnpm test:all
-```
-
-### E2E Test Isolation
-
-E2E tests use temporary directories and environment variables to ensure complete isolation:
+Integration tests use temporary directories and environment variables to ensure complete isolation:
 
 - **Custom Claude Projects Directory**: Set via `HYNTX_CLAUDE_PROJECTS_DIR` env variable
 - **Mocked Provider Responses**: All API calls are mocked to avoid real provider calls
@@ -619,8 +635,8 @@ describe('Full Analysis Workflow', () => {
     vi.spyOn(global, 'fetch').mockResolvedValue(mockResponse);
 
     // Import after setting env variables
-    const { readLogs } = await import('../../src/core/log-reader.js');
-    const { analyzePrompts } = await import('../../src/core/analyzer.js');
+    const { readLogs } = await import('../../../src/core/log-reader.js');
+    const { analyzePrompts } = await import('../../../src/core/analyzer.js');
 
     // Execute workflow
     const logResult = await readLogs({ date: '2025-01-20' });

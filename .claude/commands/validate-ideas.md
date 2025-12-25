@@ -14,7 +14,7 @@ Batch review all ideas currently in `ideas/on-validation/` and suggest moving th
    - Count total pending ideas
 
 2. **Analyze each idea**:
-   - Read current ROADMAP.md for context
+   - Read current docs/ROADMAP.md for context
    - Read AGENTS.md for project goals
    - Evaluate each idea against:
      - Current project phase and priorities
@@ -88,7 +88,7 @@ Total ideas in validation: X
 ## Execute Now
 
 1. Read all ideas from `ideas/on-validation/`
-2. Analyze against current project context (ROADMAP.md, backlog/)
+2. Analyze against current project context (docs/ROADMAP.md, backlog/)
 3. Generate recommendations for each idea
 4. Present summary table to user
 5. Ask for approval to proceed

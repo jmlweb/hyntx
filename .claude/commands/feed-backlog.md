@@ -32,7 +32,7 @@ Convert accepted ideas into actionable backlog tasks using the existing `add-tas
      - Use `Skill` tool to invoke `add-task`
      - Include reference to source IDEA-XXX in task description
      - Set appropriate priority based on impact/effort
-     - Add to ROADMAP.md in correct phase
+     - Add to docs/ROADMAP.md in correct phase
 
 5. **Update idea files**:
    - Add "Related Tasks" section to idea file

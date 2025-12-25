@@ -29,7 +29,7 @@ This creates risks of silent failures, user confusion, and makes it difficult to
 - **Reliability**: Malformed config files can cause silent failures or unexpected behavior
 - **User Experience**: Users get cryptic errors when config is invalid, with no guidance on how to fix it
 - **Maintainability**: Schema changes require manual user intervention, making upgrades difficult
-- **Technical Debt**: Related to TECHNICAL_DEBT.md item #6 (Complex Shell Config Edge Case Logic) - validation would catch malformed blocks early
+- **Technical Debt**: Related to docs/TECHNICAL_DEBT.md item #6 (Complex Shell Config Edge Case Logic) - validation would catch malformed blocks early
 - **Future-Proofing**: Enables safe evolution of configuration schema as the project grows
 - **Debugging**: Validation errors provide clear feedback about what's wrong with configuration
 

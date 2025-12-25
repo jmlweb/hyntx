@@ -41,7 +41,7 @@ jobs:
         run: pnpm exec commitlint --from HEAD~1 --to HEAD --verbose
 
       - name: Run tests
-        run: pnpm test:run
+        run: pnpm test
 
       - name: Build
         run: pnpm build

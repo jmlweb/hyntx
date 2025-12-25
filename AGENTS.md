@@ -184,19 +184,19 @@ pnpm test      # Run tests
 
 ### Structure
 
-| File           | Purpose                                          |
-| -------------- | ------------------------------------------------ |
-| `ROADMAP.md`   | Prioritized roadmap with phases and dependencies |
-| `backlog/*.md` | Individual task specifications                   |
+| File              | Purpose                                          |
+| ----------------- | ------------------------------------------------ |
+| `docs/ROADMAP.md` | Prioritized roadmap with phases and dependencies |
+| `backlog/*.md`    | Individual task specifications                   |
 
 ### Workflow
 
-1. **Task Selection**: Pick tasks from `ROADMAP.md` following priority order (P0 → P1 → P2 → P3)
+1. **Task Selection**: Pick tasks from `docs/ROADMAP.md` following priority order (P0 → P1 → P2 → P3)
 2. **Implementation**: Follow the task specification in `backlog/<task-name>.md`
 3. **Verification**: Run linting and tests to ensure the task works
 4. **Completion**:
    - Delete the task file from `backlog/`
-   - Update `ROADMAP.md` (mark as completed or remove)
+   - Update `docs/ROADMAP.md` (mark as completed or remove)
    - Create a descriptive commit following Conventional Commits
 
 ### Commands
@@ -217,7 +217,7 @@ pnpm test      # Run tests
 
 1. **Implement**: Use `/do-task <task-name>` to implement
 2. **Verify**: Run `pnpm check && pnpm test && pnpm build`
-3. **Cleanup**: Delete `backlog/<task>.md`, update `ROADMAP.md`
+3. **Cleanup**: Delete `backlog/<task>.md`, update `docs/ROADMAP.md`
 4. **Commit**: Use `/commit` with descriptive message
 
 **Required Steps After Completing Any Task**:

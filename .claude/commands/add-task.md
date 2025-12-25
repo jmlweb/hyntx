@@ -4,7 +4,7 @@ description: Add a new task to backlog and update roadmap
 
 # Add Task to Backlog
 
-Add a new task to `backlog/` and update `ROADMAP.md`.
+Add a new task to `backlog/` and update `docs/ROADMAP.md`.
 
 ## Workflow
 
@@ -17,7 +17,7 @@ Add a new task to `backlog/` and update `ROADMAP.md`.
    - Location: `backlog/<filename>.md`
    - Phase: P1 → Phase 2, P2 → Phase 3, P3 → Phase 4
 
-3. **Update ROADMAP.md**:
+3. **Update docs/ROADMAP.md**:
    - Add entry in corresponding phase section
    - Include link to backlog file
 
@@ -68,7 +68,7 @@ TBD
 
 ## References
 
-- See ROADMAP.md for context
+- See docs/ROADMAP.md for context
 ```
 
 ## Priority Mapping
@@ -81,4 +81,4 @@ TBD
 
 ## Execute Now
 
-Ask the user for description and priority, then create the task file and update ROADMAP.md.
+Ask the user for description and priority, then create the task file and update docs/ROADMAP.md.

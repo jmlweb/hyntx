@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { buildUserPrompt, parseResponse } from './base.js';
+import { buildUserPrompt, parseResponse } from '../../../src/providers/base.js';
 
 describe('base provider utilities', () => {
   describe('buildUserPrompt', () => {

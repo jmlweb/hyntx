@@ -4,13 +4,13 @@ description: Pick next task from roadmap, execute it, and complete the full work
 
 # Next Task
 
-Automatically pick the next task from `ROADMAP.md`, execute it, and complete the full workflow (implement → verify → cleanup → commit).
+Automatically pick the next task from `docs/ROADMAP.md`, execute it, and complete the full workflow (implement → verify → cleanup → commit).
 
 ## Workflow
 
 ### 1. Select Next Task
 
-Read `ROADMAP.md` and select the next task following priority order:
+Read `docs/ROADMAP.md` and select the next task following priority order:
 
 - P0 (Critical) → P1 (High) → P2 (Medium) → P3 (Low)
 - Within same priority, follow the order listed in roadmap
@@ -74,7 +74,7 @@ If checks fail:
 Once verified:
 
 1. **Delete task file**: `rm backlog/<task-name>.md`
-2. **Update ROADMAP.md**: Remove the task entry or mark as completed
+2. **Update docs/ROADMAP.md**: Remove the task entry or mark as completed
 3. **Create commit** using `/commit` skill with message format:
    ```
    feat(<module>): implement <task description>
@@ -83,7 +83,7 @@ Once verified:
 ## Decision Tree
 
 ```
-1. Read ROADMAP.md
+1. Read docs/ROADMAP.md
 2. Find first incomplete task (P0 first)
 3. Check dependencies → all completed?
    No → Skip, try next task
@@ -96,7 +96,7 @@ Once verified:
    Pass → Continue
    Fail → Fix and retry
 7. Delete backlog/<task>.md
-8. Update ROADMAP.md (remove task entry)
+8. Update docs/ROADMAP.md (remove task entry)
 9. /commit with descriptive message
 10. Report completion to user
 ```
@@ -105,14 +105,14 @@ Once verified:
 
 ```
 Orchestrator:
-1. Reads ROADMAP.md → Next task: "tipos-base.md" (P0, no deps)
+1. Reads docs/ROADMAP.md → Next task: "tipos-base.md" (P0, no deps)
 2. Reads backlog/tipos-base.md → Simple (single file, type definitions)
 3. Implements src/types/index.ts directly
 4. Runs pnpm check → Pass
 5. Runs pnpm test → Pass
 6. Runs pnpm build → Pass
 7. Deletes backlog/tipos-base.md
-8. Updates ROADMAP.md (removes tipos-base entry)
+8. Updates docs/ROADMAP.md (removes tipos-base entry)
 9. Creates commit: "feat(types): implement TypeScript type system"
 10. Reports: "✓ Completed: tipos-base.md"
 ```
@@ -125,7 +125,7 @@ Orchestrator:
 
 ## Execute Now
 
-1. Read ROADMAP.md to find next task
+1. Read docs/ROADMAP.md to find next task
 2. Verify dependencies are met
 3. Assess complexity and execute appropriately
 4. Complete full workflow (verify → cleanup → commit)

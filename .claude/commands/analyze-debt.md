@@ -4,7 +4,7 @@ description: Update TECHNICAL_DEBT.md based on current codebase state
 
 # Technical Debt Analysis
 
-Analyze the current codebase and update `TECHNICAL_DEBT.md` with actual technical debt issues found in the implemented code.
+Analyze the current codebase and update `docs/TECHNICAL_DEBT.md` with actual technical debt issues found in the implemented code.
 
 ## Important Instructions
 
@@ -51,7 +51,7 @@ Focus on significant issues that affect:
 
 **Avoid nitpicking** - Only document real problems, not style preferences.
 
-### 3. Update TECHNICAL_DEBT.md
+### 3. Update docs/TECHNICAL_DEBT.md
 
 For each issue found:
 
@@ -63,7 +63,7 @@ For each issue found:
 
 ### 4. Structure
 
-Update `TECHNICAL_DEBT.md` with:
+Update `docs/TECHNICAL_DEBT.md` with:
 
 - Clear section for each issue
 - Numbered issues for easy reference
@@ -95,4 +95,4 @@ When analyzing code, check for:
 
 ## Execute
 
-Analyze the current codebase and update `TECHNICAL_DEBT.md` with all identified issues, following the structure and format of the existing document.
+Analyze the current codebase and update `docs/TECHNICAL_DEBT.md` with all identified issues, following the structure and format of the existing document.

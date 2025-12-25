@@ -4,13 +4,13 @@ description: Evaluate and reorder tasks in roadmap to ensure optimal implementat
 
 # Reprioritize Tasks
 
-Evaluate the order of tasks in `ROADMAP.md` and reorganize them to ensure optimal implementation order. The order must respect dependencies, priorities, and phases while optimizing for parallelization opportunities.
+Evaluate the order of tasks in `docs/ROADMAP.md` and reorganize them to ensure optimal implementation order. The order must respect dependencies, priorities, and phases while optimizing for parallelization opportunities.
 
 ## Workflow
 
 ### 1. Read Roadmap and Task Files
 
-1. Read `ROADMAP.md` to get the current order of all tasks
+1. Read `docs/ROADMAP.md` to get the current order of all tasks
 2. For each task, read the corresponding `backlog/<task-name>.md` file
 3. Extract metadata: Priority, Phase, Dependencies
 4. Build a dependency graph of all tasks
@@ -68,7 +68,7 @@ Determine the optimal order using topological sort with priority/phase tie-break
 
 ### 5. Compare Current vs Optimal Order
 
-Compare the current order in `ROADMAP.md` with the calculated optimal order:
+Compare the current order in `docs/ROADMAP.md` with the calculated optimal order:
 
 **Identify Changes Needed**:
 
@@ -104,7 +104,7 @@ If changes are needed:
 
 **Update "Recommended Implementation Order"**:
 
-- Update the "Recommended Implementation Order" section at the bottom of `ROADMAP.md` to match the new order
+- Update the "Recommended Implementation Order" section at the bottom of `docs/ROADMAP.md` to match the new order
 
 ### 7. Report Changes
 
@@ -150,7 +150,7 @@ Provide a summary of:
 ## Example Execution
 
 ```
-1. Read ROADMAP.md → 18 tasks found
+1. Read docs/ROADMAP.md → 18 tasks found
 2. Build dependency graph:
    - schema-validator.md: depends on [tipos-base.md]
    - log-reader-basico.md: depends on [tipos-base.md, schema-validator.md]
@@ -165,7 +165,7 @@ Provide a summary of:
    - schema-validator.md (depends only on tipos-base.md)
    - log-reader-basico.md (depends on tipos-base.md, schema-validator.md)
    - sanitizer.md (depends only on tipos-base.md, can parallelize with schema-validator)
-5. Update ROADMAP.md:
+5. Update docs/ROADMAP.md:
    - Swap positions of Task 3 and Task 4
    - Update task numbers
    - Update "Recommended Implementation Order"
@@ -183,11 +183,11 @@ Provide a summary of:
 
 ## Execute Now
 
-1. Read ROADMAP.md and all task files
+1. Read docs/ROADMAP.md and all task files
 2. Build dependency graph
 3. Validate current order against dependencies and priorities
 4. Calculate optimal order using topological sort with priority/phase tie-breaking
 5. Compare current vs optimal order
-6. Update ROADMAP.md if changes are needed
+6. Update docs/ROADMAP.md if changes are needed
 7. Update task files if phases changed
 8. Report summary of changes made

@@ -81,7 +81,7 @@ Analyze the current project state and proactively suggest a new idea.
 
 **What it does:**
 
-- Analyzes ROADMAP, backlog, TECHNICAL_DEBT, and codebase
+- Analyzes docs/ROADMAP.md, backlog, docs/TECHNICAL_DEBT.md, and codebase
 - Checks all idea directories (accepted/, on-validation/, rejected/) to avoid duplicates
 - Identifies improvement opportunities (features, refactors, tooling, etc.)
 - Evaluates uniqueness (avoids duplicating existing ideas/tasks, including previously rejected ideas)
@@ -111,7 +111,7 @@ Analyze the current project state and proactively suggest a new idea.
 **Example output:**
 
 ```text
-Analyzed: ROADMAP.md, backlog/*.md, TECHNICAL_DEBT.md, src/
+Analyzed: docs/ROADMAP.md, backlog/*.md, docs/TECHNICAL_DEBT.md, src/
 
 Opportunity identified: E2E testing infrastructure missing
 Created: IDEA-015-implement-playwright-e2e-testing.md
@@ -337,7 +337,7 @@ Always provide specific, constructive reasons:
 
 **Good reasons:**
 
-- "Already covered by ROADMAP task: add-csv-reporter.md"
+- "Already covered by docs/ROADMAP.md task: add-csv-reporter.md"
 - "Out of scope - project focuses on log analysis, not data visualization"
 - "Low ROI: high effort (8+ hours) for minimal user benefit"
 - "Blocked by missing feature: multi-provider support (Phase 3)"
@@ -364,7 +364,7 @@ IDEAS SYSTEM          BACKLOG SYSTEM
 ---------------       ---------------
 /new-idea         →   ideas/on-validation/
 /validate-idea    →   ideas/accepted/
-/feed-backlog     →   backlog/*.md + ROADMAP.md
+/feed-backlog     →   backlog/*.md + docs/ROADMAP.md
                   →   /next-task
                   →   Implementation
 ```
@@ -516,6 +516,6 @@ Periodic maintenance tasks:
 
 ## See Also
 
-- [ROADMAP.md](../ROADMAP.md) - Current project roadmap and priorities
+- [ROADMAP.md](../docs/ROADMAP.md) - Current project roadmap and priorities
 - [AGENTS.md](../AGENTS.md) - Project goals and code style
 - [.claude/commands/](../.claude/commands/) - All available skills

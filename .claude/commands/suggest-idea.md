@@ -12,7 +12,7 @@ Analyze the current state of the project, identify improvement opportunities, an
 
 Gather comprehensive context by reading:
 
-- **ROADMAP.md**: Current tasks, priorities, and phases
+- **docs/ROADMAP.md**: Current tasks, priorities, and phases
 - **backlog/\*.md**: Pending tasks and their specifications
 - **TECHNICAL_DEBT.md**: Known technical debt items
 - **ideas/accepted/\*.md**: Previously accepted ideas (to avoid duplicates)

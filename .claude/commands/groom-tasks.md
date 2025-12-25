@@ -10,7 +10,7 @@ Evaluate all tasks in the backlog for correctness, currency, and relevance. Upda
 
 ### 1. Read All Tasks
 
-1. Read `ROADMAP.md` to get the list of all tasks
+1. Read `docs/ROADMAP.md` to get the list of all tasks
 2. Read each task file from `backlog/<task-name>.md`
 3. Keep track of tasks that need updates or removal
 
@@ -34,7 +34,7 @@ For each task, check:
 
 **Dependencies Validity**:
 
-- Check if dependencies listed in the task are still valid (exist in ROADMAP.md)
+- Check if dependencies listed in the task are still valid (exist in docs/ROADMAP.md)
 - Verify that dependencies haven't been completed and removed from roadmap
 - Check if dependencies are correctly marked as completed in roadmap
 
@@ -78,7 +78,7 @@ For each task, determine if it still makes sense:
 **If task should be removed** (obsolete, duplicate, or already implemented):
 
 - Delete the task file from `backlog/<task-name>.md`
-- Remove the task entry from `ROADMAP.md`
+- Remove the task entry from `docs/ROADMAP.md`
 - Update any other tasks that reference this task as a dependency
 
 ### 5. Report Changes
@@ -121,7 +121,7 @@ Provide a summary of:
 ## Example Execution
 
 ```
-1. Read ROADMAP.md → 18 tasks found
+1. Read docs/ROADMAP.md → 18 tasks found
 2. Read backlog/schema-validator.md
    - Check template compliance → Missing "References" section
    - Check SPECS.md → Section 10 still exists and matches
@@ -134,7 +134,7 @@ Provide a summary of:
    - Action: Update reference to new section number
 4. Read backlog/obsolete-feature.md
    - Check implementation → Feature already exists in src/core/feature.ts
-   - Action: Remove task file and entry from ROADMAP.md
+   - Action: Remove task file and entry from docs/ROADMAP.md
 5. Report:
    - Updated: schema-validator.md (added References section)
    - Updated: provider-base-ollama.md (fixed SPECS.md reference)
@@ -143,14 +143,14 @@ Provide a summary of:
 
 ## Error Handling
 
-- **Missing task file**: Report warning, remove from ROADMAP.md if referenced
+- **Missing task file**: Report warning, remove from docs/ROADMAP.md if referenced
 - **Circular dependencies**: Report error, mark for manual review
 - **Invalid documentation references**: Update to correct references or remove if section doesn't exist
 - **File already exists**: Check if it matches task description; remove task if implemented
 
 ## Execute Now
 
-1. Read ROADMAP.md to get all task references
+1. Read docs/ROADMAP.md to get all task references
 2. For each task:
    - Read the task file
    - Evaluate specification completeness and currency

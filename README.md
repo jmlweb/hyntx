@@ -407,7 +407,7 @@ Contributions are welcome! Please:
 
 ## Roadmap
 
-For detailed development roadmap, planned features, and implementation status, see [ROADMAP.md](ROADMAP.md).
+For detailed development roadmap, planned features, and implementation status, see [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## License
 
