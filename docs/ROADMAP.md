@@ -12,7 +12,6 @@ All foundational phases (0-4) have been completed. The project is now in mainten
 
 | Task                                                                                      | Priority | Phase | Source   |
 | ----------------------------------------------------------------------------------------- | -------- | ----- | -------- |
-| [Add Security Workflow](backlog/add-security-workflow.md)                                 | P2       | 3     | IDEA-009 |
 | [Improve CLI Entry Point Test Coverage](backlog/improve-cli-entry-point-test-coverage.md) | P2       | 4     | IDEA-011 |
 | [Parallelize CI Workflow Jobs](backlog/parallelize-ci-workflow-jobs.md)                   | P3       | 3     | IDEA-012 |
 | [Parallel Log File Reading](backlog/parallel-log-file-reading.md)                         | P3       | 4     | IDEA-013 |
@@ -54,7 +53,7 @@ No ideas awaiting implementation. All accepted ideas have been converted to back
 - Type definitions to devDependencies
 - Prettier/ESLint in Husky
 
-### Phase 3: CLI and Providers (11 tasks)
+### Phase 3: CLI and Providers (12 tasks)
 
 - Basic CLI entry point
 - Anthropic provider
@@ -67,7 +66,7 @@ No ideas awaiting implementation. All accepted ideas have been converted to back
 - Verbose/debug mode
 - Centralized logging system
 - Configuration health check
-- Security workflow (pending)
+- Security workflow
 
 ### Phase 4: Advanced Features (13 tasks)
 
@@ -82,9 +81,8 @@ No ideas awaiting implementation. All accepted ideas have been converted to back
 - Project-specific configuration file
 - Fix E2E tests (main module detection)
 - Analysis history and comparison
-- Improve CLI entry point test coverage (pending)
 
-**Total completed**: 39 tasks
+**Total completed**: 40 tasks
 
 ---
 
