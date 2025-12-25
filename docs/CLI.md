@@ -20,6 +20,8 @@ hyntx [options]
 | `--dry-run`        |       | `boolean` | `false` | Preview without sending to AI              |
 | `--check-config`   |       | `boolean` | `false` | Validate configuration and check providers |
 | `--check-reminder` |       | `boolean` | `false` | Check if reminder is due                   |
+| `--watch`          |       | `boolean` | `false` | Monitor logs in real-time                  |
+| `--quiet`          | `-q`  | `boolean` | `false` | Show only high-severity (with --watch)     |
 | `--help`           | `-h`  | `boolean` |         | Show help                                  |
 | `--version`        |       | `boolean` |         | Show version                               |
 
@@ -106,6 +108,75 @@ hyntx --check-config
 # Both dry-run and verbose
 hyntx --dry-run --verbose
 ```
+
+---
+
+## Watch Mode
+
+Watch mode monitors Claude Code logs in real-time and analyzes new prompts as they arrive.
+
+### Basic Usage
+
+```bash
+# Start watching for new prompts
+hyntx --watch
+
+# Watch specific project only
+hyntx --watch --project my-app
+
+# Show only high-severity patterns
+hyntx --watch --quiet
+```
+
+### Output Format
+
+Watch mode provides concise, real-time output for each analyzed prompt:
+
+```text
+Watch Mode
+Monitoring Claude Code logs for new prompts...
+Press Ctrl+C to stop
+
+[14:32:15] my-project ⚠️ Missing Technical Context
+[14:32:15] my-project ⚠️ Vague Action Verbs
+[14:35:22] backend ✓ No issues
+[14:38:45] frontend ⚠️ Missing Technical Context
+```
+
+Each line shows:
+
+- **Timestamp**: `[HH:MM:SS]` - When the prompt was analyzed
+- **Project**: Project name from Claude Code
+- **Icon**: Severity indicator (⚠️ red=high, ⚠️ yellow=medium, ℹ️ blue=low, ✓ green=no issues)
+- **Pattern**: Name of the detected pattern
+
+### Quiet Mode
+
+Use `--quiet` to filter output to only high-severity patterns:
+
+```bash
+hyntx --watch --quiet
+```
+
+This is useful for:
+
+- Monitoring in the background
+- Focusing on critical issues only
+- Reducing noise during active development
+
+### Restrictions
+
+Watch mode is incompatible with:
+
+- Date filtering (`--date`, `--from`, `--to`)
+- Output files (`--output`)
+- Dry-run mode (`--dry-run`)
+- Comparison flags (`--compare-*`)
+- History flags (`--history`, `--history-summary`)
+
+### Stopping the Watcher
+
+Press `Ctrl+C` to stop watch mode gracefully.
 
 ---
 

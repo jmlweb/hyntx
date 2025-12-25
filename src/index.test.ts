@@ -4,6 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as index from './index.js';
+import type { ParsedArgs } from './index.js';
 
 // Mock all dependencies
 vi.mock('ora', () => ({
@@ -41,6 +42,10 @@ vi.mock('./core/setup.js', () => ({
 
 vi.mock('./core/analyzer.js', () => ({
   analyzePrompts: vi.fn(),
+}));
+
+vi.mock('./core/watcher.js', () => ({
+  createLogWatcher: vi.fn(),
 }));
 
 vi.mock('./core/reporter.js', () => ({
@@ -94,6 +99,7 @@ import type {
   EnvConfig,
   AnalysisResult,
   AnalysisProvider,
+  LogWatcher,
 } from './types/index.js';
 
 const mockIsFirstRun = vi.mocked(isFirstRun);
@@ -143,6 +149,8 @@ describe('parseArguments', () => {
       history: false,
       historySummary: false,
       noHistory: false,
+      watch: false,
+      quiet: false,
     });
   });
 
@@ -193,6 +201,8 @@ describe('parseArguments', () => {
       history: false,
       historySummary: false,
       noHistory: false,
+      watch: false,
+      quiet: false,
     });
   });
 
@@ -885,6 +895,8 @@ describe('parseArguments - New Features', () => {
       history: false,
       historySummary: false,
       noHistory: false,
+      watch: false,
+      quiet: false,
     });
   });
 });
@@ -3251,5 +3263,307 @@ describe('main - integration tests', () => {
 
     // Should exit early without analysis (checkReminder returns false before provider connection)
     expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.SUCCESS);
+  });
+});
+
+// =============================================================================
+// Watch Mode Tests
+// =============================================================================
+
+describe('parseArguments - watch mode flags', () => {
+  const originalArgv = process.argv;
+
+  afterEach(() => {
+    process.argv = originalArgv;
+  });
+
+  it('parses --watch flag correctly', () => {
+    process.argv = ['node', 'index.js', '--watch'];
+    const args = index.parseArguments();
+
+    expect(args.watch).toBe(true);
+    expect(args.quiet).toBe(false);
+  });
+
+  it('parses --quiet flag correctly with --watch', () => {
+    process.argv = ['node', 'index.js', '--watch', '--quiet'];
+    const args = index.parseArguments();
+
+    expect(args.watch).toBe(true);
+    expect(args.quiet).toBe(true);
+  });
+
+  it('parses -q short flag correctly with --watch', () => {
+    process.argv = ['node', 'index.js', '--watch', '-q'];
+    const args = index.parseArguments();
+
+    expect(args.watch).toBe(true);
+    expect(args.quiet).toBe(true);
+  });
+
+  it('defaults watch and quiet to false', () => {
+    process.argv = ['node', 'index.js'];
+    const args = index.parseArguments();
+
+    expect(args.watch).toBe(false);
+    expect(args.quiet).toBe(false);
+  });
+});
+
+describe('validateArguments - watch mode validations', () => {
+  const originalArgv = process.argv;
+
+  afterEach(() => {
+    process.argv = originalArgv;
+  });
+
+  it('throws error when using --watch with --date (non-today)', () => {
+    process.argv = ['node', 'index.js', '--watch', '--date', 'yesterday'];
+    const args = index.parseArguments();
+
+    expect(() => {
+      index.validateArguments(args);
+    }).toThrow(
+      'Cannot use --watch with --date. Watch mode monitors in real-time.',
+    );
+  });
+
+  it('throws error when using --watch with --from/--to', () => {
+    process.argv = [
+      'node',
+      'index.js',
+      '--watch',
+      '--from',
+      '2025-01-20',
+      '--to',
+      '2025-01-25',
+    ];
+    const args = index.parseArguments();
+
+    expect(() => {
+      index.validateArguments(args);
+    }).toThrow(
+      'Cannot use --watch with --from/--to. Watch mode monitors in real-time.',
+    );
+  });
+
+  it('throws error when using --watch with --output', () => {
+    process.argv = ['node', 'index.js', '--watch', '--output', 'report.md'];
+    const args = index.parseArguments();
+
+    expect(() => {
+      index.validateArguments(args);
+    }).toThrow(
+      'Cannot use --watch with --output. Watch mode provides continuous console output.',
+    );
+  });
+
+  it('throws error when using --watch with --dry-run', () => {
+    process.argv = ['node', 'index.js', '--watch', '--dry-run'];
+    const args = index.parseArguments();
+
+    expect(() => {
+      index.validateArguments(args);
+    }).toThrow(
+      'Cannot use --watch with --dry-run. Watch mode performs live analysis.',
+    );
+  });
+
+  it('throws error when using --watch with --compare-week', () => {
+    process.argv = ['node', 'index.js', '--watch', '--compare-week'];
+    const args = index.parseArguments();
+
+    expect(() => {
+      index.validateArguments(args);
+    }).toThrow(
+      'Cannot use --watch with comparison flags. Watch mode analyzes prompts in real-time.',
+    );
+  });
+
+  it('throws error when using --watch with --compare-month', () => {
+    process.argv = ['node', 'index.js', '--watch', '--compare-month'];
+    const args = index.parseArguments();
+
+    expect(() => {
+      index.validateArguments(args);
+    }).toThrow(
+      'Cannot use --watch with comparison flags. Watch mode analyzes prompts in real-time.',
+    );
+  });
+
+  it('throws error when using --watch with --compare-with', () => {
+    process.argv = [
+      'node',
+      'index.js',
+      '--watch',
+      '--compare-with',
+      '2025-01-15',
+    ];
+    const args = index.parseArguments();
+
+    expect(() => {
+      index.validateArguments(args);
+    }).toThrow(
+      'Cannot use --watch with comparison flags. Watch mode analyzes prompts in real-time.',
+    );
+  });
+
+  it('throws error when using --watch with --history', () => {
+    process.argv = ['node', 'index.js', '--watch', '--history'];
+    const args = index.parseArguments();
+
+    expect(() => {
+      index.validateArguments(args);
+    }).toThrow(
+      'Cannot use --watch with history flags. Watch mode monitors in real-time.',
+    );
+  });
+
+  it('throws error when using --watch with --history-summary', () => {
+    process.argv = ['node', 'index.js', '--watch', '--history-summary'];
+    const args = index.parseArguments();
+
+    expect(() => {
+      index.validateArguments(args);
+    }).toThrow(
+      'Cannot use --watch with history flags. Watch mode monitors in real-time.',
+    );
+  });
+
+  it('throws error when using --quiet without --watch', () => {
+    process.argv = ['node', 'index.js', '--quiet'];
+    const args = index.parseArguments();
+
+    expect(() => {
+      index.validateArguments(args);
+    }).toThrow(
+      'Cannot use --quiet without --watch. Quiet mode only applies to watch mode.',
+    );
+  });
+
+  it('accepts --watch alone', () => {
+    process.argv = ['node', 'index.js', '--watch'];
+    const args = index.parseArguments();
+
+    expect(() => {
+      index.validateArguments(args);
+    }).not.toThrow();
+  });
+
+  it('accepts --watch with --quiet', () => {
+    process.argv = ['node', 'index.js', '--watch', '--quiet'];
+    const args = index.parseArguments();
+
+    expect(() => {
+      index.validateArguments(args);
+    }).not.toThrow();
+  });
+
+  it('accepts --watch with --project filter', () => {
+    process.argv = ['node', 'index.js', '--watch', '--project', 'my-app'];
+    const args = index.parseArguments();
+
+    expect(() => {
+      index.validateArguments(args);
+    }).not.toThrow();
+  });
+
+  it('accepts --watch with --date today (default)', () => {
+    process.argv = ['node', 'index.js', '--watch', '--date', 'today'];
+    const args = index.parseArguments();
+
+    expect(() => {
+      index.validateArguments(args);
+    }).not.toThrow();
+  });
+});
+
+describe('runWatchMode', () => {
+  const mockProvider: Partial<AnalysisProvider> = {
+    name: 'test-provider',
+    analyze: vi.fn(),
+    isAvailable: vi.fn().mockResolvedValue(true),
+  };
+
+  const mockArgs: Partial<ParsedArgs> = {
+    watch: true,
+    quiet: false,
+    project: 'test-project',
+    date: 'today',
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('initializes watcher with correct options', async () => {
+    const { createLogWatcher } = await import('./core/watcher.js');
+    const mockWatcher: Partial<LogWatcher> = {
+      start: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn().mockResolvedValue(undefined),
+      on: vi.fn(),
+    };
+
+    vi.mocked(createLogWatcher).mockReturnValue(mockWatcher as LogWatcher);
+
+    // Call runWatchMode but don't await (it never resolves)
+    const promise = index.runWatchMode(
+      mockProvider as AnalysisProvider,
+      mockArgs as ParsedArgs,
+      undefined,
+    );
+
+    // Give it a tick to initialize
+    await new Promise((resolve) => setImmediate(resolve));
+
+    // Verify watcher was created with correct options
+    expect(createLogWatcher).toHaveBeenCalledWith({
+      projectFilter: 'test-project',
+    });
+
+    // Verify event listeners were registered
+    expect(mockWatcher.on).toHaveBeenCalledWith('ready', expect.any(Function));
+    expect(mockWatcher.on).toHaveBeenCalledWith('prompt', expect.any(Function));
+    expect(mockWatcher.on).toHaveBeenCalledWith('error', expect.any(Function));
+
+    // Verify watcher was started
+    expect(mockWatcher.start).toHaveBeenCalled();
+
+    // Clean up by rejecting the promise (simulate Ctrl+C)
+    expect(promise).toBeInstanceOf(Promise);
+  });
+
+  it('initializes watcher without project filter when not specified', async () => {
+    const { createLogWatcher } = await import('./core/watcher.js');
+    const mockWatcher: Partial<LogWatcher> = {
+      start: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn().mockResolvedValue(undefined),
+      on: vi.fn(),
+    };
+
+    vi.mocked(createLogWatcher).mockReturnValue(mockWatcher as LogWatcher);
+
+    const argsWithoutProject: Partial<ParsedArgs> = {
+      ...mockArgs,
+      project: undefined,
+    };
+
+    // Call runWatchMode but don't await
+    const promise = index.runWatchMode(
+      mockProvider as AnalysisProvider,
+      argsWithoutProject as ParsedArgs,
+      undefined,
+    );
+
+    // Give it a tick to initialize
+    await new Promise((resolve) => setImmediate(resolve));
+
+    // Verify watcher was created with undefined project filter
+    expect(createLogWatcher).toHaveBeenCalledWith({
+      projectFilter: undefined,
+    });
+
+    // Clean up
+    expect(promise).toBeInstanceOf(Promise);
   });
 });

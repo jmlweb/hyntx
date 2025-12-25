@@ -27,6 +27,7 @@ import { getAvailableProvider } from './providers/index.js';
 import { CLAUDE_PROJECTS_DIR } from './utils/paths.js';
 import { logger } from './utils/logger.js';
 import { EXIT_CODES } from './types/index.js';
+import { createLogWatcher } from './core/watcher.js';
 import {
   loadProjectConfigForCwd,
   mergeConfigs,
@@ -74,7 +75,7 @@ import type {
 /**
  * Parsed command-line arguments.
  */
-type ParsedArgs = {
+export type ParsedArgs = {
   readonly date: string;
   readonly from?: string;
   readonly to?: string;
@@ -94,6 +95,8 @@ type ParsedArgs = {
   readonly history: boolean;
   readonly historySummary: boolean;
   readonly noHistory: boolean;
+  readonly watch: boolean;
+  readonly quiet: boolean;
 };
 
 // =============================================================================
@@ -188,6 +191,15 @@ export function parseArguments(): ParsedArgs {
           type: 'boolean',
           default: false,
         },
+        watch: {
+          type: 'boolean',
+          default: false,
+        },
+        quiet: {
+          type: 'boolean',
+          short: 'q',
+          default: false,
+        },
         help: {
           type: 'boolean',
           short: 'h',
@@ -222,6 +234,8 @@ export function parseArguments(): ParsedArgs {
       history: values.history || false,
       historySummary: values['history-summary'] || false,
       noHistory: values['no-history'] || false,
+      watch: values.watch || false,
+      quiet: values.quiet || false,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -323,6 +337,57 @@ export function validateArguments(args: ParsedArgs): void {
 
   if (isHistoryMode && isComparisonMode) {
     throw new Error('Cannot use history listing flags with comparison flags.');
+  }
+
+  // Watch mode validations
+  if (args.watch) {
+    // Watch mode cannot use date filtering
+    if (args.date !== 'today') {
+      throw new Error(
+        'Cannot use --watch with --date. Watch mode monitors in real-time.',
+      );
+    }
+
+    if (args.from || args.to) {
+      throw new Error(
+        'Cannot use --watch with --from/--to. Watch mode monitors in real-time.',
+      );
+    }
+
+    // Watch mode is not compatible with output files
+    if (args.output) {
+      throw new Error(
+        'Cannot use --watch with --output. Watch mode provides continuous console output.',
+      );
+    }
+
+    // Watch mode conflicts with dry-run
+    if (args.dryRun) {
+      throw new Error(
+        'Cannot use --watch with --dry-run. Watch mode performs live analysis.',
+      );
+    }
+
+    // Watch mode conflicts with comparison
+    if (isComparisonMode) {
+      throw new Error(
+        'Cannot use --watch with comparison flags. Watch mode analyzes prompts in real-time.',
+      );
+    }
+
+    // Watch mode conflicts with history listing
+    if (isHistoryMode) {
+      throw new Error(
+        'Cannot use --watch with history flags. Watch mode monitors in real-time.',
+      );
+    }
+  }
+
+  // Quiet mode requires watch mode
+  if (args.quiet && !args.watch) {
+    throw new Error(
+      'Cannot use --quiet without --watch. Quiet mode only applies to watch mode.',
+    );
   }
 }
 
@@ -519,6 +584,10 @@ ${chalk.bold('Options:')}
   -o, --output <file>  Write results to file (.md or .json extension)
   --dry-run            Preview prompts without performing analysis
 
+  ${chalk.bold('Watch Mode:')}
+  --watch              Monitor logs in real-time and analyze new prompts
+  -q, --quiet          Show only high-severity patterns (requires --watch)
+
   ${chalk.bold('Comparison:')}
   --compare-with <date>  Compare current analysis with a specific date (YYYY-MM-DD)
   --compare-week         Compare current analysis with one week ago
@@ -567,6 +636,11 @@ ${chalk.bold('Examples:')}
   ${chalk.bold('Dry run:')}
   hyntx --dry-run                     # Preview without analysis
   hyntx --from 2025-01-20 --to 2025-01-25 --dry-run  # Preview date range
+
+  ${chalk.bold('Watch mode:')}
+  hyntx --watch                       # Monitor and analyze new prompts in real-time
+  hyntx --watch --quiet               # Show only high-severity patterns
+  hyntx --watch --project my-app      # Watch specific project only
 
   ${chalk.bold('Comparison:')}
   hyntx --compare-week                # Compare today with one week ago
@@ -874,6 +948,149 @@ export async function analyzeWithProgress(
 }
 
 /**
+ * Generates a unique key for a prompt to avoid duplicate analysis.
+ *
+ * @param prompt - Extracted prompt
+ * @returns Unique key string
+ */
+function generatePromptKey(prompt: ExtractedPrompt): string {
+  return `${prompt.project}:${prompt.sessionId}:${prompt.timestamp}`;
+}
+
+/**
+ * Gets the severity icon for a pattern.
+ *
+ * @param severity - Pattern severity level
+ * @returns Colored icon string
+ */
+function getSeverityIcon(severity: 'low' | 'medium' | 'high'): string {
+  switch (severity) {
+    case 'high':
+      return chalk.red('⚠️');
+    case 'medium':
+      return chalk.yellow('⚠️');
+    case 'low':
+      return chalk.blue('ℹ️');
+  }
+}
+
+/**
+ * Runs watch mode for real-time prompt analysis.
+ *
+ * This function runs indefinitely, monitoring log files for new prompts.
+ * It only exits when explicitly terminated (Ctrl+C) or an unhandled error occurs.
+ *
+ * @param provider - Analysis provider
+ * @param args - Parsed arguments
+ * @param context - Optional project context
+ * @returns Promise that never resolves naturally (runs until terminated)
+ */
+export async function runWatchMode(
+  provider: AnalysisProvider,
+  args: ParsedArgs,
+  context: ProjectContext | undefined,
+): Promise<never> {
+  // LRU cache to prevent unbounded memory growth
+  const MAX_ANALYZED = 1000;
+  const analyzedPrompts = new Map<string, number>();
+
+  console.log('');
+  console.log(chalk.bold.cyan('Watch Mode'));
+  console.log(chalk.dim('Monitoring Claude Code logs for new prompts...'));
+  if (args.quiet) {
+    console.log(chalk.dim('Quiet mode: showing only high-severity patterns'));
+  }
+  console.log(chalk.dim('Press Ctrl+C to stop'));
+  console.log('');
+
+  const watcher = createLogWatcher({
+    projectFilter: args.project,
+  });
+
+  watcher.on('ready', () => {
+    logger.debug('Watcher ready', 'watch');
+  });
+
+  watcher.on('prompt', ({ prompt }) => {
+    const promptKey = generatePromptKey(prompt);
+
+    // Skip if already analyzed
+    if (analyzedPrompts.has(promptKey)) {
+      return;
+    }
+
+    // LRU eviction: if at capacity, remove oldest entry
+    if (analyzedPrompts.size >= MAX_ANALYZED) {
+      const firstKey = analyzedPrompts.keys().next().value;
+      if (firstKey !== undefined) {
+        analyzedPrompts.delete(firstKey);
+      }
+    }
+
+    // Add to cache with timestamp
+    analyzedPrompts.set(promptKey, Date.now());
+
+    // Handle async analysis without blocking
+    void (async (): Promise<void> => {
+      try {
+        // Analyze single prompt
+        const result = await analyzePrompts({
+          provider,
+          prompts: [prompt.content],
+          date: prompt.date,
+          context,
+        });
+
+        // Get current time for timestamp
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('en-US', {
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        });
+
+        // Filter patterns by severity if quiet mode
+        const patterns = args.quiet
+          ? result.patterns.filter((p) => p.severity === 'high')
+          : result.patterns;
+
+        // Display concise output for each pattern
+        if (patterns.length > 0) {
+          for (const pattern of patterns) {
+            const icon = getSeverityIcon(pattern.severity);
+            console.log(
+              `[${chalk.dim(timeStr)}] ${chalk.cyan(prompt.project)} ${icon} ${pattern.name}`,
+            );
+          }
+        } else if (!args.quiet) {
+          // Show that prompt was analyzed but no issues found
+          console.log(
+            `[${chalk.dim(timeStr)}] ${chalk.cyan(prompt.project)} ${chalk.green('✓')} No issues`,
+          );
+        }
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        logger.error(`Failed to analyze prompt: ${errorMessage}`, 'watch');
+      }
+    })();
+  });
+
+  watcher.on('error', (error) => {
+    logger.error(`Watcher error: ${error.message}`, 'watch');
+  });
+
+  await watcher.start();
+
+  // Keep process running indefinitely - watcher handles SIGINT/SIGTERM
+  // This promise never resolves, ensuring the function never returns naturally
+  return await new Promise<never>(() => {
+    // Intentionally empty - process exits via signal handlers only
+  });
+}
+
+/**
  * Displays analysis results.
  *
  * @param result - Analysis result
@@ -988,23 +1205,30 @@ export async function main(): Promise<void> {
     const projectConfig = loadProjectConfigForCwd(process.cwd());
     const config = mergeConfigs(envConfig, projectConfig);
 
-    // 6. Read logs with new filters
+    // 6. Handle watch mode (exit early - runs indefinitely)
+    if (args.watch) {
+      const provider = await connectProviderWithSpinner(isJsonMode);
+      await runWatchMode(provider, args, config.context);
+      return;
+    }
+
+    // 7. Read logs with new filters
     const logResult = await readLogsWithSpinner(args, isJsonMode);
 
-    // 7. Handle dry-run mode (exit early)
+    // 8. Handle dry-run mode (exit early)
     if (args.dryRun) {
       displayDryRunSummary(logResult.prompts, args);
       process.exit(EXIT_CODES.SUCCESS);
     }
 
-    // 8. Determine if multi-day
+    // 9. Determine if multi-day
     const isMultiDay = Boolean(args.from && args.to);
     const groups = isMultiDay ? groupByDay(logResult.prompts) : [];
 
-    // 9. Connect to provider
+    // 10. Connect to provider
     const provider = await connectProviderWithSpinner(isJsonMode);
 
-    // 10. Analyze (single-day or multi-day)
+    // 11. Analyze (single-day or multi-day)
     if (isMultiDay && groups.length > 0) {
       // Multi-day analysis with grouping
       const results: AnalysisResult[] = [];
@@ -1021,7 +1245,7 @@ export async function main(): Promise<void> {
         results.push(result);
       }
 
-      // 11. Write output files if specified
+      // 12. Write output files if specified
       if (args.output) {
         const ext = extname(args.output);
         const format = ext === '.json' ? 'json' : 'md';
@@ -1079,7 +1303,7 @@ export async function main(): Promise<void> {
         }
       }
 
-      // 12. Display results
+      // 13. Display results
       if (!args.output || !isJsonMode) {
         if (args.format === 'json') {
           console.log(
@@ -1179,10 +1403,10 @@ export async function main(): Promise<void> {
       }
     }
 
-    // 13. Save last run timestamp
+    // 14. Save last run timestamp
     saveLastRun();
 
-    // 14. Report warnings
+    // 15. Report warnings
     if (!isJsonMode) {
       logger.reportWarnings();
     }
