@@ -21,7 +21,8 @@ import {
   type RateLimiter,
 } from '../utils/rate-limiter.js';
 import { isTransientError, withRetry } from '../utils/retry.js';
-import { SYSTEM_PROMPT, buildUserPrompt, parseResponse } from './base.js';
+import { buildUserPrompt, parseResponse } from './base.js';
+import { SYSTEM_PROMPT_FULL } from './schemas.js';
 
 /**
  * Maximum number of retry attempts for network errors.
@@ -188,7 +189,7 @@ export class GoogleProvider implements AnalysisProvider {
                   },
                 ],
                 systemInstruction: {
-                  parts: [{ text: SYSTEM_PROMPT }],
+                  parts: [{ text: SYSTEM_PROMPT_FULL }],
                 },
                 generationConfig: {
                   responseMimeType: 'application/json',

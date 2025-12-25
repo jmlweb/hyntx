@@ -239,7 +239,8 @@ describe('OllamaProvider', () => {
       expect(body.stream).toBe(false);
       expect(body.options.temperature).toBe(0.3);
       expect(body.prompt).toContain('Test prompt');
-      expect(body.system).toContain('Analyze prompts for quality issues');
+      // llama3.2 is a micro model, so it should use minimal schema
+      expect(body.system).toContain('You analyze prompts for quality issues');
     });
 
     it('should handle markdown-wrapped JSON response', async () => {

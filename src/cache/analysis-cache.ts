@@ -14,7 +14,7 @@ import { readFile, writeFile, mkdir, rename, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { CACHE_ANALYSIS_DIR, CACHE_META_FILE } from '../utils/paths.js';
 import { logger } from '../utils/logger.js';
-import { SYSTEM_PROMPT } from '../providers/base.js';
+import { SYSTEM_PROMPT_FULL } from '../providers/schemas.js';
 import type {
   AnalysisResult,
   CachedBatchResult,
@@ -79,25 +79,27 @@ function hashString(input: string): string {
 }
 
 /**
- * Generates a cache key from prompts and model.
- * The cache key uniquely identifies a batch of prompts for a specific model.
+ * Generates a cache key from prompts, model, and schema type.
+ * The cache key uniquely identifies a batch of prompts for a specific model and schema.
  *
  * @param prompts - Array of prompt strings
  * @param model - Model identifier
+ * @param schemaType - Schema type used for analysis (defaults to 'full' for backward compatibility)
  * @returns Cache key hash
  *
  * @example
  * ```typescript
- * const key = generateCacheKey(['prompt1', 'prompt2'], 'llama3.2');
+ * const key = generateCacheKey(['prompt1', 'prompt2'], 'llama3.2', 'minimal');
  * // Returns: 'a3f2b1...' (SHA-256 hash)
  * ```
  */
 export function generateCacheKey(
   prompts: readonly string[],
   model: string,
+  schemaType = 'full',
 ): string {
   const joined = prompts.join('\n---\n');
-  const input = `${model}:${joined}`;
+  const input = `${model}:${schemaType}:${joined}`;
   return hashString(input);
 }
 
@@ -108,7 +110,7 @@ export function generateCacheKey(
  * @returns System prompt hash
  */
 export function hashSystemPrompt(): string {
-  return hashString(SYSTEM_PROMPT);
+  return hashString(SYSTEM_PROMPT_FULL);
 }
 
 // =============================================================================

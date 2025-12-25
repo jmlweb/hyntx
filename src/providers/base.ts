@@ -11,24 +11,17 @@ import {
   type AnalysisResult,
   type AnalysisPattern,
   type ProjectContext,
+  type MinimalResult,
 } from '../types/index.js';
+import { ISSUE_TAXONOMY, SYSTEM_PROMPT_FULL } from './schemas.js';
+import { convertMinimalToAnalysisResult } from '../core/aggregator.js';
 
 /**
  * System prompt template for AI analysis providers.
  * Defines the JSON schema and analysis guidelines.
+ * @deprecated Use SYSTEM_PROMPT_FULL from schemas.js instead
  */
-export const SYSTEM_PROMPT = `Analyze prompts for quality issues. Return ONLY JSON, no other text.
-
-Schema:
-{"issues":[{"name":"issue name","example":"bad prompt","fix":"better prompt"}],"score":75,"tip":"main suggestion"}
-
-Rules:
-- issues: array of problems found (empty if none)
-- score: 0-100 quality score (100=perfect)
-- tip: single most important suggestion
-- name: short issue name (e.g. "vague request", "missing context")
-- example: actual prompt text showing the issue
-- fix: improved version of that prompt`;
+export const SYSTEM_PROMPT = SYSTEM_PROMPT_FULL;
 
 /**
  * Builds a user prompt for analysis from a list of prompts.
@@ -108,6 +101,39 @@ type SimpleResponse = {
   score: number;
   tip: string;
 };
+
+/**
+ * Type guard for minimal response schema.
+ * Validates that response contains issues array and optional score.
+ */
+function isValidMinimalResponse(value: unknown): value is MinimalResult {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const obj = value as Record<string, unknown>;
+
+  // Check issues array (required)
+  if (!Array.isArray(obj['issues'])) {
+    return false;
+  }
+  if (!obj['issues'].every((item) => typeof item === 'string')) {
+    return false;
+  }
+
+  // Score is optional, will default to 50
+  return true;
+}
+
+/**
+ * Safely extracts MinimalResult with defaults for missing fields.
+ */
+function extractMinimalResult(obj: Record<string, unknown>): MinimalResult {
+  const issues = obj['issues'] as string[];
+  const score = typeof obj['score'] === 'number' ? obj['score'] : 50;
+
+  return { issues, score };
+}
 
 /**
  * Converts a simple issue to a full AnalysisPattern.
@@ -216,7 +242,15 @@ export function parseResponse(response: string, date: string): AnalysisResult {
     }
   }
 
-  // Try simplified schema first (for small models)
+  // Try schemas in order: minimal → simple → full
+
+  // 1. Try minimal schema (for small models)
+  if (isValidMinimalResponse(parsed)) {
+    const minimal = extractMinimalResult(parsed as Record<string, unknown>);
+    return convertMinimalToAnalysisResult(minimal, date, ISSUE_TAXONOMY);
+  }
+
+  // 2. Try simple schema (for medium models)
   if (isValidSimpleResponse(parsed)) {
     const simple = extractSimpleResponse(parsed as Record<string, unknown>);
     const patterns = simple.issues.map((issue, i) => issueToPattern(issue, i));
@@ -232,7 +266,7 @@ export function parseResponse(response: string, date: string): AnalysisResult {
     };
   }
 
-  // Try full schema (for larger models)
+  // 3. Try full schema (for larger models)
   if (isValidFullResponse(parsed)) {
     return {
       date,

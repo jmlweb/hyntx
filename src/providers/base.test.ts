@@ -410,5 +410,125 @@ describe('base provider utilities', () => {
       expect(result.patterns[0]?.name).toContain('quotes');
       expect(result.patterns[0]?.examples[0]).toContain('\n');
     });
+
+    describe('minimal schema parsing', () => {
+      it('should parse minimal schema with issues and score', () => {
+        const minimalResponse = {
+          issues: ['vague', 'no-context'],
+          score: 40,
+        };
+
+        const result = parseResponse(
+          JSON.stringify(minimalResponse),
+          '2025-01-15',
+        );
+
+        expect(result.patterns).toHaveLength(2);
+        expect(result.patterns[0]?.id).toBe('vague');
+        expect(result.patterns[1]?.id).toBe('no-context');
+        expect(result.stats.overallScore).toBe(40);
+        expect(result.stats.totalPrompts).toBe(1);
+        expect(result.stats.promptsWithIssues).toBe(1);
+      });
+
+      it('should parse minimal schema with empty issues', () => {
+        const minimalResponse = {
+          issues: [],
+          score: 95,
+        };
+
+        const result = parseResponse(
+          JSON.stringify(minimalResponse),
+          '2025-01-15',
+        );
+
+        expect(result.patterns).toHaveLength(0);
+        expect(result.stats.overallScore).toBe(95);
+        expect(result.stats.promptsWithIssues).toBe(0);
+        expect(result.topSuggestion).toBe('Your prompts look good!');
+      });
+
+      it('should parse minimal schema without score (default to 50)', () => {
+        const minimalResponse = {
+          issues: ['vague'],
+        };
+
+        const result = parseResponse(
+          JSON.stringify(minimalResponse),
+          '2025-01-15',
+        );
+
+        expect(result.stats.overallScore).toBe(50);
+        expect(result.patterns).toHaveLength(1);
+      });
+
+      it('should populate patterns from issue taxonomy', () => {
+        const minimalResponse = {
+          issues: ['vague'],
+          score: 60,
+        };
+
+        const result = parseResponse(
+          JSON.stringify(minimalResponse),
+          '2025-01-15',
+        );
+
+        const pattern = result.patterns[0];
+        expect(pattern?.name).toBe('Vague Request');
+        expect(pattern?.severity).toBe('high');
+        expect(pattern?.suggestion).toContain('specific');
+        expect(pattern?.beforeAfter.before).toBeTruthy();
+        expect(pattern?.beforeAfter.after).toBeTruthy();
+      });
+
+      it('should handle unknown issue IDs with fallback', () => {
+        const minimalResponse = {
+          issues: ['unknown-issue'],
+          score: 70,
+        };
+
+        const result = parseResponse(
+          JSON.stringify(minimalResponse),
+          '2025-01-15',
+        );
+
+        const pattern = result.patterns[0];
+        expect(pattern?.name).toBe('Unknown Issue');
+        expect(pattern?.severity).toBe('medium');
+        expect(pattern?.suggestion).toBe('Review this pattern');
+      });
+
+      it('should count duplicate issues in minimal schema', () => {
+        const minimalResponse = {
+          issues: ['vague', 'vague', 'no-context'],
+          score: 50,
+        };
+
+        const result = parseResponse(
+          JSON.stringify(minimalResponse),
+          '2025-01-15',
+        );
+
+        const vaguePattern = result.patterns.find((p) => p.id === 'vague');
+        expect(vaguePattern?.frequency).toBe(2);
+      });
+
+      it('should prioritize minimal schema over simple schema', () => {
+        // If response could match both, minimal should win
+        const ambiguousResponse = {
+          issues: ['vague'],
+          score: 60,
+        };
+
+        const result = parseResponse(
+          JSON.stringify(ambiguousResponse),
+          '2025-01-15',
+        );
+
+        // Should be parsed as minimal (issues are strings, not objects)
+        expect(result.patterns[0]?.id).toBe('vague');
+        expect(result.patterns[0]?.name).toBe('Vague Request');
+      });
+    });
   });
 });

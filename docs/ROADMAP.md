@@ -4,14 +4,6 @@ This roadmap organizes implementation tasks following a Vertical Slicing approac
 
 ---
 
-## Current Phase: Phase 6 - Reliability
-
-### Active Tasks
-
-- [ ] [Multi-Pass Progressive Schema for Small Models](../backlog/ollama-progressive-schema.md) - P2
-
----
-
 ## Completed Phases
 
 ### Phase 0: Pre-Foundation (3 tasks)
@@ -80,12 +72,13 @@ This roadmap organizes implementation tasks following a Vertical Slicing approac
 - Watch mode file watcher with debouncing and signal handling
 - CLI integration with --watch and --quiet flags
 
-### Phase 6: Reliability (2 tasks)
+### Phase 6: Reliability (3 tasks)
 
 - Disk cache for analysis results
 - Adaptive micro-batching for small models
+- Multi-pass progressive schema for small models
 
-**Total completed**: 47 tasks
+**Total completed**: 48 tasks
 
 ---
 

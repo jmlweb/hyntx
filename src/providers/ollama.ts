@@ -15,10 +15,12 @@ import {
   type ProjectContext,
   type ProviderLimits,
   type BatchStrategyType,
+  type SchemaType,
   BATCH_STRATEGIES,
 } from '../types/index.js';
 import { logger } from '../utils/logger.js';
-import { SYSTEM_PROMPT, buildUserPrompt, parseResponse } from './base.js';
+import { buildUserPrompt, parseResponse } from './base.js';
+import { SYSTEM_PROMPT_MINIMAL, SYSTEM_PROMPT_FULL } from './schemas.js';
 
 /**
  * Maximum number of retry attempts for network errors.
@@ -101,22 +103,36 @@ export class OllamaProvider implements AnalysisProvider {
   public readonly name = 'Ollama';
   private readonly config: OllamaConfig;
   private readonly batchStrategy: BatchStrategyType;
+  private readonly schemaType: SchemaType;
 
   /**
    * Creates a new OllamaProvider instance.
-   * Automatically detects the optimal batch strategy based on model name.
+   * Automatically detects the optimal batch strategy and schema type based on model name.
    *
    * @param config - Ollama configuration with model and host
    */
   constructor(config: OllamaConfig) {
     this.config = config;
     this.batchStrategy = detectBatchStrategy(config.model);
+    this.schemaType = this.selectSchemaType();
 
     const strategy = BATCH_STRATEGIES[this.batchStrategy];
     logger.debug(
-      `Detected batch strategy: ${this.batchStrategy} (${strategy.description})`,
+      `Detected batch strategy: ${this.batchStrategy} (${strategy.description}), schema type: ${this.schemaType}`,
       'ollama',
     );
+  }
+
+  /**
+   * Selects the appropriate schema type based on model size.
+   * Micro and small models use minimal schema for better reliability.
+   * Standard models use full schema for detailed analysis.
+   *
+   * @returns Schema type identifier
+   */
+  private selectSchemaType(): SchemaType {
+    // Micro and small models use minimal schema
+    return ['micro', 'small'].includes(this.batchStrategy) ? 'minimal' : 'full';
   }
 
   /**
@@ -214,6 +230,10 @@ export class OllamaProvider implements AnalysisProvider {
     }
 
     const userPrompt = buildUserPrompt(prompts, date, context);
+    const systemPrompt =
+      this.schemaType === 'minimal'
+        ? SYSTEM_PROMPT_MINIMAL
+        : SYSTEM_PROMPT_FULL;
 
     let lastError: Error | undefined;
 
@@ -232,7 +252,7 @@ export class OllamaProvider implements AnalysisProvider {
           body: JSON.stringify({
             model: this.config.model,
             prompt: userPrompt,
-            system: SYSTEM_PROMPT,
+            system: systemPrompt,
             stream: false,
             format: 'json',
             options: {

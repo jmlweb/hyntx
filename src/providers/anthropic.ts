@@ -21,7 +21,8 @@ import {
   type RateLimiter,
 } from '../utils/rate-limiter.js';
 import { isTransientError, withRetry } from '../utils/retry.js';
-import { SYSTEM_PROMPT, buildUserPrompt, parseResponse } from './base.js';
+import { buildUserPrompt, parseResponse } from './base.js';
+import { SYSTEM_PROMPT_FULL } from './schemas.js';
 
 /**
  * Maximum number of retry attempts for network errors.
@@ -189,7 +190,7 @@ export class AnthropicProvider implements AnalysisProvider {
               body: JSON.stringify({
                 model: this.config.model,
                 max_tokens: MAX_TOKENS,
-                system: SYSTEM_PROMPT,
+                system: SYSTEM_PROMPT_FULL,
                 messages: [{ role: 'user', content: userPrompt }],
               }),
               signal: controller.signal,
