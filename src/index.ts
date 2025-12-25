@@ -307,9 +307,8 @@ export function validateArguments(args: ParsedArgs): void {
   }
 
   // Comparison and history flags are read-only operations
-  const isComparisonMode = Boolean(
-    args.compareWith || args.compareWeek || args.compareMonth,
-  );
+  const isComparisonMode =
+    args.compareWith !== undefined || args.compareWeek || args.compareMonth;
   const isHistoryMode = args.history || args.historySummary;
 
   if (isComparisonMode && args.from) {
@@ -1125,8 +1124,8 @@ export async function main(): Promise<void> {
         displayResults(result, args.format, args.compact);
       }
 
-      // Save to history (unless disabled or dry-run)
-      if (!args.noHistory && !args.dryRun) {
+      // Save to history (unless disabled)
+      if (!args.noHistory) {
         const projects = Array.from(
           new Set(logResult.prompts.map((p) => p.project)),
         );
@@ -1139,12 +1138,16 @@ export async function main(): Promise<void> {
       }
 
       // Handle comparison if requested
-      if (args.compareWith || args.compareWeek || args.compareMonth) {
-        const compareDate = args.compareWith
-          ? args.compareWith
-          : args.compareWeek
+      if (
+        args.compareWith !== undefined ||
+        args.compareWeek ||
+        args.compareMonth
+      ) {
+        const compareDate =
+          args.compareWith ??
+          (args.compareWeek
             ? getDateOneWeekAgo(result.date)
-            : getDateOneMonthAgo(result.date);
+            : getDateOneMonthAgo(result.date));
 
         const beforeEntry = await loadAnalysisResult(compareDate);
 
@@ -1176,11 +1179,8 @@ export async function main(): Promise<void> {
       }
     }
 
-    // 13. Save last run timestamp (unless dry-run)
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (!args.dryRun) {
-      saveLastRun();
-    }
+    // 13. Save last run timestamp
+    saveLastRun();
 
     // 14. Report warnings
     if (!isJsonMode) {

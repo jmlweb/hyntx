@@ -133,8 +133,12 @@ export async function loadAnalysisResult(
     const content = await readFile(filePath, 'utf-8');
     const entry = JSON.parse(content) as HistoryEntry;
 
-    // Basic validation
-    if (!entry.result || !entry.metadata) {
+    // Basic validation - check for missing required properties on loaded entry
+    // The JSON.parse result is typed as HistoryEntry but could be malformed
+    if (
+      (entry as Partial<HistoryEntry>).result === undefined ||
+      (entry as Partial<HistoryEntry>).metadata === undefined
+    ) {
       logger.warn(`Invalid history entry in ${filePath}`, 'history');
       return null;
     }
@@ -197,10 +201,11 @@ export async function listAvailableDates(
         }
 
         // Project filter
+        const projectFilter = options.project;
         if (
-          options.project &&
+          projectFilter &&
           !entry.metadata.projects.some((p) =>
-            p.toLowerCase().includes(options.project!.toLowerCase()),
+            p.toLowerCase().includes(projectFilter.toLowerCase()),
           )
         ) {
           continue;

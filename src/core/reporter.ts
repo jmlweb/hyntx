@@ -16,7 +16,6 @@ import type {
   PatternSeverity,
   AnalysisStats,
   ComparisonResult,
-  PatternChange,
   HistoryEntry,
 } from '../types/index.js';
 
@@ -462,21 +461,6 @@ function scoreDeltaIndicator(delta: number): string {
 }
 
 /**
- * Returns an icon for pattern change status.
- *
- * @param status - Pattern change status
- * @returns Status icon
- */
-function patternStatusIcon(status: 'new' | 'resolved' | 'changed'): string {
-  const icons = {
-    new: '🆕',
-    resolved: '✅',
-    changed: '📊',
-  };
-  return icons[status];
-}
-
-/**
  * Prints a comparison between two analysis results to the terminal.
  *
  * @param comparison - Comparison result
@@ -512,7 +496,7 @@ export function printComparison(comparison: ComparisonResult): void {
     output.push('');
     for (const pattern of comparison.changes.newPatterns) {
       output.push(
-        `  ${severityIcon(pattern.severity)} ${pattern.name} (${pattern.frequency}x)`,
+        `  ${severityIcon(pattern.severity)} ${pattern.name} (${String(pattern.frequency)}x)`,
       );
     }
     output.push('');
@@ -524,7 +508,7 @@ export function printComparison(comparison: ComparisonResult): void {
     output.push('');
     for (const pattern of comparison.changes.resolvedPatterns) {
       output.push(
-        `  ${severityIcon(pattern.severity)} ${pattern.name} (was ${pattern.frequency}x)`,
+        `  ${severityIcon(pattern.severity)} ${pattern.name} (was ${String(pattern.frequency)}x)`,
       );
     }
     output.push('');
@@ -541,9 +525,9 @@ export function printComparison(comparison: ComparisonResult): void {
           : 0;
       const freqIndicator =
         freqChange > 0
-          ? chalk.red(`+${freqChange}`)
+          ? chalk.red(`+${String(freqChange)}`)
           : freqChange < 0
-            ? chalk.green(`${freqChange}`)
+            ? chalk.green(String(freqChange))
             : chalk.dim('±0');
 
       output.push(`  ${change.name}`);
@@ -553,7 +537,7 @@ export function printComparison(comparison: ComparisonResult): void {
         change.frequencyAfter !== undefined
       ) {
         output.push(
-          `    Frequency: ${change.frequencyBefore} → ${change.frequencyAfter} (${freqIndicator})`,
+          `    Frequency: ${String(change.frequencyBefore)} → ${String(change.frequencyAfter)} (${freqIndicator})`,
         );
       }
 
@@ -616,7 +600,7 @@ export function formatComparisonMarkdown(comparison: ComparisonResult): string {
     lines.push('');
     for (const pattern of comparison.changes.newPatterns) {
       lines.push(
-        `- ${severityIconMarkdown(pattern.severity)} **${pattern.name}** (${pattern.frequency}x)`,
+        `- ${severityIconMarkdown(pattern.severity)} **${pattern.name}** (${String(pattern.frequency)}x)`,
       );
     }
     lines.push('');
@@ -628,7 +612,7 @@ export function formatComparisonMarkdown(comparison: ComparisonResult): string {
     lines.push('');
     for (const pattern of comparison.changes.resolvedPatterns) {
       lines.push(
-        `- ${severityIconMarkdown(pattern.severity)} **${pattern.name}** (was ${pattern.frequency}x)`,
+        `- ${severityIconMarkdown(pattern.severity)} **${pattern.name}** (was ${String(pattern.frequency)}x)`,
       );
     }
     lines.push('');
@@ -642,11 +626,11 @@ export function formatComparisonMarkdown(comparison: ComparisonResult): string {
       lines.push(`### ${change.name}`);
       lines.push('');
       lines.push(
-        `- **Frequency:** ${change.frequencyBefore} → ${change.frequencyAfter}`,
+        `- **Frequency:** ${String(change.frequencyBefore ?? '')} → ${String(change.frequencyAfter ?? '')}`,
       );
       if (change.severityBefore !== change.severityAfter) {
         lines.push(
-          `- **Severity:** ${change.severityBefore} → ${change.severityAfter}`,
+          `- **Severity:** ${change.severityBefore ?? ''} → ${change.severityAfter ?? ''}`,
         );
       }
       lines.push('');
