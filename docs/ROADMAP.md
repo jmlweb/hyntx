@@ -10,15 +10,15 @@ All foundational phases (0-4) have been completed. The project is now in mainten
 
 ### Pending Tasks
 
-No pending tasks. All backlog items have been completed.
+| Task                                                                                      | Priority | Phase | Source   |
+| ----------------------------------------------------------------------------------------- | -------- | ----- | -------- |
+| [Add Security Workflow](backlog/add-security-workflow.md)                                 | P2       | 3     | IDEA-009 |
+| [Add Analysis History and Comparison](backlog/add-analysis-history-comparison.md)         | P1       | 4     | IDEA-010 |
+| [Improve CLI Entry Point Test Coverage](backlog/improve-cli-entry-point-test-coverage.md) | P2       | 4     | IDEA-011 |
 
 ### Accepted Ideas Awaiting Implementation
 
-| ID       | Title                                           | Priority |
-| -------- | ----------------------------------------------- | -------- |
-| IDEA-010 | Add Lightweight Analysis History and Comparison | P2       |
-
-_Run `/feed-backlog` to convert these into backlog tasks._
+No ideas awaiting implementation. All accepted ideas have been converted to backlog tasks.
 
 ---
 
@@ -53,7 +53,7 @@ _Run `/feed-backlog` to convert these into backlog tasks._
 - Type definitions to devDependencies
 - Prettier/ESLint in Husky
 
-### Phase 3: CLI and Providers (10 tasks)
+### Phase 3: CLI and Providers (11 tasks)
 
 - Basic CLI entry point
 - Anthropic provider
@@ -66,8 +66,9 @@ _Run `/feed-backlog` to convert these into backlog tasks._
 - Verbose/debug mode
 - Centralized logging system
 - Configuration health check
+- Security workflow (pending)
 
-### Phase 4: Advanced Features (10 tasks)
+### Phase 4: Advanced Features (12 tasks)
 
 - Reminder system
 - Markdown format reporter
@@ -79,6 +80,8 @@ _Run `/feed-backlog` to convert these into backlog tasks._
 - Shell config edge case refactor
 - Project-specific configuration file
 - Fix E2E tests (main module detection)
+- Analysis history and comparison (pending)
+- Improve CLI entry point test coverage (pending)
 
 **Total completed**: 38 tasks
 

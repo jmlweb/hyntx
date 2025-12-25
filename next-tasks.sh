@@ -110,6 +110,27 @@ echo "Claude command: $(command -v claude)"
 
 echo "----------------------------------------"
 
+# Pull latest changes at start (fail script if pull fails)
+echo ""
+echo "🔄 Pulling latest changes from remote repository..."
+if command -v git &> /dev/null; then
+  echo "Executing: git pull --rebase"
+  git pull --rebase
+  PULL_EXIT_CODE=$?
+  if [ $PULL_EXIT_CODE -ne 0 ]; then
+    echo "❌ Error: git pull --rebase failed (exit code: $PULL_EXIT_CODE)" >&2
+    echo "Aborting script execution." >&2
+    exit $PULL_EXIT_CODE
+  else
+    echo "✓ Successfully pulled latest changes"
+  fi
+else
+  echo "❌ Error: 'git' command not found. Cannot proceed without git." >&2
+  exit 1
+fi
+
+echo "----------------------------------------"
+
 COMPLETED=0
 
 for i in $(seq 1 $MAX_TASKS); do

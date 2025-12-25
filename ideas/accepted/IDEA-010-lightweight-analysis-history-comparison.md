@@ -122,6 +122,12 @@ This idea provides a **lighter-weight version** that:
 - **FUTURE_PLANS.md**: Historical Trend Analysis (this is a simpler precursor)
 - **Existing**: `--output` flag for manual file saving (this automates and enables comparison)
 
+## Related Tasks
+
+- [add-analysis-history-comparison.md](../../backlog/add-analysis-history-comparison.md) - P1, Phase 4
+
+**Backlog tasks created**: 2025-12-25 via `/feed-backlog`
+
 ## Example Usage
 
 ```bash
