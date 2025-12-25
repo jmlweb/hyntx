@@ -1,3 +1,9 @@
+## [1.5.0](https://github.com/jmlweb/hyntx/compare/v1.4.0...v1.5.0) (2025-12-25)
+
+### Features
+
+- **cli:** integrate watch mode for real-time prompt analysis ([19c7e2b](https://github.com/jmlweb/hyntx/commit/19c7e2b91892ca60f3ea312e56148f25776157aa))
+
 ## [1.4.0](https://github.com/jmlweb/hyntx/compare/v1.3.0...v1.4.0) (2025-12-25)
 
 ### Features
