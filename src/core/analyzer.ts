@@ -7,6 +7,7 @@
 
 import { sanitizePrompts } from './sanitizer.js';
 import { logger } from '../utils/logger.js';
+import { getCachedResult, setCachedResult } from '../cache/index.js';
 import {
   type AnalysisProvider,
   type AnalysisResult,
@@ -15,6 +16,7 @@ import {
   type ProviderType,
   type ProjectContext,
   PROVIDER_LIMITS,
+  CACHE_DEFAULTS,
 } from '../types/index.js';
 
 // =============================================================================
@@ -99,6 +101,7 @@ type AnalyzePromptsOptions = {
   readonly date: string;
   readonly context?: ProjectContext;
   readonly onProgress?: (current: number, total: number) => void;
+  readonly noCache?: boolean;
 };
 
 // =============================================================================
@@ -175,6 +178,18 @@ function inferProviderType(providerName: string): ProviderType {
   if (nameLower.includes('google') || nameLower.includes('gemini'))
     return 'google';
   return 'ollama'; // Default fallback
+}
+
+/**
+ * Extracts model identifier from provider name.
+ * Provider names typically follow the pattern "Provider (model-name)".
+ *
+ * @param providerName - Provider name (e.g., "Ollama (llama3.2)")
+ * @returns Model identifier or provider name if no model found
+ */
+function extractModelFromProvider(providerName: string): string {
+  const match = /\((.*?)\)/.exec(providerName);
+  return match?.[1] ?? providerName;
 }
 
 /**
@@ -456,8 +471,10 @@ export function mergeBatchResults(
  * Orchestrates the full analysis workflow:
  * 1. Sanitizes prompts to remove secrets
  * 2. Batches prompts based on provider limits
- * 3. Processes batches sequentially with progress updates
- * 4. Merges batch results into final output
+ * 3. Checks cache for existing results (unless noCache is true)
+ * 4. Processes batches sequentially with progress updates
+ * 5. Stores results in cache for future use
+ * 6. Merges batch results into final output
  *
  * @param options - Analysis options
  * @returns Analysis result
@@ -469,14 +486,15 @@ export function mergeBatchResults(
  *   prompts: ['prompt1', 'prompt2', 'prompt3'],
  *   date: '2025-01-15',
  *   context: { role: 'developer', techStack: ['TypeScript'] },
- *   onProgress: (current, total) => console.log(`${current}/${total}`)
+ *   onProgress: (current, total) => console.log(`${current}/${total}`),
+ *   noCache: false
  * });
  * ```
  */
 export async function analyzePrompts(
   options: AnalyzePromptsOptions,
 ): Promise<AnalysisResult> {
-  const { provider, prompts, date, context, onProgress } = options;
+  const { provider, prompts, date, context, onProgress, noCache } = options;
 
   logger.debug(
     `Starting analysis of ${String(prompts.length)} prompts for ${date}`,
@@ -529,6 +547,27 @@ export async function analyzePrompts(
       onProgress(0, 1);
     }
 
+    // Extract model identifier for cache key
+    const model = extractModelFromProvider(provider.name);
+
+    // Check cache first (unless noCache is true)
+    if (!noCache) {
+      const cachedResult = await getCachedResult(
+        batch.prompts,
+        model,
+        CACHE_DEFAULTS,
+      );
+
+      if (cachedResult) {
+        logger.debug('Using cached result for single batch', 'analyzer');
+        if (onProgress) {
+          onProgress(1, 1);
+        }
+        // Override date to match current request
+        return { ...cachedResult, date };
+      }
+    }
+
     logger.debug(
       `Processing single batch (${String(batch.tokens)} tokens)`,
       'analyzer',
@@ -539,6 +578,11 @@ export async function analyzePrompts(
 
     const elapsed = Date.now() - startTime;
     logger.debug(`Batch completed in ${String(elapsed)}ms`, 'analyzer');
+
+    // Store in cache (unless noCache is true)
+    if (!noCache) {
+      await setCachedResult(batch.prompts, model, result);
+    }
 
     if (onProgress) {
       onProgress(1, 1);
@@ -555,6 +599,7 @@ export async function analyzePrompts(
   // Step 4: Process batches sequentially with progress updates
   const results: AnalysisResult[] = [];
   const totalBatches = batches.length;
+  const model = extractModelFromProvider(provider.name);
 
   for (let i = 0; i < batches.length; i++) {
     const batch = batches[i];
@@ -564,14 +609,34 @@ export async function analyzePrompts(
       onProgress(i, totalBatches);
     }
 
+    // Check cache for this batch (unless noCache is true)
+    let result: AnalysisResult | null = null;
+    if (!noCache) {
+      result = await getCachedResult(batch.prompts, model, CACHE_DEFAULTS);
+      if (result) {
+        logger.debug(
+          `Using cached result for batch ${String(i + 1)}/${String(totalBatches)}`,
+          'analyzer',
+        );
+        // Override date to match current request
+        results.push({ ...result, date });
+        continue;
+      }
+    }
+
     logger.debug(
       `Processing batch ${String(i + 1)}/${String(totalBatches)} (${String(batch.tokens)} tokens)`,
       'analyzer',
     );
     const startTime = Date.now();
 
-    const result = await provider.analyze(batch.prompts, date, context);
+    result = await provider.analyze(batch.prompts, date, context);
     results.push(result);
+
+    // Store in cache (unless noCache is true)
+    if (!noCache) {
+      await setCachedResult(batch.prompts, model, result);
+    }
 
     const elapsed = Date.now() - startTime;
     logger.debug(

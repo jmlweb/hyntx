@@ -288,7 +288,7 @@ function extractSimpleResponse(obj: Record<string, unknown>): SimpleResponse {
   const tip =
     typeof obj['tip'] === 'string'
       ? obj['tip']
-      : issues.length > 0
+      : issues.length > 0 && issues[0]
         ? issues[0].fix
         : 'No suggestions';
 

@@ -65,3 +65,6 @@ yarn.lock
 # Optional: Keep example env files
 # !.env.example
 
+# Hyntx cache directory
+.hyntx-cache/
+

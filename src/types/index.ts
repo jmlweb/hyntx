@@ -421,3 +421,41 @@ export type LogWatcher = {
   on(event: 'error', callback: (error: Error) => void): void;
   on(event: 'ready', callback: () => void): void;
 };
+
+// =============================================================================
+// Cache Types
+// =============================================================================
+
+/**
+ * Metadata stored with cached analysis results.
+ * Used for cache validation and invalidation.
+ */
+export type CacheMetadata = {
+  readonly cachedAt: number;
+  readonly promptCount: number;
+  readonly model: string;
+  readonly systemPromptHash: string;
+};
+
+/**
+ * Complete cached batch result including metadata.
+ * Stored as JSON files in the cache directory.
+ */
+export type CachedBatchResult = {
+  readonly result: AnalysisResult;
+  readonly metadata: CacheMetadata;
+};
+
+/**
+ * Options for cache operations.
+ */
+export type CacheOptions = {
+  readonly ttlMs: number;
+};
+
+/**
+ * Default values for cache configuration.
+ */
+export const CACHE_DEFAULTS = {
+  ttlMs: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+} as const;

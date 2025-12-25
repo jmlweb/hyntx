@@ -151,6 +151,8 @@ describe('parseArguments', () => {
       noHistory: false,
       watch: false,
       quiet: false,
+      clearCache: false,
+      noCache: false,
     });
   });
 
@@ -203,6 +205,8 @@ describe('parseArguments', () => {
       noHistory: false,
       watch: false,
       quiet: false,
+      clearCache: false,
+      noCache: false,
     });
   });
 
@@ -897,6 +901,8 @@ describe('parseArguments - New Features', () => {
       noHistory: false,
       watch: false,
       quiet: false,
+      clearCache: false,
+      noCache: false,
     });
   });
 });

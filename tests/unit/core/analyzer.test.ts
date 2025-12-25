@@ -714,6 +714,7 @@ describe('analyzePrompts', () => {
         'My API key is sk-1234567890abcdefghijklmnopqrstuvwxyz123456789012',
       ],
       date: '2025-01-15',
+      noCache: true, // Bypass cache to test sanitization
     });
 
     // Verify analyze was called

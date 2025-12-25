@@ -41,3 +41,27 @@ export const LAST_RUN_FILE = join(HOME, '.hyntx-last-run');
  */
 export const HYNTX_HISTORY_DIR =
   process.env['HYNTX_HISTORY_DIR'] ?? join(HOME, '.hyntx', 'history');
+
+/**
+ * Path to Hyntx cache directory.
+ * Contains cached analysis results to avoid redundant API calls.
+ *
+ * Structure: ~/.hyntx-cache/analysis/<cache-key>.json
+ *            ~/.hyntx-cache/analysis/.metadata.json
+ *
+ * Can be overridden via HYNTX_CACHE_DIR environment variable.
+ */
+export const HYNTX_CACHE_DIR =
+  process.env['HYNTX_CACHE_DIR'] ?? join(HOME, '.hyntx-cache');
+
+/**
+ * Path to cache analysis subdirectory.
+ * Contains individual cache entry files.
+ */
+export const CACHE_ANALYSIS_DIR = join(HYNTX_CACHE_DIR, 'analysis');
+
+/**
+ * Path to cache metadata file.
+ * Stores system prompt hash for invalidation detection.
+ */
+export const CACHE_META_FILE = join(CACHE_ANALYSIS_DIR, '.metadata.json');

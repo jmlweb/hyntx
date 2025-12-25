@@ -57,6 +57,7 @@ import {
   printHistorySummary,
   formatComparisonJson,
 } from './core/reporter.js';
+import { clearCache } from './cache/index.js';
 import type {
   AnalysisProvider,
   AnalysisResult,
@@ -97,6 +98,8 @@ export type ParsedArgs = {
   readonly noHistory: boolean;
   readonly watch: boolean;
   readonly quiet: boolean;
+  readonly clearCache: boolean;
+  readonly noCache: boolean;
 };
 
 // =============================================================================
@@ -200,6 +203,14 @@ export function parseArguments(): ParsedArgs {
           short: 'q',
           default: false,
         },
+        'clear-cache': {
+          type: 'boolean',
+          default: false,
+        },
+        'no-cache': {
+          type: 'boolean',
+          default: false,
+        },
         help: {
           type: 'boolean',
           short: 'h',
@@ -236,6 +247,8 @@ export function parseArguments(): ParsedArgs {
       noHistory: values['no-history'] || false,
       watch: values.watch || false,
       quiet: values.quiet || false,
+      clearCache: values['clear-cache'] || false,
+      noCache: values['no-cache'] || false,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -598,6 +611,10 @@ ${chalk.bold('Options:')}
   --history-summary      Show summary statistics of analysis history
   --no-history           Skip saving this analysis to history
 
+  ${chalk.bold('Cache:')}
+  --clear-cache          Clear all cached analysis results and exit
+  --no-cache             Bypass cache for this run (force fresh analysis)
+
   ${chalk.bold('Configuration:')}
   -v, --verbose        Enable debug output to stderr
   --check-config       Validate configuration and test provider connectivity
@@ -651,6 +668,10 @@ ${chalk.bold('Examples:')}
   hyntx --history                     # List all history entries
   hyntx --history-summary             # Show history statistics
   hyntx --no-history                  # Analyze without saving to history
+
+  ${chalk.bold('Cache:')}
+  hyntx --clear-cache                 # Clear all cached results
+  hyntx --no-cache                    # Force fresh analysis (bypass cache)
 
   ${chalk.bold('Status checks:')}
   hyntx --check-config                # Validate configuration
@@ -901,6 +922,7 @@ export async function connectProviderWithSpinner(
  * @param date - Date context
  * @param context - Optional project context
  * @param isJsonMode - Whether JSON output mode is active
+ * @param noCache - Whether to bypass cache
  * @returns Analysis result
  */
 export async function analyzeWithProgress(
@@ -909,6 +931,7 @@ export async function analyzeWithProgress(
   date: string,
   context: ProjectContext | undefined,
   isJsonMode: boolean,
+  noCache?: boolean,
 ): Promise<AnalysisResult> {
   const spinner = isJsonMode
     ? null
@@ -925,6 +948,7 @@ export async function analyzeWithProgress(
           spinner.text = `Analyzing ${String(prompts.length)} prompts (batch ${String(current + 1)}/${String(total)})...`;
         }
       },
+      noCache,
     });
 
     if (!isJsonMode) {
@@ -1168,6 +1192,20 @@ export async function main(): Promise<void> {
       showReminderStatus();
     }
 
+    // Handle cache clearing (exit early)
+    if (args.clearCache) {
+      const spinner = isJsonMode ? null : ora('Clearing cache...').start();
+      await clearCache();
+      if (isJsonMode) {
+        console.log(
+          JSON.stringify({ success: true, message: 'Cache cleared' }),
+        );
+      } else {
+        spinner?.succeed(chalk.green('Cache cleared successfully'));
+      }
+      process.exit(EXIT_CODES.SUCCESS);
+    }
+
     // Handle history listing commands (read-only, exit early)
     if (args.history || args.historySummary) {
       const dates = await listAvailableDates();
@@ -1241,6 +1279,7 @@ export async function main(): Promise<void> {
           group.date,
           config.context,
           isJsonMode,
+          args.noCache,
         );
         results.push(result);
       }
@@ -1329,6 +1368,7 @@ export async function main(): Promise<void> {
         date,
         config.context,
         isJsonMode,
+        args.noCache,
       );
 
       // Write output file if specified

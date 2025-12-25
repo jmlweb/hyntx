@@ -8,8 +8,7 @@ This roadmap organizes implementation tasks following a Vertical Slicing approac
 
 ### Active Tasks
 
-- [ ] [Implement Disk Cache for Analysis Results](../backlog/ollama-disk-cache.md) - P1
-- [ ] [Adaptive Micro-Batching for Small Models](../backlog/ollama-adaptive-batching.md) - P1 (depends on disk-cache)
+- [ ] [Adaptive Micro-Batching for Small Models](../backlog/ollama-adaptive-batching.md) - P1
 - [ ] [Multi-Pass Progressive Schema for Small Models](../backlog/ollama-progressive-schema.md) - P2 (depends on adaptive-batching)
 
 ---
@@ -82,7 +81,11 @@ This roadmap organizes implementation tasks following a Vertical Slicing approac
 - Watch mode file watcher with debouncing and signal handling
 - CLI integration with --watch and --quiet flags
 
-**Total completed**: 45 tasks
+### Phase 6: Reliability (1 task)
+
+- Disk cache for analysis results
+
+**Total completed**: 46 tasks
 
 ---
 
