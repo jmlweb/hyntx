@@ -8,7 +8,9 @@ This roadmap organizes implementation tasks following a Vertical Slicing approac
 
 ### Active Tasks
 
-- [ ] [Improve Small Ollama Model Compatibility](../backlog/improve-small-model-compatibility.md) - P1
+- [ ] [Implement Disk Cache for Analysis Results](../backlog/ollama-disk-cache.md) - P1
+- [ ] [Adaptive Micro-Batching for Small Models](../backlog/ollama-adaptive-batching.md) - P1 (depends on disk-cache)
+- [ ] [Multi-Pass Progressive Schema for Small Models](../backlog/ollama-progressive-schema.md) - P2 (depends on adaptive-batching)
 
 ---
 
