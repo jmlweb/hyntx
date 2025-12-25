@@ -49,6 +49,12 @@ vi.mock('./core/reporter.js', () => ({
     compact ? JSON.stringify(result) : JSON.stringify(result, null, 2),
   ),
   formatMarkdown: vi.fn(() => '# Markdown Report'),
+  printComparison: vi.fn(),
+  printHistoryList: vi.fn(),
+  printHistorySummary: vi.fn(),
+  formatComparisonJson: vi.fn((comparison, compact) =>
+    compact ? JSON.stringify(comparison) : JSON.stringify(comparison, null, 2),
+  ),
 }));
 
 vi.mock('./core/reminder.js', () => ({
@@ -75,7 +81,13 @@ import { isFirstRun, getEnvConfig } from './utils/env.js';
 import { claudeProjectsExist, readLogs } from './core/log-reader.js';
 import { runSetup } from './core/setup.js';
 import { analyzePrompts } from './core/analyzer.js';
-import { printReport, formatJson } from './core/reporter.js';
+import {
+  printReport,
+  formatJson,
+  printComparison,
+  printHistoryList,
+  printHistorySummary,
+} from './core/reporter.js';
 import { getAvailableProvider } from './providers/index.js';
 import { EXIT_CODES } from './types/index.js';
 import type {
@@ -654,7 +666,8 @@ describe('analyzeWithProgress', () => {
 });
 
 describe('displayResults', () => {
-  let mockLog: ReturnType<typeof vi.spyOn<typeof console, 'log'>>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockLog: any;
 
   beforeEach(() => {
     mockLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
@@ -662,6 +675,7 @@ describe('displayResults', () => {
   });
 
   afterEach(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     mockLog.mockRestore();
   });
 
@@ -693,8 +707,11 @@ describe('displayResults', () => {
     expect(mockLog).toHaveBeenCalled();
 
     // Verify that the output is valid JSON
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
     const outputCall = mockLog.mock.calls[0];
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (outputCall?.[0]) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       const output = String(outputCall[0]);
       expect(() => {
         JSON.parse(output);
@@ -716,8 +733,11 @@ describe('displayResults', () => {
     expect(mockLog).toHaveBeenCalled();
 
     // Verify that the output is compact (no newlines except at the end)
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
     const outputCall = mockLog.mock.calls[0];
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (outputCall?.[0]) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       const output = String(outputCall[0]);
       const lines = output.split('\n');
       // Compact JSON should be on a single line (or very few lines)
@@ -1433,5 +1453,1803 @@ describe('writeMultiDayJsonOutput - robust error handling', () => {
     await expect(
       index.writeMultiDayJsonOutput('/tmp/report.json', mockResults, false),
     ).rejects.toThrow('Failed to write output file /tmp/report.json');
+  });
+});
+
+// =============================================================================
+// Additional Coverage Tests - Comparison and History Flags
+// =============================================================================
+
+describe('validateArguments - comparison flags', () => {
+  const originalArgv = process.argv;
+
+  afterEach(() => {
+    process.argv = originalArgv;
+  });
+
+  it('throws error when using multiple comparison flags together', () => {
+    process.argv = ['node', 'index.js', '--compare-week', '--compare-month'];
+    const args = index.parseArguments();
+
+    expect(() => {
+      index.validateArguments(args);
+    }).toThrow('Cannot use multiple comparison flags together');
+  });
+
+  it('throws error when using --compare-with with --compare-week', () => {
+    process.argv = [
+      'node',
+      'index.js',
+      '--compare-with',
+      '2025-01-15',
+      '--compare-week',
+    ];
+    const args = index.parseArguments();
+
+    expect(() => {
+      index.validateArguments(args);
+    }).toThrow('Cannot use multiple comparison flags together');
+  });
+
+  it('throws error when using comparison flags with --from/--to', () => {
+    process.argv = [
+      'node',
+      'index.js',
+      '--compare-week',
+      '--from',
+      '2025-01-20',
+      '--to',
+      '2025-01-25',
+    ];
+    const args = index.parseArguments();
+
+    expect(() => {
+      index.validateArguments(args);
+    }).toThrow('Cannot use comparison flags with --from/--to date range');
+  });
+
+  it('accepts valid comparison flag alone', () => {
+    process.argv = ['node', 'index.js', '--compare-week'];
+    const args = index.parseArguments();
+
+    expect(() => {
+      index.validateArguments(args);
+    }).not.toThrow();
+  });
+
+  it('accepts --compare-with with valid date', () => {
+    process.argv = ['node', 'index.js', '--compare-with', '2025-01-15'];
+    const args = index.parseArguments();
+
+    expect(() => {
+      index.validateArguments(args);
+    }).not.toThrow();
+  });
+});
+
+describe('validateArguments - history flags', () => {
+  const originalArgv = process.argv;
+
+  afterEach(() => {
+    process.argv = originalArgv;
+  });
+
+  it('throws error when using --history with --history-summary', () => {
+    process.argv = ['node', 'index.js', '--history', '--history-summary'];
+    const args = index.parseArguments();
+
+    expect(() => {
+      index.validateArguments(args);
+    }).toThrow('Cannot use --history and --history-summary together');
+  });
+
+  it('throws error when using --history with date filters', () => {
+    process.argv = ['node', 'index.js', '--history', '--date', 'yesterday'];
+    const args = index.parseArguments();
+
+    expect(() => {
+      index.validateArguments(args);
+    }).toThrow('Cannot use history listing flags with date filters');
+  });
+
+  it('throws error when using --history with --from/--to', () => {
+    process.argv = [
+      'node',
+      'index.js',
+      '--history',
+      '--from',
+      '2025-01-20',
+      '--to',
+      '2025-01-25',
+    ];
+    const args = index.parseArguments();
+
+    expect(() => {
+      index.validateArguments(args);
+    }).toThrow('Cannot use history listing flags with date filters');
+  });
+
+  it('throws error when using history flags with comparison flags', () => {
+    process.argv = ['node', 'index.js', '--history', '--compare-week'];
+    const args = index.parseArguments();
+
+    expect(() => {
+      index.validateArguments(args);
+    }).toThrow('Cannot use history listing flags with comparison flags');
+  });
+
+  it('accepts --history alone', () => {
+    process.argv = ['node', 'index.js', '--history'];
+    const args = index.parseArguments();
+
+    expect(() => {
+      index.validateArguments(args);
+    }).not.toThrow();
+  });
+
+  it('accepts --history-summary alone', () => {
+    process.argv = ['node', 'index.js', '--history-summary'];
+    const args = index.parseArguments();
+
+    expect(() => {
+      index.validateArguments(args);
+    }).not.toThrow();
+  });
+});
+
+// =============================================================================
+// JSON Mode Tests
+// =============================================================================
+
+describe('readLogsWithSpinner - JSON mode', () => {
+  const originalArgv = process.argv;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockExit: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockLog: any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.argv = ['node', 'index.js'];
+    mockExit = vi.spyOn(process, 'exit').mockImplementation(() => {
+      return undefined as never;
+    });
+    mockLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    process.argv = originalArgv;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    mockExit.mockRestore();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    mockLog.mockRestore();
+  });
+
+  it('outputs JSON error when Claude projects directory does not exist in JSON mode', async () => {
+    mockClaudeProjectsExist.mockReturnValue(false);
+
+    process.argv = ['node', 'index.js', '--format', 'json'];
+    const args = index.parseArguments();
+    await index.readLogsWithSpinner(args, true);
+
+    expect(mockLog).toHaveBeenCalledWith(expect.stringContaining('"error"'));
+    expect(mockLog).toHaveBeenCalledWith(expect.stringContaining('NO_DATA'));
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.NO_DATA);
+  });
+
+  it('outputs JSON error when no prompts found in JSON mode', async () => {
+    mockClaudeProjectsExist.mockReturnValue(true);
+    mockReadLogs.mockResolvedValue({
+      prompts: [],
+      warnings: [],
+    });
+
+    process.argv = ['node', 'index.js', '--format', 'json'];
+    const args = index.parseArguments();
+    await index.readLogsWithSpinner(args, true);
+
+    expect(mockLog).toHaveBeenCalledWith(
+      expect.stringContaining('No prompts found'),
+    );
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.NO_DATA);
+  });
+
+  it('outputs JSON error when readLogs throws in JSON mode', async () => {
+    mockClaudeProjectsExist.mockReturnValue(true);
+    mockReadLogs.mockRejectedValue(new Error('Read error'));
+
+    process.argv = ['node', 'index.js', '--format', 'json'];
+    const args = index.parseArguments();
+    await index.readLogsWithSpinner(args, true);
+
+    expect(mockLog).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to read logs'),
+    );
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.ERROR);
+  });
+
+  it('returns prompts without spinner in JSON mode', async () => {
+    mockClaudeProjectsExist.mockReturnValue(true);
+    const mockLogResult = {
+      prompts: [
+        {
+          content: 'Test prompt',
+          timestamp: '2025-01-20T10:00:00Z',
+          sessionId: 'session1',
+          project: 'project1',
+          date: '2025-01-20',
+        },
+      ],
+      warnings: [],
+    };
+    mockReadLogs.mockResolvedValue(mockLogResult);
+
+    process.argv = ['node', 'index.js', '--format', 'json'];
+    const args = index.parseArguments();
+    const result = await index.readLogsWithSpinner(args, true);
+
+    expect(result).toEqual(mockLogResult);
+    // Spinner should not be created in JSON mode (ora not called with message)
+  });
+
+  it('includes date range in spinner message', async () => {
+    mockClaudeProjectsExist.mockReturnValue(true);
+    const mockLogResult = {
+      prompts: [
+        {
+          content: 'Test prompt',
+          timestamp: '2025-01-20T10:00:00Z',
+          sessionId: 'session1',
+          project: 'project1',
+          date: '2025-01-20',
+        },
+      ],
+      warnings: [],
+    };
+    mockReadLogs.mockResolvedValue(mockLogResult);
+
+    process.argv = [
+      'node',
+      'index.js',
+      '--from',
+      '2025-01-20',
+      '--to',
+      '2025-01-25',
+    ];
+    const args = index.parseArguments();
+    await index.readLogsWithSpinner(args, false);
+
+    expect(ora).toHaveBeenCalledWith(
+      expect.stringContaining('from 2025-01-20 to 2025-01-25'),
+    );
+  });
+});
+
+describe('connectProviderWithSpinner - JSON mode', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockExit: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockLog: any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockExit = vi.spyOn(process, 'exit').mockImplementation(() => {
+      return undefined as never;
+    });
+    mockLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    mockExit.mockRestore();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    mockLog.mockRestore();
+  });
+
+  it('outputs JSON error when no services configured in JSON mode', async () => {
+    const config: EnvConfig = {
+      services: [],
+      reminder: '7d',
+      ollama: { model: 'llama3.2', host: 'http://localhost:11434' },
+      anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
+      google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
+    };
+    mockGetEnvConfig.mockReturnValue(config);
+
+    await index.connectProviderWithSpinner(true);
+
+    expect(mockLog).toHaveBeenCalledWith(
+      expect.stringContaining('No providers configured'),
+    );
+    expect(mockLog).toHaveBeenCalledWith(
+      expect.stringContaining('PROVIDER_UNAVAILABLE'),
+    );
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.PROVIDER_UNAVAILABLE);
+  });
+
+  it('outputs JSON error when provider unavailable in JSON mode', async () => {
+    const config: EnvConfig = {
+      services: ['ollama'],
+      reminder: '7d',
+      ollama: { model: 'llama3.2', host: 'http://localhost:11434' },
+      anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
+      google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
+    };
+    mockGetEnvConfig.mockReturnValue(config);
+    mockGetAvailableProvider.mockRejectedValue(
+      new Error('No providers available'),
+    );
+
+    await index.connectProviderWithSpinner(true);
+
+    expect(mockLog).toHaveBeenCalledWith(
+      expect.stringContaining('No providers available'),
+    );
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.PROVIDER_UNAVAILABLE);
+  });
+
+  it('returns provider silently in JSON mode', async () => {
+    const config: EnvConfig = {
+      services: ['ollama'],
+      reminder: '7d',
+      ollama: { model: 'llama3.2', host: 'http://localhost:11434' },
+      anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
+      google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
+    };
+    mockGetEnvConfig.mockReturnValue(config);
+
+    const mockProvider: AnalysisProvider = {
+      name: 'Ollama',
+      isAvailable: vi.fn().mockResolvedValue(true),
+      analyze: vi.fn(),
+    };
+    mockGetAvailableProvider.mockResolvedValue(mockProvider);
+
+    const result = await index.connectProviderWithSpinner(true);
+
+    expect(result).toBe(mockProvider);
+  });
+
+  it('invokes fallback callback when provider falls back', async () => {
+    const config: EnvConfig = {
+      services: ['ollama', 'anthropic'],
+      reminder: '7d',
+      ollama: { model: 'llama3.2', host: 'http://localhost:11434' },
+      anthropic: { model: 'claude-3-5-haiku-latest', apiKey: 'test-key' },
+      google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
+    };
+    mockGetEnvConfig.mockReturnValue(config);
+
+    const mockProvider: AnalysisProvider = {
+      name: 'Anthropic',
+      isAvailable: vi.fn().mockResolvedValue(true),
+      analyze: vi.fn(),
+    };
+
+    // eslint-disable-next-line @typescript-eslint/require-await
+    mockGetAvailableProvider.mockImplementation(async (_config, onFallback) => {
+      if (onFallback) {
+        onFallback('Ollama', 'Anthropic');
+      }
+      return mockProvider;
+    });
+
+    const result = await index.connectProviderWithSpinner(false);
+
+    expect(result.name).toBe('Anthropic');
+  });
+});
+
+describe('analyzeWithProgress - JSON mode', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockExit: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockLog: any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockExit = vi.spyOn(process, 'exit').mockImplementation(() => {
+      return undefined as never;
+    });
+    mockLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    mockExit.mockRestore();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    mockLog.mockRestore();
+  });
+
+  it('returns result silently in JSON mode', async () => {
+    const mockProvider: AnalysisProvider = {
+      name: 'Ollama',
+      isAvailable: vi.fn(),
+      analyze: vi.fn(),
+    };
+    const prompts = ['prompt1', 'prompt2'];
+    const mockResult: AnalysisResult = {
+      date: '2025-01-20',
+      patterns: [],
+      stats: { totalPrompts: 2, promptsWithIssues: 0, overallScore: 10 },
+      topSuggestion: 'Great job!',
+    };
+
+    mockAnalyzePrompts.mockResolvedValue(mockResult);
+
+    const result = await index.analyzeWithProgress(
+      mockProvider,
+      prompts,
+      '2025-01-20',
+      undefined,
+      true,
+    );
+
+    expect(result).toBe(mockResult);
+  });
+
+  it('outputs JSON error when analysis fails in JSON mode', async () => {
+    const mockProvider: AnalysisProvider = {
+      name: 'Ollama',
+      isAvailable: vi.fn(),
+      analyze: vi.fn(),
+    };
+    const prompts = ['prompt1'];
+
+    mockAnalyzePrompts.mockRejectedValue(new Error('Analysis error'));
+
+    await index.analyzeWithProgress(
+      mockProvider,
+      prompts,
+      '2025-01-20',
+      undefined,
+      true,
+    );
+
+    expect(mockLog).toHaveBeenCalledWith(
+      expect.stringContaining('Analysis failed'),
+    );
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.ERROR);
+  });
+});
+
+describe('handleError - JSON mode', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockExit: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockLog: any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockExit = vi.spyOn(process, 'exit').mockImplementation(() => {
+      return undefined as never;
+    });
+    mockLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    mockExit.mockRestore();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    mockLog.mockRestore();
+  });
+
+  it('outputs JSON error in JSON mode', () => {
+    const error = new Error('Test error');
+
+    index.handleError(error, true);
+
+    expect(mockLog).toHaveBeenCalledWith(expect.stringContaining('Test error'));
+    expect(mockLog).toHaveBeenCalledWith(
+      expect.stringContaining('"code":"ERROR"'),
+    );
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.ERROR);
+  });
+
+  it('outputs to logger in terminal mode', () => {
+    const error = new Error('Test error');
+
+    index.handleError(error, false);
+
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.ERROR);
+  });
+});
+
+// =============================================================================
+// Additional Edge Case Tests
+// =============================================================================
+
+describe('displayDryRunSummary - edge cases', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockLog: any;
+  const originalArgv = process.argv;
+
+  beforeEach(() => {
+    mockLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    process.argv = originalArgv;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    mockLog.mockRestore();
+  });
+
+  it('displays "and X more" when more than 3 prompts', () => {
+    const prompts = [
+      {
+        content: 'Test prompt 1',
+        timestamp: '2025-01-20T10:00:00Z',
+        sessionId: 'session1',
+        project: 'project-a',
+        date: '2025-01-20',
+      },
+      {
+        content: 'Test prompt 2',
+        timestamp: '2025-01-20T11:00:00Z',
+        sessionId: 'session1',
+        project: 'project-a',
+        date: '2025-01-20',
+      },
+      {
+        content: 'Test prompt 3',
+        timestamp: '2025-01-20T12:00:00Z',
+        sessionId: 'session1',
+        project: 'project-a',
+        date: '2025-01-20',
+      },
+      {
+        content: 'Test prompt 4',
+        timestamp: '2025-01-20T13:00:00Z',
+        sessionId: 'session1',
+        project: 'project-a',
+        date: '2025-01-20',
+      },
+      {
+        content: 'Test prompt 5',
+        timestamp: '2025-01-20T14:00:00Z',
+        sessionId: 'session1',
+        project: 'project-a',
+        date: '2025-01-20',
+      },
+    ];
+
+    process.argv = ['node', 'index.js', '--date', 'today'];
+    const args = index.parseArguments();
+
+    index.displayDryRunSummary(prompts, args);
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    const calls = mockLog.mock.calls.map((call: unknown[]) => call.join(' '));
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    const output = calls.join('\n');
+
+    expect(output).toContain('and 2 more');
+  });
+
+  it('truncates long prompts in preview', () => {
+    const longContent = 'A'.repeat(200);
+    const prompts = [
+      {
+        content: longContent,
+        timestamp: '2025-01-20T10:00:00Z',
+        sessionId: 'session1',
+        project: 'project-a',
+        date: '2025-01-20',
+      },
+    ];
+
+    process.argv = ['node', 'index.js', '--date', 'today'];
+    const args = index.parseArguments();
+
+    index.displayDryRunSummary(prompts, args);
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    const calls = mockLog.mock.calls.map((call: unknown[]) => call.join(' '));
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    const output = calls.join('\n');
+
+    expect(output).toContain('...');
+  });
+
+  it('lists unique projects sorted alphabetically', () => {
+    const prompts = [
+      {
+        content: 'Test prompt 1',
+        timestamp: '2025-01-20T10:00:00Z',
+        sessionId: 'session1',
+        project: 'zebra',
+        date: '2025-01-20',
+      },
+      {
+        content: 'Test prompt 2',
+        timestamp: '2025-01-20T11:00:00Z',
+        sessionId: 'session1',
+        project: 'alpha',
+        date: '2025-01-20',
+      },
+      {
+        content: 'Test prompt 3',
+        timestamp: '2025-01-20T12:00:00Z',
+        sessionId: 'session1',
+        project: 'zebra',
+        date: '2025-01-20',
+      },
+    ];
+
+    process.argv = ['node', 'index.js', '--date', 'today'];
+    const args = index.parseArguments();
+
+    index.displayDryRunSummary(prompts, args);
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    const calls = mockLog.mock.calls.map((call: unknown[]) => call.join(' '));
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    const output = calls.join('\n');
+
+    expect(output).toContain('alpha, zebra');
+  });
+});
+
+describe('parseArguments - history arguments', () => {
+  const originalArgv = process.argv;
+
+  afterEach(() => {
+    process.argv = originalArgv;
+  });
+
+  it('parses --compare-with argument', () => {
+    process.argv = ['node', 'index.js', '--compare-with', '2025-01-15'];
+    const result = index.parseArguments();
+    expect(result.compareWith).toBe('2025-01-15');
+  });
+
+  it('parses --compare-week argument', () => {
+    process.argv = ['node', 'index.js', '--compare-week'];
+    const result = index.parseArguments();
+    expect(result.compareWeek).toBe(true);
+  });
+
+  it('parses --compare-month argument', () => {
+    process.argv = ['node', 'index.js', '--compare-month'];
+    const result = index.parseArguments();
+    expect(result.compareMonth).toBe(true);
+  });
+
+  it('parses --history argument', () => {
+    process.argv = ['node', 'index.js', '--history'];
+    const result = index.parseArguments();
+    expect(result.history).toBe(true);
+  });
+
+  it('parses --history-summary argument', () => {
+    process.argv = ['node', 'index.js', '--history-summary'];
+    const result = index.parseArguments();
+    expect(result.historySummary).toBe(true);
+  });
+
+  it('parses --no-history argument', () => {
+    process.argv = ['node', 'index.js', '--no-history'];
+    const result = index.parseArguments();
+    expect(result.noHistory).toBe(true);
+  });
+});
+
+describe('writeOutputFile - markdown format', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockMkdir.mockResolvedValue(undefined);
+    mockWriteFile.mockResolvedValue(undefined);
+    mockRename.mockResolvedValue(undefined);
+  });
+
+  it('writes Markdown format correctly', async () => {
+    const mockResult: AnalysisResult = {
+      date: '2025-01-20',
+      patterns: [],
+      stats: { totalPrompts: 2, promptsWithIssues: 0, overallScore: 10 },
+      topSuggestion: 'Great job!',
+    };
+
+    await index.writeOutputFile('/tmp/report.md', mockResult, 'md', false);
+
+    expect(mockWriteFile).toHaveBeenCalledWith(
+      '/tmp/report.md.tmp',
+      '# Markdown Report',
+      'utf-8',
+    );
+    expect(mockRename).toHaveBeenCalledWith(
+      '/tmp/report.md.tmp',
+      '/tmp/report.md',
+    );
+  });
+});
+
+describe('writeOutputFile - error on rename', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockMkdir.mockResolvedValue(undefined);
+    mockWriteFile.mockResolvedValue(undefined);
+    mockRename.mockRejectedValue(new Error('EXDEV: cross-device link'));
+  });
+
+  it('throws descriptive error when rename fails', async () => {
+    const mockResult: AnalysisResult = {
+      date: '2025-01-20',
+      patterns: [],
+      stats: { totalPrompts: 2, promptsWithIssues: 0, overallScore: 10 },
+      topSuggestion: 'Great job!',
+    };
+
+    await expect(
+      index.writeOutputFile('/tmp/report.md', mockResult, 'md', false),
+    ).rejects.toThrow('Failed to write output file /tmp/report.md: EXDEV');
+  });
+});
+
+describe('getOutputFilePath - additional scenarios', () => {
+  it('handles nested directory paths', () => {
+    const result = index.getOutputFilePath(
+      'output/subdir/report.md',
+      '2025-01-20',
+    );
+    expect(result).toMatch(/output\/subdir\/report-2025-01-20\.md$/);
+  });
+
+  it('handles absolute paths', () => {
+    const result = index.getOutputFilePath('/absolute/path/report.json');
+    expect(result).toBe('/absolute/path/report.json');
+  });
+
+  it('handles absolute paths with date', () => {
+    const result = index.getOutputFilePath(
+      '/absolute/path/report.json',
+      '2025-01-20',
+    );
+    expect(result).toBe('/absolute/path/report-2025-01-20.json');
+  });
+});
+
+// =============================================================================
+// runConfigCheck Tests
+// =============================================================================
+
+// Mock additional modules for runConfigCheck
+vi.mock('./utils/config-validator.js', () => ({
+  validateAllProviders: vi.fn(),
+  printHealthCheckResult: vi.fn(),
+}));
+
+import {
+  validateAllProviders,
+  printHealthCheckResult,
+} from './utils/config-validator.js';
+
+const mockValidateAllProviders = vi.mocked(validateAllProviders);
+const mockPrintHealthCheckResult = vi.mocked(printHealthCheckResult);
+
+describe('runConfigCheck', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockExit: any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockExit = vi.spyOn(process, 'exit').mockImplementation(() => {
+      return undefined as never;
+    });
+  });
+
+  afterEach(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    mockExit.mockRestore();
+  });
+
+  it('exits with SUCCESS when all providers are valid', async () => {
+    const config: EnvConfig = {
+      services: ['ollama'],
+      reminder: '7d',
+      ollama: { model: 'llama3.2', host: 'http://localhost:11434' },
+      anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
+      google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
+    };
+    mockGetEnvConfig.mockReturnValue(config);
+
+    mockValidateAllProviders.mockResolvedValue({
+      allValid: true,
+      providers: [],
+      summary: {
+        totalConfigured: 1,
+        availableCount: 1,
+        unavailableCount: 0,
+      },
+    });
+
+    await index.runConfigCheck();
+
+    expect(mockValidateAllProviders).toHaveBeenCalledWith(config);
+    expect(mockPrintHealthCheckResult).toHaveBeenCalled();
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.SUCCESS);
+  });
+
+  it('exits with SUCCESS when some providers are available', async () => {
+    const config: EnvConfig = {
+      services: ['ollama', 'anthropic'],
+      reminder: '7d',
+      ollama: { model: 'llama3.2', host: 'http://localhost:11434' },
+      anthropic: { model: 'claude-3-5-haiku-latest', apiKey: 'test-key' },
+      google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
+    };
+    mockGetEnvConfig.mockReturnValue(config);
+
+    mockValidateAllProviders.mockResolvedValue({
+      allValid: false,
+      providers: [],
+      summary: {
+        totalConfigured: 2,
+        availableCount: 1,
+        unavailableCount: 1,
+      },
+    });
+
+    await index.runConfigCheck();
+
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.SUCCESS);
+  });
+
+  it('exits with PROVIDER_UNAVAILABLE when no providers are available', async () => {
+    const config: EnvConfig = {
+      services: ['ollama'],
+      reminder: '7d',
+      ollama: { model: 'llama3.2', host: 'http://localhost:11434' },
+      anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
+      google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
+    };
+    mockGetEnvConfig.mockReturnValue(config);
+
+    mockValidateAllProviders.mockResolvedValue({
+      allValid: false,
+      providers: [],
+      summary: {
+        totalConfigured: 1,
+        availableCount: 0,
+        unavailableCount: 1,
+      },
+    });
+
+    await index.runConfigCheck();
+
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.PROVIDER_UNAVAILABLE);
+  });
+});
+
+// =============================================================================
+// showReminderStatus Tests - Additional Scenarios
+// =============================================================================
+
+import {
+  getLastRun,
+  getDaysElapsed,
+  shouldShowReminder,
+} from './core/reminder.js';
+
+const mockGetLastRun = vi.mocked(getLastRun);
+const mockGetDaysElapsed = vi.mocked(getDaysElapsed);
+const mockShouldShowReminder = vi.mocked(shouldShowReminder);
+
+describe('showReminderStatus - variations', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockExit: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockLog: any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockExit = vi.spyOn(process, 'exit').mockImplementation(() => {
+      return undefined as never;
+    });
+    mockLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    mockExit.mockRestore();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    mockLog.mockRestore();
+  });
+
+  it('displays "Never" when no last run', () => {
+    const config: EnvConfig = {
+      services: ['ollama'],
+      reminder: '7d',
+      ollama: { model: 'llama3.2', host: 'http://localhost:11434' },
+      anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
+      google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
+    };
+    mockGetEnvConfig.mockReturnValue(config);
+    mockGetLastRun.mockReturnValue(null);
+    mockGetDaysElapsed.mockReturnValue(0);
+    mockShouldShowReminder.mockReturnValue(true);
+
+    index.showReminderStatus();
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    const calls = mockLog.mock.calls.map((call: unknown[]) => call.join(' '));
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    const output = calls.join('\n');
+
+    expect(output).toContain('Never');
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.SUCCESS);
+  });
+
+  it('displays days elapsed when there is a last run', () => {
+    const config: EnvConfig = {
+      services: ['ollama'],
+      reminder: '7d',
+      ollama: { model: 'llama3.2', host: 'http://localhost:11434' },
+      anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
+      google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
+    };
+    mockGetEnvConfig.mockReturnValue(config);
+    mockGetLastRun.mockReturnValue('2025-01-20');
+    mockGetDaysElapsed.mockReturnValue(3);
+    mockShouldShowReminder.mockReturnValue(false);
+
+    index.showReminderStatus();
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    const calls = mockLog.mock.calls.map((call: unknown[]) => call.join(' '));
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    const output = calls.join('\n');
+
+    expect(output).toContain('2025-01-20');
+    expect(output).toContain('3');
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.SUCCESS);
+  });
+
+  it('displays "Due" status when reminder is due', () => {
+    const config: EnvConfig = {
+      services: ['ollama'],
+      reminder: '7d',
+      ollama: { model: 'llama3.2', host: 'http://localhost:11434' },
+      anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
+      google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
+    };
+    mockGetEnvConfig.mockReturnValue(config);
+    mockGetLastRun.mockReturnValue('2025-01-10');
+    mockGetDaysElapsed.mockReturnValue(10);
+    mockShouldShowReminder.mockReturnValue(true);
+
+    index.showReminderStatus();
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    const calls = mockLog.mock.calls.map((call: unknown[]) => call.join(' '));
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    const output = calls.join('\n');
+
+    expect(output).toContain('Due');
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.SUCCESS);
+  });
+
+  it('displays "Not Due" status when reminder is not due', () => {
+    const config: EnvConfig = {
+      services: ['ollama'],
+      reminder: '7d',
+      ollama: { model: 'llama3.2', host: 'http://localhost:11434' },
+      anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
+      google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
+    };
+    mockGetEnvConfig.mockReturnValue(config);
+    mockGetLastRun.mockReturnValue('2025-01-20');
+    mockGetDaysElapsed.mockReturnValue(2);
+    mockShouldShowReminder.mockReturnValue(false);
+
+    index.showReminderStatus();
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    const calls = mockLog.mock.calls.map((call: unknown[]) => call.join(' '));
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    const output = calls.join('\n');
+
+    expect(output).toContain('Not Due');
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.SUCCESS);
+  });
+});
+
+// =============================================================================
+// checkAndRunSetup Tests - JSON Mode
+// =============================================================================
+
+describe('checkAndRunSetup - JSON mode', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('runs setup without spinner in JSON mode', async () => {
+    mockIsFirstRun.mockReturnValue(true);
+    mockRunSetup.mockResolvedValue({
+      services: ['ollama'],
+      reminder: '7d',
+      ollama: { model: 'llama3.2', host: 'http://localhost:11434' },
+      anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
+      google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
+    });
+
+    await index.checkAndRunSetup(true);
+
+    expect(mockIsFirstRun).toHaveBeenCalled();
+    expect(mockRunSetup).toHaveBeenCalled();
+    // In JSON mode, ora should not be called with 'Running first-time setup...'
+  });
+});
+
+// =============================================================================
+// readLogsWithSpinner - Project Filter in Spinner Message
+// =============================================================================
+
+describe('readLogsWithSpinner - project filter', () => {
+  const originalArgv = process.argv;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.argv = ['node', 'index.js'];
+  });
+
+  afterEach(() => {
+    process.argv = originalArgv;
+  });
+
+  it('includes project filter in spinner message', async () => {
+    mockClaudeProjectsExist.mockReturnValue(true);
+    const mockLogResult = {
+      prompts: [
+        {
+          content: 'Test prompt',
+          timestamp: '2025-01-20T10:00:00Z',
+          sessionId: 'session1',
+          project: 'my-project',
+          date: '2025-01-20',
+        },
+      ],
+      warnings: [],
+    };
+    mockReadLogs.mockResolvedValue(mockLogResult);
+
+    process.argv = ['node', 'index.js', '--project', 'my-project'];
+    const args = index.parseArguments();
+    await index.readLogsWithSpinner(args, false);
+
+    expect(ora).toHaveBeenCalledWith(
+      expect.stringContaining('project: my-project'),
+    );
+  });
+
+  it('shows date range message when no prompts found', async () => {
+    mockClaudeProjectsExist.mockReturnValue(true);
+    mockReadLogs.mockResolvedValue({
+      prompts: [],
+      warnings: [],
+    });
+
+    const mockExit = vi.spyOn(process, 'exit').mockImplementation(() => {
+      return undefined as never;
+    });
+
+    process.argv = [
+      'node',
+      'index.js',
+      '--from',
+      '2025-01-20',
+      '--to',
+      '2025-01-25',
+    ];
+    const args = index.parseArguments();
+    await index.readLogsWithSpinner(args, false);
+
+    // The fail message should include the date range
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.NO_DATA);
+
+    mockExit.mockRestore();
+  });
+
+  it('shows success message with date range', async () => {
+    mockClaudeProjectsExist.mockReturnValue(true);
+    const mockLogResult = {
+      prompts: [
+        {
+          content: 'Test prompt',
+          timestamp: '2025-01-20T10:00:00Z',
+          sessionId: 'session1',
+          project: 'project1',
+          date: '2025-01-20',
+        },
+      ],
+      warnings: [],
+    };
+    mockReadLogs.mockResolvedValue(mockLogResult);
+
+    process.argv = [
+      'node',
+      'index.js',
+      '--from',
+      '2025-01-20',
+      '--to',
+      '2025-01-25',
+    ];
+    const args = index.parseArguments();
+    const result = await index.readLogsWithSpinner(args, false);
+
+    expect(result.prompts.length).toBe(1);
+  });
+});
+
+// =============================================================================
+// main() Integration Tests
+// =============================================================================
+
+// Mock additional modules for main()
+vi.mock('./core/history.js', () => ({
+  saveAnalysisResult: vi.fn(),
+  loadAnalysisResult: vi.fn(),
+  listAvailableDates: vi.fn(),
+  compareResults: vi.fn(),
+  getDateOneWeekAgo: vi.fn(),
+  getDateOneMonthAgo: vi.fn(),
+}));
+
+vi.mock('./utils/project-config.js', () => ({
+  loadProjectConfigForCwd: vi.fn(),
+  mergeConfigs: vi.fn(),
+}));
+
+import { checkReminder, saveLastRun } from './core/reminder.js';
+import { groupByDay } from './core/log-reader.js';
+import {
+  saveAnalysisResult,
+  loadAnalysisResult,
+  listAvailableDates,
+  compareResults,
+  getDateOneWeekAgo,
+  getDateOneMonthAgo,
+} from './core/history.js';
+import {
+  loadProjectConfigForCwd,
+  mergeConfigs,
+} from './utils/project-config.js';
+
+const mockCheckReminder = vi.mocked(checkReminder);
+const mockSaveLastRun = vi.mocked(saveLastRun);
+const mockGroupByDay = vi.mocked(groupByDay);
+const mockSaveAnalysisResult = vi.mocked(saveAnalysisResult);
+const mockLoadAnalysisResult = vi.mocked(loadAnalysisResult);
+const mockListAvailableDates = vi.mocked(listAvailableDates);
+const mockCompareResults = vi.mocked(compareResults);
+const mockGetDateOneWeekAgo = vi.mocked(getDateOneWeekAgo);
+// Not currently used, but imported to ensure it's properly mocked if needed later
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const mockGetDateOneMonthAgo = vi.mocked(getDateOneMonthAgo);
+const mockLoadProjectConfigForCwd = vi.mocked(loadProjectConfigForCwd);
+const mockMergeConfigs = vi.mocked(mergeConfigs);
+
+const mockPrintComparison = vi.mocked(printComparison);
+const mockPrintHistoryList = vi.mocked(printHistoryList);
+const mockPrintHistorySummary = vi.mocked(printHistorySummary);
+
+describe('main - integration tests', () => {
+  const originalArgv = process.argv;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockExit: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockLog: any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.argv = ['node', 'index.js'];
+    mockExit = vi.spyOn(process, 'exit').mockImplementation(() => {
+      return undefined as never;
+    });
+    mockLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    // Default mocks
+    mockIsFirstRun.mockReturnValue(false);
+    mockCheckReminder.mockResolvedValue(true);
+    const config: EnvConfig = {
+      services: ['ollama'],
+      reminder: '7d',
+      ollama: { model: 'llama3.2', host: 'http://localhost:11434' },
+      anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
+      google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
+    };
+    mockGetEnvConfig.mockReturnValue(config);
+    mockLoadProjectConfigForCwd.mockReturnValue(null);
+    mockMergeConfigs.mockReturnValue(config);
+    mockClaudeProjectsExist.mockReturnValue(true);
+    mockSaveLastRun.mockReturnValue(undefined);
+  });
+
+  afterEach(() => {
+    process.argv = originalArgv;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    mockExit.mockRestore();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    mockLog.mockRestore();
+  });
+
+  it('handles --history flag to list history entries', async () => {
+    process.argv = ['node', 'index.js', '--history'];
+
+    mockListAvailableDates.mockResolvedValue(['2025-01-20', '2025-01-21']);
+    mockLoadAnalysisResult.mockResolvedValue({
+      result: {
+        date: '2025-01-20',
+        patterns: [],
+        stats: { totalPrompts: 10, promptsWithIssues: 2, overallScore: 8 },
+        topSuggestion: 'Keep improving!',
+      },
+      metadata: {
+        provider: 'Ollama',
+        promptCount: 10,
+        projects: ['project1'],
+      },
+    });
+
+    await index.main();
+
+    expect(mockListAvailableDates).toHaveBeenCalled();
+    expect(mockPrintHistoryList).toHaveBeenCalled();
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.SUCCESS);
+  });
+
+  it('handles --history-summary flag', async () => {
+    process.argv = ['node', 'index.js', '--history-summary'];
+
+    mockListAvailableDates.mockResolvedValue(['2025-01-20']);
+    mockLoadAnalysisResult.mockResolvedValue({
+      result: {
+        date: '2025-01-20',
+        patterns: [],
+        stats: { totalPrompts: 10, promptsWithIssues: 2, overallScore: 8 },
+        topSuggestion: 'Keep improving!',
+      },
+      metadata: {
+        provider: 'Ollama',
+        promptCount: 10,
+        projects: ['project1'],
+      },
+    });
+
+    await index.main();
+
+    expect(mockPrintHistorySummary).toHaveBeenCalled();
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.SUCCESS);
+  });
+
+  it('handles --dry-run flag', async () => {
+    process.argv = ['node', 'index.js', '--dry-run'];
+
+    mockReadLogs.mockResolvedValue({
+      prompts: [
+        {
+          content: 'Test prompt',
+          timestamp: '2025-01-20T10:00:00Z',
+          sessionId: 'session1',
+          project: 'project1',
+          date: '2025-01-20',
+        },
+      ],
+      warnings: [],
+    });
+
+    await index.main();
+
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.SUCCESS);
+  });
+
+  it('handles single-day analysis successfully', async () => {
+    process.argv = ['node', 'index.js', '--date', 'today'];
+
+    mockReadLogs.mockResolvedValue({
+      prompts: [
+        {
+          content: 'Test prompt',
+          timestamp: '2025-01-20T10:00:00Z',
+          sessionId: 'session1',
+          project: 'project1',
+          date: '2025-01-20',
+        },
+      ],
+      warnings: [],
+    });
+
+    const mockProvider: AnalysisProvider = {
+      name: 'Ollama',
+      isAvailable: vi.fn().mockResolvedValue(true),
+      analyze: vi.fn(),
+    };
+    mockGetAvailableProvider.mockResolvedValue(mockProvider);
+
+    const mockResult: AnalysisResult = {
+      date: 'today',
+      patterns: [],
+      stats: { totalPrompts: 1, promptsWithIssues: 0, overallScore: 10 },
+      topSuggestion: 'Great job!',
+    };
+    mockAnalyzePrompts.mockResolvedValue(mockResult);
+    mockSaveAnalysisResult.mockResolvedValue(undefined);
+
+    await index.main();
+
+    expect(mockAnalyzePrompts).toHaveBeenCalled();
+    expect(mockPrintReport).toHaveBeenCalledWith(mockResult);
+    expect(mockSaveLastRun).toHaveBeenCalled();
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.SUCCESS);
+  });
+
+  it('handles --compare-week flag', async () => {
+    process.argv = ['node', 'index.js', '--compare-week'];
+
+    mockReadLogs.mockResolvedValue({
+      prompts: [
+        {
+          content: 'Test prompt',
+          timestamp: '2025-01-20T10:00:00Z',
+          sessionId: 'session1',
+          project: 'project1',
+          date: '2025-01-20',
+        },
+      ],
+      warnings: [],
+    });
+
+    const mockProvider: AnalysisProvider = {
+      name: 'Ollama',
+      isAvailable: vi.fn().mockResolvedValue(true),
+      analyze: vi.fn(),
+    };
+    mockGetAvailableProvider.mockResolvedValue(mockProvider);
+
+    const mockResult: AnalysisResult = {
+      date: 'today',
+      patterns: [],
+      stats: { totalPrompts: 1, promptsWithIssues: 0, overallScore: 10 },
+      topSuggestion: 'Great job!',
+    };
+    mockAnalyzePrompts.mockResolvedValue(mockResult);
+    mockSaveAnalysisResult.mockResolvedValue(undefined);
+    mockGetDateOneWeekAgo.mockReturnValue('2025-01-13');
+    mockLoadAnalysisResult.mockResolvedValue({
+      result: {
+        date: '2025-01-13',
+        patterns: [],
+        stats: { totalPrompts: 5, promptsWithIssues: 1, overallScore: 8 },
+        topSuggestion: 'Good work!',
+      },
+      metadata: {
+        provider: 'Ollama',
+        promptCount: 5,
+        projects: ['project1'],
+      },
+    });
+    mockCompareResults.mockReturnValue({
+      before: {
+        date: '2025-01-13',
+        patterns: [],
+        stats: { totalPrompts: 5, promptsWithIssues: 1, overallScore: 8 },
+        topSuggestion: 'Good work!',
+      },
+      after: {
+        date: 'today',
+        patterns: [],
+        stats: { totalPrompts: 1, promptsWithIssues: 0, overallScore: 10 },
+        topSuggestion: 'Great job!',
+      },
+      changes: {
+        scoreDelta: 2,
+        newPatterns: [],
+        resolvedPatterns: [],
+        changedPatterns: [],
+      },
+    });
+
+    await index.main();
+
+    expect(mockGetDateOneWeekAgo).toHaveBeenCalled();
+    expect(mockCompareResults).toHaveBeenCalled();
+    expect(mockPrintComparison).toHaveBeenCalled();
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.SUCCESS);
+  });
+
+  it('exits with NO_DATA when comparison date has no history', async () => {
+    process.argv = ['node', 'index.js', '--compare-with', '2024-01-01'];
+
+    mockReadLogs.mockResolvedValue({
+      prompts: [
+        {
+          content: 'Test prompt',
+          timestamp: '2025-01-20T10:00:00Z',
+          sessionId: 'session1',
+          project: 'project1',
+          date: '2025-01-20',
+        },
+      ],
+      warnings: [],
+    });
+
+    const mockProvider: AnalysisProvider = {
+      name: 'Ollama',
+      isAvailable: vi.fn().mockResolvedValue(true),
+      analyze: vi.fn(),
+    };
+    mockGetAvailableProvider.mockResolvedValue(mockProvider);
+
+    const mockResult: AnalysisResult = {
+      date: 'today',
+      patterns: [],
+      stats: { totalPrompts: 1, promptsWithIssues: 0, overallScore: 10 },
+      topSuggestion: 'Great job!',
+    };
+    mockAnalyzePrompts.mockResolvedValue(mockResult);
+    mockSaveAnalysisResult.mockResolvedValue(undefined);
+    mockLoadAnalysisResult.mockResolvedValue(null);
+
+    await index.main();
+
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.NO_DATA);
+  });
+
+  it('handles multi-day analysis with --from and --to', async () => {
+    process.argv = [
+      'node',
+      'index.js',
+      '--from',
+      '2025-01-20',
+      '--to',
+      '2025-01-22',
+    ];
+
+    mockReadLogs.mockResolvedValue({
+      prompts: [
+        {
+          content: 'Test prompt 1',
+          timestamp: '2025-01-20T10:00:00Z',
+          sessionId: 'session1',
+          project: 'project1',
+          date: '2025-01-20',
+        },
+        {
+          content: 'Test prompt 2',
+          timestamp: '2025-01-21T10:00:00Z',
+          sessionId: 'session1',
+          project: 'project1',
+          date: '2025-01-21',
+        },
+      ],
+      warnings: [],
+    });
+
+    mockGroupByDay.mockReturnValue([
+      {
+        date: '2025-01-20',
+        prompts: [
+          {
+            content: 'Test prompt 1',
+            timestamp: '2025-01-20T10:00:00Z',
+            sessionId: 'session1',
+            project: 'project1',
+            date: '2025-01-20',
+          },
+        ],
+        projects: ['project1'],
+      },
+      {
+        date: '2025-01-21',
+        prompts: [
+          {
+            content: 'Test prompt 2',
+            timestamp: '2025-01-21T10:00:00Z',
+            sessionId: 'session1',
+            project: 'project1',
+            date: '2025-01-21',
+          },
+        ],
+        projects: ['project1'],
+      },
+    ]);
+
+    const mockProvider: AnalysisProvider = {
+      name: 'Ollama',
+      isAvailable: vi.fn().mockResolvedValue(true),
+      analyze: vi.fn(),
+    };
+    mockGetAvailableProvider.mockResolvedValue(mockProvider);
+
+    const mockResult: AnalysisResult = {
+      date: '2025-01-20',
+      patterns: [],
+      stats: { totalPrompts: 1, promptsWithIssues: 0, overallScore: 10 },
+      topSuggestion: 'Great job!',
+    };
+    mockAnalyzePrompts.mockResolvedValue(mockResult);
+
+    await index.main();
+
+    expect(mockGroupByDay).toHaveBeenCalled();
+    expect(mockAnalyzePrompts).toHaveBeenCalledTimes(2);
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.SUCCESS);
+  });
+
+  it('handles --output with multi-day JSON format', async () => {
+    process.argv = [
+      'node',
+      'index.js',
+      '--from',
+      '2025-01-20',
+      '--to',
+      '2025-01-22',
+      '--output',
+      '/tmp/report.json',
+    ];
+
+    mockReadLogs.mockResolvedValue({
+      prompts: [
+        {
+          content: 'Test prompt 1',
+          timestamp: '2025-01-20T10:00:00Z',
+          sessionId: 'session1',
+          project: 'project1',
+          date: '2025-01-20',
+        },
+      ],
+      warnings: [],
+    });
+
+    mockGroupByDay.mockReturnValue([
+      {
+        date: '2025-01-20',
+        prompts: [
+          {
+            content: 'Test prompt 1',
+            timestamp: '2025-01-20T10:00:00Z',
+            sessionId: 'session1',
+            project: 'project1',
+            date: '2025-01-20',
+          },
+        ],
+        projects: ['project1'],
+      },
+    ]);
+
+    const mockProvider: AnalysisProvider = {
+      name: 'Ollama',
+      isAvailable: vi.fn().mockResolvedValue(true),
+      analyze: vi.fn(),
+    };
+    mockGetAvailableProvider.mockResolvedValue(mockProvider);
+
+    const mockResult: AnalysisResult = {
+      date: '2025-01-20',
+      patterns: [],
+      stats: { totalPrompts: 1, promptsWithIssues: 0, overallScore: 10 },
+      topSuggestion: 'Great job!',
+    };
+    mockAnalyzePrompts.mockResolvedValue(mockResult);
+    mockMkdir.mockResolvedValue(undefined);
+    mockWriteFile.mockResolvedValue(undefined);
+    mockRename.mockResolvedValue(undefined);
+
+    await index.main();
+
+    expect(mockWriteFile).toHaveBeenCalled();
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.SUCCESS);
+  });
+
+  it('handles --output with single-day output', async () => {
+    process.argv = [
+      'node',
+      'index.js',
+      '--date',
+      'today',
+      '--output',
+      '/tmp/report.md',
+    ];
+
+    mockReadLogs.mockResolvedValue({
+      prompts: [
+        {
+          content: 'Test prompt',
+          timestamp: '2025-01-20T10:00:00Z',
+          sessionId: 'session1',
+          project: 'project1',
+          date: '2025-01-20',
+        },
+      ],
+      warnings: [],
+    });
+
+    const mockProvider: AnalysisProvider = {
+      name: 'Ollama',
+      isAvailable: vi.fn().mockResolvedValue(true),
+      analyze: vi.fn(),
+    };
+    mockGetAvailableProvider.mockResolvedValue(mockProvider);
+
+    const mockResult: AnalysisResult = {
+      date: 'today',
+      patterns: [],
+      stats: { totalPrompts: 1, promptsWithIssues: 0, overallScore: 10 },
+      topSuggestion: 'Great job!',
+    };
+    mockAnalyzePrompts.mockResolvedValue(mockResult);
+    mockSaveAnalysisResult.mockResolvedValue(undefined);
+    mockMkdir.mockResolvedValue(undefined);
+    mockWriteFile.mockResolvedValue(undefined);
+    mockRename.mockResolvedValue(undefined);
+
+    await index.main();
+
+    expect(mockWriteFile).toHaveBeenCalled();
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.SUCCESS);
+  });
+
+  it('handles --no-history flag to skip saving', async () => {
+    process.argv = ['node', 'index.js', '--date', 'today', '--no-history'];
+
+    mockReadLogs.mockResolvedValue({
+      prompts: [
+        {
+          content: 'Test prompt',
+          timestamp: '2025-01-20T10:00:00Z',
+          sessionId: 'session1',
+          project: 'project1',
+          date: '2025-01-20',
+        },
+      ],
+      warnings: [],
+    });
+
+    const mockProvider: AnalysisProvider = {
+      name: 'Ollama',
+      isAvailable: vi.fn().mockResolvedValue(true),
+      analyze: vi.fn(),
+    };
+    mockGetAvailableProvider.mockResolvedValue(mockProvider);
+
+    const mockResult: AnalysisResult = {
+      date: 'today',
+      patterns: [],
+      stats: { totalPrompts: 1, promptsWithIssues: 0, overallScore: 10 },
+      topSuggestion: 'Great job!',
+    };
+    mockAnalyzePrompts.mockResolvedValue(mockResult);
+
+    await index.main();
+
+    expect(mockSaveAnalysisResult).not.toHaveBeenCalled();
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.SUCCESS);
+  });
+
+  it('handles JSON mode with comparison', async () => {
+    process.argv = ['node', 'index.js', '--format', 'json', '--compare-week'];
+
+    mockReadLogs.mockResolvedValue({
+      prompts: [
+        {
+          content: 'Test prompt',
+          timestamp: '2025-01-20T10:00:00Z',
+          sessionId: 'session1',
+          project: 'project1',
+          date: '2025-01-20',
+        },
+      ],
+      warnings: [],
+    });
+
+    const mockProvider: AnalysisProvider = {
+      name: 'Ollama',
+      isAvailable: vi.fn().mockResolvedValue(true),
+      analyze: vi.fn(),
+    };
+    mockGetAvailableProvider.mockResolvedValue(mockProvider);
+
+    const mockResult: AnalysisResult = {
+      date: 'today',
+      patterns: [],
+      stats: { totalPrompts: 1, promptsWithIssues: 0, overallScore: 10 },
+      topSuggestion: 'Great job!',
+    };
+    mockAnalyzePrompts.mockResolvedValue(mockResult);
+    mockSaveAnalysisResult.mockResolvedValue(undefined);
+    mockGetDateOneWeekAgo.mockReturnValue('2025-01-13');
+    mockLoadAnalysisResult.mockResolvedValue({
+      result: {
+        date: '2025-01-13',
+        patterns: [],
+        stats: { totalPrompts: 5, promptsWithIssues: 1, overallScore: 8 },
+        topSuggestion: 'Good work!',
+      },
+      metadata: {
+        provider: 'Ollama',
+        promptCount: 5,
+        projects: ['project1'],
+      },
+    });
+    mockCompareResults.mockReturnValue({
+      before: {
+        date: '2025-01-13',
+        patterns: [],
+        stats: { totalPrompts: 5, promptsWithIssues: 1, overallScore: 8 },
+        topSuggestion: 'Good work!',
+      },
+      after: {
+        date: 'today',
+        patterns: [],
+        stats: { totalPrompts: 1, promptsWithIssues: 0, overallScore: 10 },
+        topSuggestion: 'Great job!',
+      },
+      changes: {
+        scoreDelta: 2,
+        newPatterns: [],
+        resolvedPatterns: [],
+        changedPatterns: [],
+      },
+    });
+
+    await index.main();
+
+    // In JSON mode, should output formatComparisonJson
+    expect(mockLog).toHaveBeenCalled();
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.SUCCESS);
+  });
+
+  it('handles --verbose flag', async () => {
+    process.argv = ['node', 'index.js', '--verbose', '--dry-run'];
+
+    mockReadLogs.mockResolvedValue({
+      prompts: [
+        {
+          content: 'Test prompt',
+          timestamp: '2025-01-20T10:00:00Z',
+          sessionId: 'session1',
+          project: 'project1',
+          date: '2025-01-20',
+        },
+      ],
+      warnings: [],
+    });
+
+    await index.main();
+
+    // Verbose mode should enable logger verbose
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.SUCCESS);
+  });
+
+  it('handles error in main and calls handleError', async () => {
+    process.argv = ['node', 'index.js', '--unknown-flag'];
+
+    // parseArguments will throw for unknown flag
+    await index.main();
+
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.ERROR);
+  });
+
+  it('skips reminder when user declines', async () => {
+    process.argv = ['node', 'index.js', '--date', 'today'];
+
+    mockCheckReminder.mockResolvedValue(false);
+    mockReadLogs.mockResolvedValue({
+      prompts: [
+        {
+          content: 'Test prompt',
+          timestamp: '2025-01-20T10:00:00Z',
+          sessionId: 'session1',
+          project: 'project1',
+          date: '2025-01-20',
+        },
+      ],
+      warnings: [],
+    });
+
+    await index.main();
+
+    // Should exit early without analysis (checkReminder returns false before provider connection)
+    expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.SUCCESS);
   });
 });

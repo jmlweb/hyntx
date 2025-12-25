@@ -10,11 +10,10 @@ All foundational phases (0-4) have been completed. The project is now in mainten
 
 ### Pending Tasks
 
-| Task                                                                                      | Priority | Phase | Source   |
-| ----------------------------------------------------------------------------------------- | -------- | ----- | -------- |
-| [Improve CLI Entry Point Test Coverage](backlog/improve-cli-entry-point-test-coverage.md) | P2       | 4     | IDEA-011 |
-| [Parallelize CI Workflow Jobs](backlog/parallelize-ci-workflow-jobs.md)                   | P3       | 3     | IDEA-012 |
-| [Parallel Log File Reading](backlog/parallel-log-file-reading.md)                         | P3       | 4     | IDEA-013 |
+| Task                                                                    | Priority | Phase | Source   |
+| ----------------------------------------------------------------------- | -------- | ----- | -------- |
+| [Parallelize CI Workflow Jobs](backlog/parallelize-ci-workflow-jobs.md) | P3       | 3     | IDEA-012 |
+| [Parallel Log File Reading](backlog/parallel-log-file-reading.md)       | P3       | 4     | IDEA-013 |
 
 ### Accepted Ideas Awaiting Implementation
 
@@ -81,8 +80,9 @@ No ideas awaiting implementation. All accepted ideas have been converted to back
 - Project-specific configuration file
 - Fix E2E tests (main module detection)
 - Analysis history and comparison
+- CLI entry point test coverage
 
-**Total completed**: 40 tasks
+**Total completed**: 41 tasks
 
 ---
 
