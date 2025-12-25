@@ -11,7 +11,9 @@ describe('Logger', () => {
   beforeEach(() => {
     // Create a mock function and spy on process.stderr.write
     stderrWriteMock = vi.fn().mockReturnValue(true);
-    vi.spyOn(process.stderr, 'write').mockImplementation(stderrWriteMock);
+    vi.spyOn(process.stderr, 'write').mockImplementation(
+      stderrWriteMock as unknown as typeof process.stderr.write,
+    );
 
     // Clear any warnings from previous tests
     logger.clearWarnings();

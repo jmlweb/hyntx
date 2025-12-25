@@ -48,7 +48,7 @@ describe('Core Integration - Log Reading and Analysis', () => {
     });
 
     // Set custom projects directory
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
 
     // Import after setting env variable
     const { readLogs } = await import('../../../src/core/log-reader.js');
@@ -57,8 +57,8 @@ describe('Core Integration - Log Reading and Analysis', () => {
     const result = await readLogs({ date: '2025-01-20' });
 
     expect(result.prompts).toHaveLength(2);
-    expect(result.prompts[0].content).toBe('Fix auth bug');
-    expect(result.prompts[1].content).toBe('Add tests');
+    expect(result.prompts[0]?.content).toBe('Fix auth bug');
+    expect(result.prompts[1]?.content).toBe('Add tests');
     expect(result.warnings).toHaveLength(0);
   });
 
@@ -71,7 +71,7 @@ describe('Core Integration - Log Reading and Analysis', () => {
       ],
     });
 
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
 
     const { readLogs, groupByDay } =
       await import('../../../src/core/log-reader.js');
@@ -80,8 +80,8 @@ describe('Core Integration - Log Reading and Analysis', () => {
     const groups = groupByDay(result.prompts);
 
     expect(groups).toHaveLength(2);
-    expect(groups[0].prompts).toHaveLength(2);
-    expect(groups[1].prompts).toHaveLength(1);
+    expect(groups[0]?.prompts).toHaveLength(2);
+    expect(groups[1]?.prompts).toHaveLength(1);
   });
 
   it('should sanitize sensitive data from prompts', async () => {
@@ -98,7 +98,7 @@ describe('Core Integration - Log Reading and Analysis', () => {
       ],
     });
 
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
 
     const { readLogs } = await import('../../../src/core/log-reader.js');
     const { sanitizePrompts } = await import('../../../src/core/sanitizer.js');
@@ -118,7 +118,7 @@ describe('Core Integration - Log Reading and Analysis', () => {
       'empty-project': [],
     });
 
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
 
     const { readLogs } = await import('../../../src/core/log-reader.js');
 
@@ -134,14 +134,14 @@ describe('Core Integration - Log Reading and Analysis', () => {
       'project-b': [createUserMessage('Message B', '2025-01-20T10:00:00.000Z')],
     });
 
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
 
     const { readLogs } = await import('../../../src/core/log-reader.js');
 
     const result = await readLogs({ date: '2025-01-20', project: 'project-a' });
 
     expect(result.prompts).toHaveLength(1);
-    expect(result.prompts[0].content).toBe('Message A');
+    expect(result.prompts[0]?.content).toBe('Message A');
   });
 
   it('should validate log entry schema and warn on invalid entries', async () => {
@@ -167,7 +167,7 @@ describe('Core Integration - Log Reading and Analysis', () => {
 
     writeFileSync(join(projectDir, 'session.jsonl'), logContent);
 
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
 
     const { readLogs } = await import('../../../src/core/log-reader.js');
 
@@ -217,7 +217,7 @@ describe('Core Integration - Log Reading and Analysis', () => {
       ],
     });
 
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
 
     // Mock fetch for provider
     const mockAnalysis = createMockAnalysis({
@@ -262,7 +262,7 @@ describe('Core Integration - Log Reading and Analysis', () => {
           method: 'POST',
           body: JSON.stringify({ prompts, date }),
         });
-        const data = await response.json();
+        const data = (await response.json()) as { response: string };
         const analysis = JSON.parse(data.response);
         return { ...analysis, date };
       },
@@ -275,7 +275,7 @@ describe('Core Integration - Log Reading and Analysis', () => {
     });
 
     expect(analysis.patterns).toHaveLength(1);
-    expect(analysis.patterns[0].id).toBe('missing_context');
+    expect(analysis.patterns[0]?.id).toBe('missing_context');
     expect(analysis.stats.totalPrompts).toBe(3);
     expect(analysis.stats.promptsWithIssues).toBe(2);
     expect(analysis.topSuggestion).toBe(

@@ -99,10 +99,10 @@ describe('CLI Integration - Full Workflow', () => {
       ],
     });
 
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
-    process.env.HYNTX_SERVICES = 'ollama';
-    process.env.HYNTX_OLLAMA_MODEL = 'llama3.2';
-    process.env.HYNTX_OLLAMA_HOST = 'http://localhost:11434';
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
+    process.env['HYNTX_SERVICES'] = 'ollama';
+    process.env['HYNTX_OLLAMA_MODEL'] = 'llama3.2';
+    process.env['HYNTX_OLLAMA_HOST'] = 'http://localhost:11434';
 
     // Mock Ollama availability
     const mockAnalysis = createMockAnalysis({
@@ -171,7 +171,7 @@ describe('CLI Integration - Full Workflow', () => {
       'empty-project': [],
     });
 
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
 
     const { readLogs } = await import('../../src/core/log-reader.js');
 
@@ -185,8 +185,8 @@ describe('CLI Integration - Full Workflow', () => {
       'test-project': [createUserMessage('test', '2025-01-20T10:00:00.000Z')],
     });
 
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
-    process.env.HYNTX_SERVICES = 'ollama';
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
+    process.env['HYNTX_SERVICES'] = 'ollama';
 
     // Mock Ollama unavailable
     vi.spyOn(global, 'fetch').mockRejectedValue(
@@ -203,7 +203,7 @@ describe('CLI Integration - Full Workflow', () => {
   });
 
   it('should handle missing Claude projects directory', async () => {
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = '/nonexistent/path';
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = '/nonexistent/path';
 
     const { claudeProjectsExist } =
       await import('../../src/core/log-reader.js');
@@ -218,8 +218,8 @@ describe('CLI Integration - Full Workflow', () => {
       'test-project': [createUserMessage('test', '2025-01-20T10:00:00.000Z')],
     });
 
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
-    process.env.HYNTX_VERBOSE = 'true';
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
+    process.env['HYNTX_VERBOSE'] = 'true';
 
     const { getEnvConfig } = await import('../../src/utils/env.js');
     const config = getEnvConfig();
@@ -246,7 +246,7 @@ describe('CLI Integration - Full Workflow', () => {
 
     writeFileSync(hyntxrcPath, JSON.stringify(projectConfig, null, 2));
 
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
 
     const { loadProjectConfigForCwd } =
       await import('../../src/utils/project-config.js');
@@ -262,9 +262,9 @@ describe('CLI Integration - Full Workflow', () => {
   });
 
   it('should handle config health check flag', async () => {
-    process.env.HYNTX_SERVICES = 'ollama,anthropic';
-    process.env.HYNTX_OLLAMA_MODEL = 'llama3.2';
-    process.env.HYNTX_ANTHROPIC_API_KEY = 'sk-ant-test';
+    process.env['HYNTX_SERVICES'] = 'ollama,anthropic';
+    process.env['HYNTX_OLLAMA_MODEL'] = 'llama3.2';
+    process.env['HYNTX_ANTHROPIC_API_KEY'] = 'sk-ant-test';
 
     // Mock provider availability
     vi.spyOn(global, 'fetch')
@@ -302,7 +302,7 @@ describe('CLI Integration - Full Workflow', () => {
       ],
     });
 
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
 
     const { readLogs } = await import('../../src/core/log-reader.js');
 
@@ -355,7 +355,7 @@ describe('CLI Integration - Full Workflow', () => {
       'project-b': [createUserMessage('B message', '2025-01-20T10:00:00.000Z')],
     });
 
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
 
     const { readLogs } = await import('../../src/core/log-reader.js');
 
@@ -365,6 +365,6 @@ describe('CLI Integration - Full Workflow', () => {
     });
 
     expect(result.prompts).toHaveLength(1);
-    expect(result.prompts[0].content).toBe('A message');
+    expect(result.prompts[0]?.content).toBe('A message');
   });
 });

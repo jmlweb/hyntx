@@ -64,7 +64,7 @@ describe('Edge Cases Integration - Malformed Data', () => {
 
     writeFileSync(join(projectDir, 'session.jsonl'), logContent);
 
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
 
     const { readLogs } = await import('../../../src/core/log-reader.js');
 
@@ -86,7 +86,7 @@ describe('Edge Cases Integration - Malformed Data', () => {
     // Create empty file
     writeFileSync(join(projectDir, 'session.jsonl'), '');
 
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
 
     const { readLogs } = await import('../../../src/core/log-reader.js');
 
@@ -106,7 +106,7 @@ describe('Edge Cases Integration - Malformed Data', () => {
     // Create file with only whitespace and newlines
     writeFileSync(join(projectDir, 'session.jsonl'), '  \n\n  \t\n  ');
 
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
 
     const { readLogs } = await import('../../../src/core/log-reader.js');
 
@@ -134,7 +134,7 @@ describe('Edge Cases Integration - Malformed Data', () => {
 
     writeFileSync(join(projectDir, 'session.jsonl'), logContent);
 
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
 
     const { readLogs } = await import('../../../src/core/log-reader.js');
 
@@ -171,14 +171,14 @@ describe('Edge Cases Integration - Large Data Volumes', () => {
       ],
     });
 
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
 
     const { readLogs } = await import('../../../src/core/log-reader.js');
 
     const result = await readLogs({ date: '2025-01-20' });
 
     expect(result.prompts).toHaveLength(1);
-    expect(result.prompts[0].content.length).toBe(100000);
+    expect(result.prompts[0]?.content.length).toBe(100000);
   });
 
   it('should handle many prompts in a single day', async () => {
@@ -190,7 +190,7 @@ describe('Edge Cases Integration - Large Data Volumes', () => {
       'many-prompts': manyPrompts,
     });
 
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
 
     const { readLogs } = await import('../../../src/core/log-reader.js');
 
@@ -206,7 +206,7 @@ describe('Edge Cases Integration - Large Data Volumes', () => {
       'multi-day': multiDayLogs,
     });
 
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
 
     const { readLogs } = await import('../../../src/core/log-reader.js');
 
@@ -272,7 +272,7 @@ describe('Edge Cases Integration - Date and Time Handling', () => {
       ],
     });
 
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
 
     const { readLogs } = await import('../../../src/core/log-reader.js');
 
@@ -292,7 +292,7 @@ describe('Edge Cases Integration - Date and Time Handling', () => {
       ],
     });
 
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
 
     const { readLogs } = await import('../../../src/core/log-reader.js');
 
@@ -310,7 +310,7 @@ describe('Edge Cases Integration - Date and Time Handling', () => {
       ],
     });
 
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
 
     const { readLogs } = await import('../../../src/core/log-reader.js');
 
@@ -334,7 +334,7 @@ describe('Edge Cases Integration - Date and Time Handling', () => {
       'date-range': [createUserMessage('test', '2025-01-20T10:00:00.000Z')],
     });
 
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
 
     const { readLogs } = await import('../../../src/core/log-reader.js');
 
@@ -412,7 +412,7 @@ describe('Edge Cases Integration - Provider Failures', () => {
     vi.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => ({ unexpected: 'format' }),
-    } as Response);
+    } as unknown as Response);
 
     const { OllamaProvider } = await import('../../../src/providers/ollama.js');
 
@@ -433,7 +433,7 @@ describe('Edge Cases Integration - Provider Failures', () => {
       json: async () => {
         throw new SyntaxError('Unexpected end of JSON input');
       },
-    } as Response);
+    } as unknown as Response);
 
     const { OllamaProvider } = await import('../../../src/providers/ollama.js');
 
@@ -523,7 +523,7 @@ describe('Edge Cases Integration - Concurrent Operations', () => {
       'project-3': [createUserMessage('Test 3', '2025-01-20T10:00:00.000Z')],
     });
 
-    process.env.HYNTX_CLAUDE_PROJECTS_DIR = projectsDir;
+    process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
 
     const { readLogs } = await import('../../../src/core/log-reader.js');
 
