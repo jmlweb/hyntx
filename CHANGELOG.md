@@ -1,3 +1,9 @@
+## [2.3.0](https://github.com/jmlweb/hyntx/compare/v2.2.1...v2.3.0) (2025-12-26)
+
+### Features
+
+- **cli:** integrate incremental results cache ([252d16b](https://github.com/jmlweb/hyntx/commit/252d16b4312e83a24264360b6cd442b189894b78))
+
 ## [2.2.1](https://github.com/jmlweb/hyntx/compare/v2.2.0...v2.2.1) (2025-12-26)
 
 ### Bug Fixes
