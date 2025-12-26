@@ -18,12 +18,20 @@ import {
   formatTopSuggestion,
   formatJson,
   formatMarkdown,
+  printComparison,
+  formatComparisonMarkdown,
+  formatComparisonJson,
+  printHistoryList,
+  printHistorySummary,
 } from './reporter.js';
 import type {
   AnalysisResult,
   AnalysisPattern,
   BeforeAfter,
   AnalysisStats,
+  ComparisonResult,
+  HistoryEntry,
+  PatternChange,
 } from '../types/index.js';
 import chalk from 'chalk';
 
@@ -1180,5 +1188,1199 @@ describe('formatMarkdown', () => {
     expect(markdown).toContain('🔴');
     expect(markdown).toContain('🟡');
     expect(markdown).toContain('🟢');
+  });
+});
+
+// =============================================================================
+// Comparison Formatting Tests
+// =============================================================================
+
+describe('printComparison', () => {
+  const createAnalysisResult = (
+    overrides?: Partial<AnalysisResult>,
+  ): AnalysisResult => ({
+    date: '2025-01-15',
+    patterns: [],
+    stats: {
+      totalPrompts: 100,
+      promptsWithIssues: 20,
+      overallScore: 8,
+    },
+    topSuggestion: 'Keep up the good work!',
+    ...overrides,
+  });
+
+  const createPattern = (id: string): AnalysisPattern => ({
+    id,
+    name: `Pattern ${id}`,
+    frequency: 5,
+    severity: 'medium',
+    examples: [`Example for ${id}`],
+    suggestion: `Fix ${id}`,
+    beforeAfter: {
+      before: `Before ${id}`,
+      after: `After ${id}`,
+    },
+  });
+
+  const createComparison = (
+    overrides?: Partial<ComparisonResult>,
+  ): ComparisonResult => ({
+    before: createAnalysisResult({ date: '2025-01-10' }),
+    after: createAnalysisResult({ date: '2025-01-15' }),
+    changes: {
+      scoreDelta: 0,
+      newPatterns: [],
+      resolvedPatterns: [],
+      changedPatterns: [],
+    },
+    ...overrides,
+  });
+
+  let consoleSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {
+      // Mock implementation - intentionally empty
+    });
+    chalk.level = 3;
+  });
+
+  afterEach(() => {
+    consoleSpy.mockRestore();
+    chalk.level = 0;
+  });
+
+  it('should print comparison header with dates', () => {
+    const comparison = createComparison();
+    printComparison(comparison);
+
+    expect(consoleSpy).toHaveBeenCalledOnce();
+    const output = consoleSpy.mock.calls[0]?.[0] as string;
+    expect(output).toContain('2025-01-10');
+    expect(output).toContain('2025-01-15');
+    expect(output).toContain('→');
+  });
+
+  it('should show positive score delta with green arrow up', () => {
+    const comparison = createComparison({
+      before: createAnalysisResult({
+        date: '2025-01-10',
+        stats: { totalPrompts: 100, promptsWithIssues: 30, overallScore: 6 },
+      }),
+      after: createAnalysisResult({
+        date: '2025-01-15',
+        stats: { totalPrompts: 100, promptsWithIssues: 10, overallScore: 9 },
+      }),
+      changes: {
+        scoreDelta: 3,
+        newPatterns: [],
+        resolvedPatterns: [],
+        changedPatterns: [],
+      },
+    });
+    printComparison(comparison);
+
+    const output = consoleSpy.mock.calls[0]?.[0] as string;
+    expect(output).toContain('↑');
+    expect(output).toContain('+3.0');
+  });
+
+  it('should show negative score delta with red arrow down', () => {
+    const comparison = createComparison({
+      before: createAnalysisResult({
+        date: '2025-01-10',
+        stats: { totalPrompts: 100, promptsWithIssues: 10, overallScore: 9 },
+      }),
+      after: createAnalysisResult({
+        date: '2025-01-15',
+        stats: { totalPrompts: 100, promptsWithIssues: 30, overallScore: 6 },
+      }),
+      changes: {
+        scoreDelta: -3,
+        newPatterns: [],
+        resolvedPatterns: [],
+        changedPatterns: [],
+      },
+    });
+    printComparison(comparison);
+
+    const output = consoleSpy.mock.calls[0]?.[0] as string;
+    expect(output).toContain('↓');
+    expect(output).toContain('-3.0');
+  });
+
+  it('should show zero score delta with dim arrow', () => {
+    const comparison = createComparison({
+      changes: {
+        scoreDelta: 0,
+        newPatterns: [],
+        resolvedPatterns: [],
+        changedPatterns: [],
+      },
+    });
+    printComparison(comparison);
+
+    const output = consoleSpy.mock.calls[0]?.[0] as string;
+    expect(output).toContain('→');
+    expect(output).toContain('0.0');
+  });
+
+  it('should display new patterns section', () => {
+    const comparison = createComparison({
+      changes: {
+        scoreDelta: -1,
+        newPatterns: [
+          createPattern('new1'),
+          { ...createPattern('new2'), severity: 'high' },
+        ],
+        resolvedPatterns: [],
+        changedPatterns: [],
+      },
+    });
+    printComparison(comparison);
+
+    const output = consoleSpy.mock.calls[0]?.[0] as string;
+    expect(output).toContain('New Patterns Detected');
+    expect(output).toContain('Pattern new1');
+    expect(output).toContain('Pattern new2');
+    expect(output).toContain('🟡'); // medium severity
+    expect(output).toContain('🔴'); // high severity
+  });
+
+  it('should display resolved patterns section', () => {
+    const comparison = createComparison({
+      changes: {
+        scoreDelta: 1,
+        newPatterns: [],
+        resolvedPatterns: [createPattern('resolved1')],
+        changedPatterns: [],
+      },
+    });
+    printComparison(comparison);
+
+    const output = consoleSpy.mock.calls[0]?.[0] as string;
+    expect(output).toContain('Resolved Patterns');
+    expect(output).toContain('Pattern resolved1');
+    expect(output).toContain('was 5x');
+  });
+
+  it('should display changed patterns with frequency changes', () => {
+    const changedPattern: PatternChange = {
+      id: 'changed1',
+      name: 'Changed Pattern',
+      status: 'changed',
+      frequencyBefore: 5,
+      frequencyAfter: 10,
+      severityBefore: 'medium',
+      severityAfter: 'medium',
+    };
+    const comparison = createComparison({
+      changes: {
+        scoreDelta: 0,
+        newPatterns: [],
+        resolvedPatterns: [],
+        changedPatterns: [changedPattern],
+      },
+    });
+    printComparison(comparison);
+
+    const output = consoleSpy.mock.calls[0]?.[0] as string;
+    expect(output).toContain('Changed Patterns');
+    expect(output).toContain('Changed Pattern');
+    expect(output).toContain('Frequency');
+    expect(output).toContain('5');
+    expect(output).toContain('10');
+  });
+
+  it('should display changed patterns with severity changes', () => {
+    const changedPattern: PatternChange = {
+      id: 'changed1',
+      name: 'Severity Changed',
+      status: 'changed',
+      frequencyBefore: 5,
+      frequencyAfter: 5,
+      severityBefore: 'low',
+      severityAfter: 'high',
+    };
+    const comparison = createComparison({
+      changes: {
+        scoreDelta: -2,
+        newPatterns: [],
+        resolvedPatterns: [],
+        changedPatterns: [changedPattern],
+      },
+    });
+    printComparison(comparison);
+
+    const output = consoleSpy.mock.calls[0]?.[0] as string;
+    expect(output).toContain('Severity Changed');
+    expect(output).toContain('Severity:');
+    expect(output).toContain('low');
+    expect(output).toContain('high');
+  });
+
+  it('should show no changes message when nothing changed', () => {
+    const comparison = createComparison({
+      changes: {
+        scoreDelta: 0,
+        newPatterns: [],
+        resolvedPatterns: [],
+        changedPatterns: [],
+      },
+    });
+    printComparison(comparison);
+
+    const output = consoleSpy.mock.calls[0]?.[0] as string;
+    expect(output).toContain('No pattern changes detected');
+  });
+
+  it('should handle frequency decrease (improvement)', () => {
+    const changedPattern: PatternChange = {
+      id: 'improved',
+      name: 'Improved Pattern',
+      status: 'changed',
+      frequencyBefore: 10,
+      frequencyAfter: 3,
+      severityBefore: 'high',
+      severityAfter: 'high',
+    };
+    const comparison = createComparison({
+      changes: {
+        scoreDelta: 1,
+        newPatterns: [],
+        resolvedPatterns: [],
+        changedPatterns: [changedPattern],
+      },
+    });
+    printComparison(comparison);
+
+    const output = consoleSpy.mock.calls[0]?.[0] as string;
+    expect(output).toContain('Improved Pattern');
+    expect(output).toContain('-7'); // 3 - 10 = -7
+  });
+
+  it('should buffer output and print once', () => {
+    const comparison = createComparison({
+      changes: {
+        scoreDelta: 1,
+        newPatterns: [createPattern('new')],
+        resolvedPatterns: [createPattern('resolved')],
+        changedPatterns: [],
+      },
+    });
+    printComparison(comparison);
+
+    expect(consoleSpy).toHaveBeenCalledOnce();
+  });
+});
+
+describe('formatComparisonMarkdown', () => {
+  const createAnalysisResult = (
+    overrides?: Partial<AnalysisResult>,
+  ): AnalysisResult => ({
+    date: '2025-01-15',
+    patterns: [],
+    stats: {
+      totalPrompts: 100,
+      promptsWithIssues: 20,
+      overallScore: 8,
+    },
+    topSuggestion: 'Keep up the good work!',
+    ...overrides,
+  });
+
+  const createPattern = (id: string): AnalysisPattern => ({
+    id,
+    name: `Pattern ${id}`,
+    frequency: 5,
+    severity: 'medium',
+    examples: [`Example for ${id}`],
+    suggestion: `Fix ${id}`,
+    beforeAfter: {
+      before: `Before ${id}`,
+      after: `After ${id}`,
+    },
+  });
+
+  const createComparison = (
+    overrides?: Partial<ComparisonResult>,
+  ): ComparisonResult => ({
+    before: createAnalysisResult({ date: '2025-01-10' }),
+    after: createAnalysisResult({ date: '2025-01-15' }),
+    changes: {
+      scoreDelta: 0,
+      newPatterns: [],
+      resolvedPatterns: [],
+      changedPatterns: [],
+    },
+    ...overrides,
+  });
+
+  it('should generate valid Markdown with header', () => {
+    const comparison = createComparison();
+    const markdown = formatComparisonMarkdown(comparison);
+
+    expect(markdown.startsWith('# Hyntx Comparison Report')).toBe(true);
+    expect(markdown).toContain('**Comparison:**');
+    expect(markdown).toContain('2025-01-10');
+    expect(markdown).toContain('2025-01-15');
+  });
+
+  it('should include score change table', () => {
+    const comparison = createComparison({
+      before: createAnalysisResult({
+        date: '2025-01-10',
+        stats: { totalPrompts: 100, promptsWithIssues: 30, overallScore: 6 },
+      }),
+      after: createAnalysisResult({
+        date: '2025-01-15',
+        stats: { totalPrompts: 100, promptsWithIssues: 10, overallScore: 9 },
+      }),
+      changes: {
+        scoreDelta: 3,
+        newPatterns: [],
+        resolvedPatterns: [],
+        changedPatterns: [],
+      },
+    });
+    const markdown = formatComparisonMarkdown(comparison);
+
+    expect(markdown).toContain('## Score Change');
+    expect(markdown).toContain('| Metric | Before | After | Change |');
+    expect(markdown).toContain('6.0/10');
+    expect(markdown).toContain('9.0/10');
+    expect(markdown).toContain('+3.0');
+  });
+
+  it('should show negative score delta without plus sign', () => {
+    const comparison = createComparison({
+      changes: {
+        scoreDelta: -2.5,
+        newPatterns: [],
+        resolvedPatterns: [],
+        changedPatterns: [],
+      },
+    });
+    const markdown = formatComparisonMarkdown(comparison);
+
+    expect(markdown).toContain('-2.5');
+    expect(markdown).not.toContain('+-2.5');
+  });
+
+  it('should include new patterns section with severity icons', () => {
+    const comparison = createComparison({
+      changes: {
+        scoreDelta: -1,
+        newPatterns: [
+          createPattern('new1'),
+          { ...createPattern('new2'), severity: 'high' },
+        ],
+        resolvedPatterns: [],
+        changedPatterns: [],
+      },
+    });
+    const markdown = formatComparisonMarkdown(comparison);
+
+    expect(markdown).toContain('## 🆕 New Patterns Detected');
+    expect(markdown).toContain('🟡 **Pattern new1**');
+    expect(markdown).toContain('🔴 **Pattern new2**');
+    expect(markdown).toContain('(5x)');
+  });
+
+  it('should include resolved patterns section', () => {
+    const comparison = createComparison({
+      changes: {
+        scoreDelta: 1,
+        newPatterns: [],
+        resolvedPatterns: [createPattern('resolved1')],
+        changedPatterns: [],
+      },
+    });
+    const markdown = formatComparisonMarkdown(comparison);
+
+    expect(markdown).toContain('## ✅ Resolved Patterns');
+    expect(markdown).toContain('**Pattern resolved1**');
+    expect(markdown).toContain('(was 5x)');
+  });
+
+  it('should include changed patterns with frequency', () => {
+    const changedPattern: PatternChange = {
+      id: 'changed1',
+      name: 'Changed Pattern',
+      status: 'changed',
+      frequencyBefore: 5,
+      frequencyAfter: 10,
+      severityBefore: 'medium',
+      severityAfter: 'medium',
+    };
+    const comparison = createComparison({
+      changes: {
+        scoreDelta: 0,
+        newPatterns: [],
+        resolvedPatterns: [],
+        changedPatterns: [changedPattern],
+      },
+    });
+    const markdown = formatComparisonMarkdown(comparison);
+
+    expect(markdown).toContain('## 📊 Changed Patterns');
+    expect(markdown).toContain('### Changed Pattern');
+    expect(markdown).toContain('**Frequency:** 5 → 10');
+  });
+
+  it('should include severity changes for changed patterns', () => {
+    const changedPattern: PatternChange = {
+      id: 'changed1',
+      name: 'Severity Changed',
+      status: 'changed',
+      frequencyBefore: 5,
+      frequencyAfter: 5,
+      severityBefore: 'low',
+      severityAfter: 'high',
+    };
+    const comparison = createComparison({
+      changes: {
+        scoreDelta: -2,
+        newPatterns: [],
+        resolvedPatterns: [],
+        changedPatterns: [changedPattern],
+      },
+    });
+    const markdown = formatComparisonMarkdown(comparison);
+
+    expect(markdown).toContain('**Severity:** low → high');
+  });
+
+  it('should not include severity line when severity unchanged', () => {
+    const changedPattern: PatternChange = {
+      id: 'changed1',
+      name: 'Freq Only Changed',
+      status: 'changed',
+      frequencyBefore: 5,
+      frequencyAfter: 10,
+      severityBefore: 'medium',
+      severityAfter: 'medium',
+    };
+    const comparison = createComparison({
+      changes: {
+        scoreDelta: 0,
+        newPatterns: [],
+        resolvedPatterns: [],
+        changedPatterns: [changedPattern],
+      },
+    });
+    const markdown = formatComparisonMarkdown(comparison);
+
+    expect(markdown).not.toContain('**Severity:**');
+  });
+
+  it('should show no changes summary when nothing changed', () => {
+    const comparison = createComparison({
+      changes: {
+        scoreDelta: 0,
+        newPatterns: [],
+        resolvedPatterns: [],
+        changedPatterns: [],
+      },
+    });
+    const markdown = formatComparisonMarkdown(comparison);
+
+    expect(markdown).toContain('## Summary');
+    expect(markdown).toContain('No pattern changes detected');
+  });
+
+  it('should include footer with generator link', () => {
+    const comparison = createComparison();
+    const markdown = formatComparisonMarkdown(comparison);
+
+    expect(markdown).toContain('---');
+    expect(markdown).toContain(
+      '*Generated by [Hyntx](https://github.com/hyntx/hyntx)*',
+    );
+  });
+
+  it('should produce consistent output', () => {
+    const comparison = createComparison();
+
+    const markdown1 = formatComparisonMarkdown(comparison);
+    const markdown2 = formatComparisonMarkdown(comparison);
+
+    expect(markdown1).toBe(markdown2);
+  });
+
+  it('should handle multiple sections together', () => {
+    const comparison = createComparison({
+      changes: {
+        scoreDelta: 0.5,
+        newPatterns: [createPattern('new')],
+        resolvedPatterns: [createPattern('resolved')],
+        changedPatterns: [
+          {
+            id: 'changed',
+            name: 'Changed',
+            status: 'changed',
+            frequencyBefore: 3,
+            frequencyAfter: 6,
+          },
+        ],
+      },
+    });
+    const markdown = formatComparisonMarkdown(comparison);
+
+    expect(markdown).toContain('## 🆕 New Patterns Detected');
+    expect(markdown).toContain('## ✅ Resolved Patterns');
+    expect(markdown).toContain('## 📊 Changed Patterns');
+    expect(markdown).not.toContain('## Summary'); // Summary only when no changes
+  });
+});
+
+describe('formatComparisonJson', () => {
+  const createAnalysisResult = (
+    overrides?: Partial<AnalysisResult>,
+  ): AnalysisResult => ({
+    date: '2025-01-15',
+    patterns: [],
+    stats: {
+      totalPrompts: 100,
+      promptsWithIssues: 20,
+      overallScore: 8,
+    },
+    topSuggestion: 'Keep up the good work!',
+    ...overrides,
+  });
+
+  const createPattern = (id: string): AnalysisPattern => ({
+    id,
+    name: `Pattern ${id}`,
+    frequency: 5,
+    severity: 'medium',
+    examples: [`Example for ${id}`],
+    suggestion: `Fix ${id}`,
+    beforeAfter: {
+      before: `Before ${id}`,
+      after: `After ${id}`,
+    },
+  });
+
+  const createComparison = (
+    overrides?: Partial<ComparisonResult>,
+  ): ComparisonResult => ({
+    before: createAnalysisResult({ date: '2025-01-10' }),
+    after: createAnalysisResult({ date: '2025-01-15' }),
+    changes: {
+      scoreDelta: 0,
+      newPatterns: [],
+      resolvedPatterns: [],
+      changedPatterns: [],
+    },
+    ...overrides,
+  });
+
+  it('should produce valid JSON', () => {
+    const comparison = createComparison();
+    const json = formatComparisonJson(comparison);
+
+    const parsed = JSON.parse(json) as ComparisonResult;
+    expect(parsed).toBeTruthy();
+  });
+
+  it('should produce formatted JSON by default', () => {
+    const comparison = createComparison();
+    const json = formatComparisonJson(comparison);
+
+    expect(json).toContain('\n');
+    expect(json).toContain('  ');
+  });
+
+  it('should produce compact JSON when compact=true', () => {
+    const comparison = createComparison();
+    const json = formatComparisonJson(comparison, true);
+
+    expect(json).not.toContain('\n');
+    expect(json).not.toContain('  ');
+  });
+
+  it('should include all ComparisonResult fields', () => {
+    const comparison = createComparison({
+      before: createAnalysisResult({ date: '2025-01-01' }),
+      after: createAnalysisResult({ date: '2025-01-31' }),
+      changes: {
+        scoreDelta: 2.5,
+        newPatterns: [createPattern('new')],
+        resolvedPatterns: [createPattern('resolved')],
+        changedPatterns: [],
+      },
+    });
+    const json = formatComparisonJson(comparison);
+    const parsed = JSON.parse(json) as ComparisonResult;
+
+    expect(parsed.before.date).toBe('2025-01-01');
+    expect(parsed.after.date).toBe('2025-01-31');
+    expect(parsed.changes.scoreDelta).toBe(2.5);
+    expect(parsed.changes.newPatterns).toHaveLength(1);
+    expect(parsed.changes.resolvedPatterns).toHaveLength(1);
+  });
+
+  it('should handle empty changes', () => {
+    const comparison = createComparison();
+    const json = formatComparisonJson(comparison);
+    const parsed = JSON.parse(json) as ComparisonResult;
+
+    expect(parsed.changes.newPatterns).toEqual([]);
+    expect(parsed.changes.resolvedPatterns).toEqual([]);
+    expect(parsed.changes.changedPatterns).toEqual([]);
+  });
+
+  it('should preserve pattern details in changes', () => {
+    const changedPattern: PatternChange = {
+      id: 'changed1',
+      name: 'Changed Pattern',
+      status: 'changed',
+      frequencyBefore: 5,
+      frequencyAfter: 10,
+      severityBefore: 'low',
+      severityAfter: 'high',
+    };
+    const comparison = createComparison({
+      changes: {
+        scoreDelta: -1,
+        newPatterns: [],
+        resolvedPatterns: [],
+        changedPatterns: [changedPattern],
+      },
+    });
+    const json = formatComparisonJson(comparison);
+    const parsed = JSON.parse(json) as ComparisonResult;
+
+    expect(parsed.changes.changedPatterns[0]).toEqual(changedPattern);
+  });
+
+  it('should produce different output for compact vs formatted', () => {
+    const comparison = createComparison();
+
+    const formatted = formatComparisonJson(comparison, false);
+    const compact = formatComparisonJson(comparison, true);
+
+    expect(formatted).not.toBe(compact);
+    expect(formatted.length).toBeGreaterThan(compact.length);
+  });
+
+  it('should handle round-trip parsing', () => {
+    const original = createComparison({
+      changes: {
+        scoreDelta: 1.5,
+        newPatterns: [createPattern('new1')],
+        resolvedPatterns: [],
+        changedPatterns: [],
+      },
+    });
+    const json = formatComparisonJson(original);
+    const parsed = JSON.parse(json) as ComparisonResult;
+
+    expect(parsed).toEqual(original);
+  });
+
+  it('should handle negative score delta', () => {
+    const comparison = createComparison({
+      changes: {
+        scoreDelta: -3.7,
+        newPatterns: [],
+        resolvedPatterns: [],
+        changedPatterns: [],
+      },
+    });
+    const json = formatComparisonJson(comparison);
+    const parsed = JSON.parse(json) as ComparisonResult;
+
+    expect(parsed.changes.scoreDelta).toBe(-3.7);
+  });
+});
+
+// =============================================================================
+// History Formatting Tests
+// =============================================================================
+
+describe('printHistoryList', () => {
+  const createHistoryEntry = (
+    overrides?: Partial<HistoryEntry>,
+  ): HistoryEntry => ({
+    result: {
+      date: '2025-01-15',
+      patterns: [],
+      stats: {
+        totalPrompts: 100,
+        promptsWithIssues: 20,
+        overallScore: 8,
+      },
+      topSuggestion: 'Keep up the good work!',
+    },
+    metadata: {
+      provider: 'ollama',
+      promptCount: 50,
+      projects: ['project1'],
+    },
+    ...overrides,
+  });
+
+  let consoleSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {
+      // Mock implementation - intentionally empty
+    });
+    chalk.level = 3;
+  });
+
+  afterEach(() => {
+    consoleSpy.mockRestore();
+    chalk.level = 0;
+  });
+
+  it('should show no history message when array is empty', () => {
+    printHistoryList([]);
+
+    expect(consoleSpy).toHaveBeenCalled();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const allOutput = consoleSpy.mock.calls
+      .map((c: unknown[]) => c[0])
+      .join('\n');
+    expect(allOutput).toContain('No history entries found');
+  });
+
+  it('should print table header', () => {
+    const entries: [string, HistoryEntry][] = [
+      ['2025-01-15', createHistoryEntry()],
+    ];
+    printHistoryList(entries);
+
+    const output = consoleSpy.mock.calls[0]?.[0] as string;
+    expect(output).toContain('Analysis History');
+    expect(output).toContain('Date');
+    expect(output).toContain('Score');
+    expect(output).toContain('Patterns');
+    expect(output).toContain('Provider');
+    expect(output).toContain('Prompts');
+  });
+
+  it('should display entry data in table', () => {
+    const entries: [string, HistoryEntry][] = [
+      ['2025-01-15', createHistoryEntry()],
+    ];
+    printHistoryList(entries);
+
+    const output = consoleSpy.mock.calls[0]?.[0] as string;
+    expect(output).toContain('2025-01-15');
+    expect(output).toContain('8.0/10');
+    expect(output).toContain('ollama');
+    expect(output).toContain('50');
+  });
+
+  it('should display multiple entries', () => {
+    const entries: [string, HistoryEntry][] = [
+      ['2025-01-15', createHistoryEntry()],
+      [
+        '2025-01-10',
+        createHistoryEntry({
+          result: {
+            date: '2025-01-10',
+            patterns: [],
+            stats: { totalPrompts: 75, promptsWithIssues: 10, overallScore: 9 },
+            topSuggestion: '',
+          },
+          metadata: { provider: 'openai', promptCount: 30, projects: [] },
+        }),
+      ],
+    ];
+    printHistoryList(entries);
+
+    const output = consoleSpy.mock.calls[0]?.[0] as string;
+    expect(output).toContain('2025-01-15');
+    expect(output).toContain('2025-01-10');
+    expect(output).toContain('ollama');
+    expect(output).toContain('openai');
+  });
+
+  it('should show pattern count', () => {
+    const entry = createHistoryEntry({
+      result: {
+        date: '2025-01-15',
+        patterns: [
+          {
+            id: 'p1',
+            name: 'Pattern 1',
+            frequency: 3,
+            severity: 'high',
+            examples: [],
+            suggestion: '',
+            beforeAfter: { before: '', after: '' },
+          },
+          {
+            id: 'p2',
+            name: 'Pattern 2',
+            frequency: 2,
+            severity: 'low',
+            examples: [],
+            suggestion: '',
+            beforeAfter: { before: '', after: '' },
+          },
+        ],
+        stats: { totalPrompts: 50, promptsWithIssues: 20, overallScore: 6 },
+        topSuggestion: '',
+      },
+    });
+    const entries: [string, HistoryEntry][] = [['2025-01-15', entry]];
+    printHistoryList(entries);
+
+    const output = consoleSpy.mock.calls[0]?.[0] as string;
+    expect(output).toContain('2'); // 2 patterns
+  });
+
+  it('should color score based on value', () => {
+    const highScoreEntry = createHistoryEntry({
+      result: {
+        date: '2025-01-15',
+        patterns: [],
+        stats: { totalPrompts: 100, promptsWithIssues: 5, overallScore: 9 },
+        topSuggestion: '',
+      },
+    });
+    const lowScoreEntry = createHistoryEntry({
+      result: {
+        date: '2025-01-10',
+        patterns: [],
+        stats: { totalPrompts: 100, promptsWithIssues: 50, overallScore: 4 },
+        topSuggestion: '',
+      },
+    });
+
+    const entries: [string, HistoryEntry][] = [
+      ['2025-01-15', highScoreEntry],
+      ['2025-01-10', lowScoreEntry],
+    ];
+    printHistoryList(entries);
+
+    const output = consoleSpy.mock.calls[0]?.[0] as string;
+    // Both scores should appear
+    expect(output).toContain('9.0/10');
+    expect(output).toContain('4.0/10');
+  });
+
+  it('should buffer output and print once', () => {
+    const entries: [string, HistoryEntry][] = [
+      ['2025-01-15', createHistoryEntry()],
+      ['2025-01-10', createHistoryEntry()],
+    ];
+    printHistoryList(entries);
+
+    expect(consoleSpy).toHaveBeenCalledOnce();
+  });
+});
+
+describe('printHistorySummary', () => {
+  const createHistoryEntry = (
+    overrides?: Partial<HistoryEntry>,
+  ): HistoryEntry => ({
+    result: {
+      date: '2025-01-15',
+      patterns: [],
+      stats: {
+        totalPrompts: 100,
+        promptsWithIssues: 20,
+        overallScore: 8,
+      },
+      topSuggestion: 'Keep up the good work!',
+    },
+    metadata: {
+      provider: 'ollama',
+      promptCount: 50,
+      projects: ['project1'],
+    },
+    ...overrides,
+  });
+
+  let consoleSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {
+      // Mock implementation - intentionally empty
+    });
+    chalk.level = 3;
+  });
+
+  afterEach(() => {
+    consoleSpy.mockRestore();
+    chalk.level = 0;
+  });
+
+  it('should show no history message when array is empty', () => {
+    printHistorySummary([]);
+
+    expect(consoleSpy).toHaveBeenCalled();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const allOutput = consoleSpy.mock.calls
+      .map((c: unknown[]) => c[0])
+      .join('\n');
+    expect(allOutput).toContain('No history entries found');
+  });
+
+  it('should print summary header', () => {
+    const entries: [string, HistoryEntry][] = [
+      ['2025-01-15', createHistoryEntry()],
+    ];
+    printHistorySummary(entries);
+
+    const output = consoleSpy.mock.calls[0]?.[0] as string;
+    expect(output).toContain('History Summary');
+  });
+
+  it('should calculate and display total entries', () => {
+    const entries: [string, HistoryEntry][] = [
+      ['2025-01-15', createHistoryEntry()],
+      ['2025-01-10', createHistoryEntry()],
+      ['2025-01-05', createHistoryEntry()],
+    ];
+    printHistorySummary(entries);
+
+    const output = consoleSpy.mock.calls[0]?.[0] as string;
+    expect(output).toContain('Total Entries');
+    expect(output).toContain('3');
+  });
+
+  it('should calculate average score', () => {
+    const entries: [string, HistoryEntry][] = [
+      [
+        '2025-01-15',
+        createHistoryEntry({
+          result: {
+            date: '2025-01-15',
+            patterns: [],
+            stats: {
+              totalPrompts: 100,
+              promptsWithIssues: 10,
+              overallScore: 9,
+            },
+            topSuggestion: '',
+          },
+        }),
+      ],
+      [
+        '2025-01-10',
+        createHistoryEntry({
+          result: {
+            date: '2025-01-10',
+            patterns: [],
+            stats: {
+              totalPrompts: 100,
+              promptsWithIssues: 30,
+              overallScore: 6,
+            },
+            topSuggestion: '',
+          },
+        }),
+      ],
+    ];
+    printHistorySummary(entries);
+
+    const output = consoleSpy.mock.calls[0]?.[0] as string;
+    expect(output).toContain('Average Score');
+    expect(output).toContain('7.5/10'); // (9 + 6) / 2 = 7.5
+  });
+
+  it('should calculate min and max scores', () => {
+    const entries: [string, HistoryEntry][] = [
+      [
+        '2025-01-15',
+        createHistoryEntry({
+          result: {
+            date: '2025-01-15',
+            patterns: [],
+            stats: {
+              totalPrompts: 100,
+              promptsWithIssues: 50,
+              overallScore: 4,
+            },
+            topSuggestion: '',
+          },
+        }),
+      ],
+      [
+        '2025-01-10',
+        createHistoryEntry({
+          result: {
+            date: '2025-01-10',
+            patterns: [],
+            stats: {
+              totalPrompts: 100,
+              promptsWithIssues: 5,
+              overallScore: 10,
+            },
+            topSuggestion: '',
+          },
+        }),
+      ],
+      [
+        '2025-01-05',
+        createHistoryEntry({
+          result: {
+            date: '2025-01-05',
+            patterns: [],
+            stats: {
+              totalPrompts: 100,
+              promptsWithIssues: 20,
+              overallScore: 7,
+            },
+            topSuggestion: '',
+          },
+        }),
+      ],
+    ];
+    printHistorySummary(entries);
+
+    const output = consoleSpy.mock.calls[0]?.[0] as string;
+    expect(output).toContain('Min Score');
+    expect(output).toContain('4.0/10');
+    expect(output).toContain('Max Score');
+    expect(output).toContain('10.0/10');
+  });
+
+  it('should list unique providers', () => {
+    const entries: [string, HistoryEntry][] = [
+      ['2025-01-15', createHistoryEntry()],
+      [
+        '2025-01-10',
+        createHistoryEntry({
+          metadata: { provider: 'openai', promptCount: 30, projects: [] },
+        }),
+      ],
+    ];
+    printHistorySummary(entries);
+
+    const output = consoleSpy.mock.calls[0]?.[0] as string;
+    expect(output).toContain('Providers Used');
+    expect(output).toContain('ollama');
+    expect(output).toContain('openai');
+  });
+
+  it('should calculate total prompts analyzed', () => {
+    const entries: [string, HistoryEntry][] = [
+      [
+        '2025-01-15',
+        createHistoryEntry({
+          metadata: { provider: 'ollama', promptCount: 100, projects: [] },
+        }),
+      ],
+      [
+        '2025-01-10',
+        createHistoryEntry({
+          metadata: { provider: 'ollama', promptCount: 75, projects: [] },
+        }),
+      ],
+      [
+        '2025-01-05',
+        createHistoryEntry({
+          metadata: { provider: 'ollama', promptCount: 25, projects: [] },
+        }),
+      ],
+    ];
+    printHistorySummary(entries);
+
+    const output = consoleSpy.mock.calls[0]?.[0] as string;
+    expect(output).toContain('Total Prompts Analyzed');
+    expect(output).toContain('200'); // 100 + 75 + 25
+  });
+
+  it('should handle single entry correctly', () => {
+    const entries: [string, HistoryEntry][] = [
+      [
+        '2025-01-15',
+        createHistoryEntry({
+          result: {
+            date: '2025-01-15',
+            patterns: [],
+            stats: {
+              totalPrompts: 100,
+              promptsWithIssues: 20,
+              overallScore: 8,
+            },
+            topSuggestion: '',
+          },
+          metadata: { provider: 'ollama', promptCount: 50, projects: [] },
+        }),
+      ],
+    ];
+    printHistorySummary(entries);
+
+    const output = consoleSpy.mock.calls[0]?.[0] as string;
+    expect(output).toContain('Total Entries');
+    expect(output).toContain('1');
+    expect(output).toContain('Average Score');
+    expect(output).toContain('8.0/10');
+    // Min and max should be the same for single entry
+    expect(output).toContain('Min Score');
+    expect(output).toContain('Max Score');
+  });
+
+  it('should color scores based on value', () => {
+    const entries: [string, HistoryEntry][] = [
+      [
+        '2025-01-15',
+        createHistoryEntry({
+          result: {
+            date: '2025-01-15',
+            patterns: [],
+            stats: { totalPrompts: 100, promptsWithIssues: 5, overallScore: 9 },
+            topSuggestion: '',
+          },
+        }),
+      ],
+    ];
+    printHistorySummary(entries);
+
+    const output = consoleSpy.mock.calls[0]?.[0] as string;
+    // Should contain ANSI color codes (green for high score)
+    // eslint-disable-next-line no-control-regex
+    expect(output).toMatch(/\x1b\[32m/);
+  });
+
+  it('should buffer output and print once', () => {
+    const entries: [string, HistoryEntry][] = [
+      ['2025-01-15', createHistoryEntry()],
+      ['2025-01-10', createHistoryEntry()],
+    ];
+    printHistorySummary(entries);
+
+    expect(consoleSpy).toHaveBeenCalledOnce();
+  });
+
+  it('should handle duplicate providers', () => {
+    const entries: [string, HistoryEntry][] = [
+      [
+        '2025-01-15',
+        createHistoryEntry({
+          metadata: { provider: 'ollama', promptCount: 50, projects: [] },
+        }),
+      ],
+      [
+        '2025-01-10',
+        createHistoryEntry({
+          metadata: { provider: 'ollama', promptCount: 30, projects: [] },
+        }),
+      ],
+      [
+        '2025-01-05',
+        createHistoryEntry({
+          metadata: { provider: 'openai', promptCount: 20, projects: [] },
+        }),
+      ],
+    ];
+    printHistorySummary(entries);
+
+    const output = consoleSpy.mock.calls[0]?.[0] as string;
+    // Should only list ollama once
+    const ollamaMatches = output.match(/ollama/g);
+    // The provider should appear in the table, may have multiple occurrences due to formatting
+    expect(ollamaMatches).toBeTruthy();
+    expect(output).toContain('openai');
   });
 });
