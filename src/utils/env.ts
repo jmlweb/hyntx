@@ -5,11 +5,13 @@
  * configuration, detecting first-time usage, and managing provider settings.
  */
 
+import { existsSync, readFileSync } from 'node:fs';
 import {
   type EnvConfig,
   ENV_DEFAULTS,
   type ProviderType,
 } from '../types/index.js';
+import { detectShellConfigFile, findMarkerPositions } from './shell-config.js';
 
 /**
  * Valid provider types for validation.
@@ -22,12 +24,40 @@ const VALID_PROVIDERS: readonly ProviderType[] = [
 
 /**
  * Checks if this is the first run of Hyntx.
- * First run is detected when HYNTX_SERVICES is not set.
+ * First run is detected when HYNTX_SERVICES is not set in process.env
+ * AND no configuration exists in the shell config file.
  *
  * @returns true if this is the first run
  */
 export function isFirstRun(): boolean {
-  return !process.env['HYNTX_SERVICES'];
+  // If HYNTX_SERVICES is set in process.env, it's not the first run
+  if (process.env['HYNTX_SERVICES']) {
+    return false;
+  }
+
+  // Check if configuration exists in shell config file
+  try {
+    const { configFile } = detectShellConfigFile();
+    if (existsSync(configFile)) {
+      const content = readFileSync(configFile, 'utf-8');
+      const positions = findMarkerPositions(content);
+      // If we have a valid config block (both markers present and in correct order),
+      // it's not the first run
+      if (
+        positions.startIndex !== -1 &&
+        positions.endIndex !== -1 &&
+        positions.isValid
+      ) {
+        return false;
+      }
+    }
+  } catch {
+    // If we can't read the shell config file, fall back to checking process.env only
+    // This maintains backward compatibility
+  }
+
+  // No configuration found anywhere - this is the first run
+  return true;
 }
 
 /**

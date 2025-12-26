@@ -1,14 +1,35 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as fs from 'node:fs';
 
 import { ENV_DEFAULTS } from '../types/index.js';
 
 import { getEnvConfig, isFirstRun, parseServices } from './env.js';
 
+// Mock shell-config module
+vi.mock('./shell-config.js', () => ({
+  detectShellConfigFile: vi.fn(() => ({
+    shellType: 'zsh',
+    configFile: '/mock/home/.zshrc',
+  })),
+  findMarkerPositions: vi.fn(() => ({
+    startIndex: -1,
+    endIndex: -1,
+    isValid: true,
+  })),
+}));
+
+// Mock fs module
+vi.mock('node:fs', () => ({
+  existsSync: vi.fn(() => false),
+  readFileSync: vi.fn(),
+}));
+
 describe('env', () => {
   // Store original environment
   const originalEnv = process.env;
+  let mockFindMarkerPositions: ReturnType<typeof vi.fn>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Reset environment before each test
     // Filter out HYNTX_ variables from the original environment
     const cleanEnv: Record<string, string> = {};
@@ -18,6 +39,17 @@ describe('env', () => {
       }
     }
     process.env = cleanEnv;
+
+    // Get mocked shell-config module
+    const shellConfigModule = await import('./shell-config.js');
+    mockFindMarkerPositions = vi.mocked(shellConfigModule.findMarkerPositions);
+    mockFindMarkerPositions.mockReturnValue({
+      startIndex: -1,
+      endIndex: -1,
+      isValid: true,
+    });
+    vi.mocked(fs.existsSync).mockReturnValue(false);
+    vi.mocked(fs.readFileSync).mockReturnValue('');
   });
 
   afterEach(() => {
@@ -26,19 +58,71 @@ describe('env', () => {
   });
 
   describe('isFirstRun', () => {
-    it('should return true when HYNTX_SERVICES is not set', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      mockFindMarkerPositions.mockReturnValue({
+        startIndex: -1,
+        endIndex: -1,
+        isValid: true,
+      });
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      vi.mocked(fs.readFileSync).mockReturnValue('');
+    });
+
+    it('should return false when HYNTX_SERVICES is set in process.env', () => {
+      process.env['HYNTX_SERVICES'] = 'ollama';
+      expect(isFirstRun()).toBe(false);
+    });
+
+    it('should return true when HYNTX_SERVICES is not set and no config file exists', () => {
       delete process.env['HYNTX_SERVICES'];
+      vi.mocked(fs.existsSync).mockReturnValue(false);
       expect(isFirstRun()).toBe(true);
     });
 
-    it('should return false when HYNTX_SERVICES is set', () => {
-      process.env['HYNTX_SERVICES'] = 'ollama';
+    it('should return false when HYNTX_SERVICES is not set but config exists in shell file', () => {
+      delete process.env['HYNTX_SERVICES'];
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.readFileSync).mockReturnValue(
+        '# >>> hyntx config >>>\nexport HYNTX_SERVICES=ollama\n# <<< hyntx config <<<',
+      );
+      mockFindMarkerPositions.mockReturnValue({
+        startIndex: 0,
+        endIndex: 50,
+        isValid: true,
+      });
+
       expect(isFirstRun()).toBe(false);
+    });
+
+    it('should return true when HYNTX_SERVICES is not set and config file has no valid markers', () => {
+      delete process.env['HYNTX_SERVICES'];
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.readFileSync).mockReturnValue(
+        'some content without markers',
+      );
+      mockFindMarkerPositions.mockReturnValue({
+        startIndex: -1,
+        endIndex: -1,
+        isValid: true,
+      });
+
+      expect(isFirstRun()).toBe(true);
     });
 
     it('should return true when HYNTX_SERVICES is set to empty string', () => {
       // Empty string is treated as "not set" since it provides no valid providers
       process.env['HYNTX_SERVICES'] = '';
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      expect(isFirstRun()).toBe(true);
+    });
+
+    it('should return true when shell config file read fails', () => {
+      delete process.env['HYNTX_SERVICES'];
+      vi.mocked(fs.existsSync).mockImplementation(() => {
+        throw new Error('Permission denied');
+      });
+      // Should gracefully handle error and return true (first run)
       expect(isFirstRun()).toBe(true);
     });
   });

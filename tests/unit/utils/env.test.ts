@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as fs from 'node:fs';
 
 import { ENV_DEFAULTS } from '../../../src/types/index.js';
 
@@ -8,11 +9,31 @@ import {
   parseServices,
 } from '../../../src/utils/env.js';
 
+// Mock shell-config module
+vi.mock('../../../src/utils/shell-config.js', () => ({
+  detectShellConfigFile: vi.fn(() => ({
+    shellType: 'zsh',
+    configFile: '/mock/home/.zshrc',
+  })),
+  findMarkerPositions: vi.fn(() => ({
+    startIndex: -1,
+    endIndex: -1,
+    isValid: true,
+  })),
+}));
+
+// Mock fs module
+vi.mock('node:fs', () => ({
+  existsSync: vi.fn(() => false),
+  readFileSync: vi.fn(),
+}));
+
 describe('env', () => {
   // Store original environment
   const originalEnv = process.env;
+  let mockFindMarkerPositions: ReturnType<typeof vi.fn>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Reset environment before each test
     // Filter out HYNTX_ variables from the original environment
     const cleanEnv: Record<string, string> = {};
@@ -22,6 +43,18 @@ describe('env', () => {
       }
     }
     process.env = cleanEnv;
+
+    // Get mocked shell-config module
+    const shellConfigModule =
+      await import('../../../src/utils/shell-config.js');
+    mockFindMarkerPositions = vi.mocked(shellConfigModule.findMarkerPositions);
+    mockFindMarkerPositions.mockReturnValue({
+      startIndex: -1,
+      endIndex: -1,
+      isValid: true,
+    });
+    vi.mocked(fs.existsSync).mockReturnValue(false);
+    vi.mocked(fs.readFileSync).mockReturnValue('');
   });
 
   afterEach(() => {
@@ -30,19 +63,32 @@ describe('env', () => {
   });
 
   describe('isFirstRun', () => {
-    it('should return true when HYNTX_SERVICES is not set', () => {
-      delete process.env['HYNTX_SERVICES'];
-      expect(isFirstRun()).toBe(true);
+    beforeEach(() => {
+      vi.clearAllMocks();
+      mockFindMarkerPositions.mockReturnValue({
+        startIndex: -1,
+        endIndex: -1,
+        isValid: true,
+      });
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      vi.mocked(fs.readFileSync).mockReturnValue('');
     });
 
-    it('should return false when HYNTX_SERVICES is set', () => {
+    it('should return false when HYNTX_SERVICES is set in process.env', () => {
       process.env['HYNTX_SERVICES'] = 'ollama';
       expect(isFirstRun()).toBe(false);
+    });
+
+    it('should return true when HYNTX_SERVICES is not set and no config file exists', () => {
+      delete process.env['HYNTX_SERVICES'];
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      expect(isFirstRun()).toBe(true);
     });
 
     it('should return true when HYNTX_SERVICES is set to empty string', () => {
       // Empty string is treated as "not set" since it provides no valid providers
       process.env['HYNTX_SERVICES'] = '';
+      vi.mocked(fs.existsSync).mockReturnValue(false);
       expect(isFirstRun()).toBe(true);
     });
   });
