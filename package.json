@@ -1,6 +1,6 @@
 {
   "name": "hyntx",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "CLI that analyzes Claude Code prompts and generates improvement suggestions",
   "type": "module",
   "packageManager": "pnpm@9.15.4",

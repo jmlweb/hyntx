@@ -1,3 +1,14 @@
+## [2.4.0](https://github.com/jmlweb/hyntx/compare/v2.3.0...v2.4.0) (2025-12-26)
+
+### Features
+
+- improve results ([443e978](https://github.com/jmlweb/hyntx/commit/443e97885d3c2228b35721819fd6e5aa6266626e))
+
+### Bug Fixes
+
+- detect existing config in shell file to prevent repeated setup ([e69902e](https://github.com/jmlweb/hyntx/commit/e69902e5a58e566306991b0262e4951a012181fb))
+- update test expectations to match updated taxonomy and system prompts ([9903c4f](https://github.com/jmlweb/hyntx/commit/9903c4f09888289f40bb8ce9085a15a7c4ce96f1))
+
 ## [2.3.0](https://github.com/jmlweb/hyntx/compare/v2.2.1...v2.3.0) (2025-12-26)
 
 ### Features
