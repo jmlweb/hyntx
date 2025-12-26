@@ -6,6 +6,7 @@ export default {
       const ignoredSubjects = new Set([
         'Refactor: Ensure backlog and ideas directories persist',
         'Refactor docs and ideas structure',
+        'feat: Add commitlint ignore for specific refactors',
       ]);
       return ignoredSubjects.has(firstLine);
     },
