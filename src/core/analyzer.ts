@@ -107,6 +107,13 @@ type AnalyzePromptsOptions = {
   readonly rules?: RulesConfig;
   readonly onProgress?: (current: number, total: number) => void;
   readonly noCache?: boolean;
+  /**
+   * Pre-cached results from incremental results storage.
+   * When provided, these will be merged with newly analyzed results
+   * using mergeBatchResults(). This enables incremental analysis
+   * where only new prompts are analyzed.
+   */
+  readonly cachedResults?: ReadonlyMap<string, AnalysisResult>;
 };
 
 // =============================================================================
@@ -669,6 +676,47 @@ function applyRulesToResult(
 }
 
 /**
+ * Merges analysis results with pre-cached results and applies rules.
+ * If no cached results are provided, just applies rules to the new results.
+ *
+ * @param newResults - Array of newly analyzed results
+ * @param cachedResults - Optional map of pre-cached results
+ * @param date - Date context for merging
+ * @param rules - Rules configuration to apply
+ * @returns Merged and filtered analysis result
+ */
+function mergeWithCachedResults(
+  newResults: readonly AnalysisResult[],
+  cachedResults: ReadonlyMap<string, AnalysisResult> | undefined,
+  date: string,
+  rules: RulesConfig | undefined,
+): AnalysisResult {
+  // If no cached results, just merge new results and apply rules
+  if (!cachedResults || cachedResults.size === 0) {
+    if (newResults.length === 1) {
+      const result = newResults[0];
+      if (result) {
+        return applyRulesToResult(result, rules);
+      }
+    }
+    const mergedResult = mergeBatchResults({ results: newResults, date });
+    return applyRulesToResult(mergedResult, rules);
+  }
+
+  // Combine cached and new results
+  const cachedArray = Array.from(cachedResults.values());
+  const allResults = [...cachedArray, ...newResults];
+
+  logger.debug(
+    `Merging ${String(cachedArray.length)} cached + ${String(newResults.length)} new results`,
+    'analyzer',
+  );
+
+  const mergedResult = mergeBatchResults({ results: allResults, date });
+  return applyRulesToResult(mergedResult, rules);
+}
+
+/**
  * Analyzes prompts using the provided AI provider.
  *
  * Orchestrates the full analysis workflow:
@@ -677,14 +725,19 @@ function applyRulesToResult(
  * 3. Checks cache for existing results (unless noCache is true)
  * 4. Processes batches sequentially with progress updates
  * 5. Stores results in cache for future use
- * 6. Merges batch results into final output
+ * 6. Merges batch results with any provided cached results
  * 7. Applies rules configuration to filter/modify patterns
+ *
+ * For incremental analysis, use the `cachedResults` option to provide
+ * pre-loaded results from the incremental results storage. This allows
+ * the analyzer to only process new prompts and merge the results.
  *
  * @param options - Analysis options
  * @returns Analysis result
  *
  * @example
  * ```typescript
+ * // Basic usage
  * const result = await analyzePrompts({
  *   provider: ollamaProvider,
  *   prompts: ['prompt1', 'prompt2', 'prompt3'],
@@ -693,21 +746,59 @@ function applyRulesToResult(
  *   onProgress: (current, total) => console.log(`${current}/${total}`),
  *   noCache: false
  * });
+ *
+ * // With incremental cached results
+ * const { cached, toAnalyze } = await getPromptsWithCache(prompts, model, schema);
+ * const result = await analyzePrompts({
+ *   provider,
+ *   prompts: toAnalyze.map(p => p.content),
+ *   date: '2025-01-15',
+ *   cachedResults: cached,  // Pre-loaded results from incremental storage
+ * });
  * ```
  */
 export async function analyzePrompts(
   options: AnalyzePromptsOptions,
 ): Promise<AnalysisResult> {
-  const { provider, prompts, date, context, rules, onProgress, noCache } =
-    options;
+  const {
+    provider,
+    prompts,
+    date,
+    context,
+    rules,
+    onProgress,
+    noCache,
+    cachedResults,
+  } = options;
 
   logger.debug(
     `Starting analysis of ${String(prompts.length)} prompts for ${date}`,
     'analyzer',
   );
 
+  // If we have only cached results and no new prompts to analyze
+  if (prompts.length === 0 && cachedResults && cachedResults.size > 0) {
+    logger.debug(
+      `Using ${String(cachedResults.size)} cached result(s), no new prompts to analyze`,
+      'analyzer',
+    );
+    const cachedArray = Array.from(cachedResults.values());
+    const mergedResult = mergeBatchResults({ results: cachedArray, date });
+    return applyRulesToResult(mergedResult, rules);
+  }
+
   if (prompts.length === 0) {
     throw new Error('Cannot analyze empty prompts array');
+  }
+
+  // Log cache statistics if available
+  if (cachedResults && cachedResults.size > 0) {
+    const totalPrompts = prompts.length + cachedResults.size;
+    const cacheHitRate = ((cachedResults.size / totalPrompts) * 100).toFixed(1);
+    logger.debug(
+      `Results cache: ${String(cachedResults.size)} cached, ${String(prompts.length)} to analyze (${cacheHitRate}% hit rate)`,
+      'analyzer',
+    );
   }
 
   // Step 1: Sanitize prompts
@@ -786,35 +877,10 @@ export async function analyzePrompts(
       throw new Error('All prompts failed analysis');
     }
 
-    if (results.length === 1) {
-      const result = results[0];
-      if (!result) {
-        throw new Error('Analysis returned empty result');
-      }
+    // Merge new results with cached results (if any)
+    logger.debug(`Analysis complete, merging with cached results`, 'analyzer');
 
-      logger.debug(
-        `Analysis complete: ${String(result.patterns.length)} patterns found`,
-        'analyzer',
-      );
-
-      // Apply rules configuration
-      return applyRulesToResult(result, rules);
-    }
-
-    // Multiple results from fallback - merge them
-    logger.debug(
-      `Merging ${String(results.length)} fallback results`,
-      'analyzer',
-    );
-    const mergedResult = mergeBatchResults({ results, date });
-
-    logger.debug(
-      `Analysis complete: ${String(mergedResult.patterns.length)} patterns found`,
-      'analyzer',
-    );
-
-    // Apply rules configuration
-    return applyRulesToResult(mergedResult, rules);
+    return mergeWithCachedResults(results, cachedResults, date, rules);
   }
 
   // Step 4: Process batches sequentially with progress updates
@@ -865,15 +931,11 @@ export async function analyzePrompts(
     throw new Error('All batches failed analysis');
   }
 
-  // Step 5: Merge results
-  logger.debug(`Merging ${String(results.length)} batch results`, 'analyzer');
-  const mergedResult = mergeBatchResults({ results, date });
-
+  // Step 5: Merge results with cached results (if any)
   logger.debug(
-    `Analysis complete: ${String(mergedResult.patterns.length)} patterns found`,
+    `Analysis complete, merging ${String(results.length)} batch results with cached results`,
     'analyzer',
   );
 
-  // Apply rules configuration
-  return applyRulesToResult(mergedResult, rules);
+  return mergeWithCachedResults(results, cachedResults, date, rules);
 }
