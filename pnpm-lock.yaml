@@ -45,6 +45,15 @@ importers:
       '@eslint/js':
         specifier: ^9.17.0
         version: 9.39.2
+      '@jmlweb/prettier-config-base':
+        specifier: ^1.0.0
+        version: 1.0.0(prettier@3.7.4)
+      '@jmlweb/tsconfig-base':
+        specifier: ^1.0.0
+        version: 1.0.0
+      '@jmlweb/vitest-config':
+        specifier: ^1.0.0
+        version: 1.0.0(vitest@4.0.16(@types/node@25.0.3)(jiti@2.6.1)(yaml@2.8.2))
       '@semantic-release/changelog':
         specifier: ^6.0.3
         version: 6.0.3(semantic-release@25.0.2(typescript@5.9.3))
@@ -430,6 +439,22 @@ packages:
   '@isaacs/brace-expansion@5.0.0':
     resolution: {integrity: sha512-ZT55BDLV0yv0RBm2czMiZ+SqCGO7AvmOM3G/w2xhVPH+te0aKgFjmBvGlL1dH+ql2tgGO3MVrbb3jCKyvpgnxA==}
     engines: {node: 20 || >=22}
+
+  '@jmlweb/prettier-config-base@1.0.0':
+    resolution: {integrity: sha512-hrdSdMbKLOjX6ELe5cYera0VBrGoVGOVGFzST0B2Dc7wehtbB/hPzK5uwVMYEuiQsV64UwBABZcgqVxCATG8uA==}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      prettier: ^3.0.0
+
+  '@jmlweb/tsconfig-base@1.0.0':
+    resolution: {integrity: sha512-2LRBNInkCfh4b3rpV5SryqeZ5ayDbj6wfYqBgKf9vAbkl06T8JpV2l4x0LrEfQTUeNLk/lMouCFr0jbqvxs3dg==}
+    engines: {node: '>=18.0.0'}
+
+  '@jmlweb/vitest-config@1.0.0':
+    resolution: {integrity: sha512-Zinhp/ZWplzmvtdToYfxjrGdy1TuEaCqAE1k+KyDA7yCwWza4z+pkUXBWBExFuTEJwhVAJd8zm4VkHzM3sAUSw==}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      vitest: ^1.0.0
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -3023,6 +3048,16 @@ snapshots:
   '@isaacs/brace-expansion@5.0.0':
     dependencies:
       '@isaacs/balanced-match': 4.0.1
+
+  '@jmlweb/prettier-config-base@1.0.0(prettier@3.7.4)':
+    dependencies:
+      prettier: 3.7.4
+
+  '@jmlweb/tsconfig-base@1.0.0': {}
+
+  '@jmlweb/vitest-config@1.0.0(vitest@4.0.16(@types/node@25.0.3)(jiti@2.6.1)(yaml@2.8.2))':
+    dependencies:
+      vitest: 4.0.16(@types/node@25.0.3)(jiti@2.6.1)(yaml@2.8.2)
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:

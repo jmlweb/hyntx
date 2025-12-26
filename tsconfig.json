@@ -1,23 +1,10 @@
 {
+  "extends": "@jmlweb/tsconfig-base",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "lib": ["ES2022"],
     "outDir": "dist",
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true,
-    "noPropertyAccessFromIndexSignature": true,
-    "forceConsistentCasingInFileNames": true,
-    "verbatimModuleSyntax": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "skipLibCheck": true,
+    "lib": ["ES2022"],
     "esModuleInterop": false,
-    "isolatedModules": true,
-    "resolveJsonModule": true
+    "exactOptionalPropertyTypes": false
   },
   "include": ["src/**/*", "tests/**/*"],
   "exclude": ["node_modules", "dist", "tests/e2e/**/*", "vitest.config.e2e.ts"]
