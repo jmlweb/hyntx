@@ -21,7 +21,7 @@ import {
   parseDate,
 } from './core/log-reader.js';
 import { runSetup } from './core/setup.js';
-import { analyzePrompts } from './core/analyzer.js';
+import { analyzePrompts, extractModelFromProvider } from './core/analyzer.js';
 import {
   printReport,
   formatJson,
@@ -30,6 +30,11 @@ import {
   formatRulesListJson,
 } from './core/reporter.js';
 import type { RuleListEntry } from './core/reporter.js';
+import {
+  getPromptsWithCache,
+  savePromptResult,
+  getPromptResult,
+} from './core/results-storage.js';
 import { getAvailableProvider } from './providers/index.js';
 import { ISSUE_TAXONOMY } from './providers/schemas.js';
 import { CLAUDE_PROJECTS_DIR } from './utils/paths.js';
@@ -1005,6 +1010,7 @@ export async function connectProviderWithSpinner(
  * @param rules - Optional rules configuration
  * @param isJsonMode - Whether JSON output mode is active
  * @param noCache - Whether to bypass cache
+ * @param extractedPrompts - Optional extracted prompts for cache lookup
  * @returns Analysis result
  */
 export async function analyzeWithProgress(
@@ -1015,28 +1021,84 @@ export async function analyzeWithProgress(
   rules: RulesConfig | undefined,
   isJsonMode: boolean,
   noCache?: boolean,
+  extractedPrompts?: readonly ExtractedPrompt[],
 ): Promise<AnalysisResult> {
+  // Load cached results if extractedPrompts provided
+  let cachedResults: ReadonlyMap<string, AnalysisResult> | undefined;
+  let promptsToAnalyze = prompts;
+
+  if (extractedPrompts) {
+    const cacheResult = await loadAndFilterCachedResults(
+      extractedPrompts,
+      provider,
+      noCache,
+    );
+    cachedResults = cacheResult.cachedResults;
+    promptsToAnalyze = cacheResult.toAnalyze;
+  }
+
+  // Update spinner text to show cache info
+  const total = prompts.length;
+  const cached = cachedResults?.size ?? 0;
+  const cacheInfo = cached > 0 ? ` (${String(cached)} cached)` : '';
+
   const spinner = isJsonMode
     ? null
-    : ora(`Analyzing ${String(prompts.length)} prompts...`).start();
+    : ora(`Analyzing ${String(total)} prompts${cacheInfo}...`).start();
 
   try {
     const result = await analyzePrompts({
       provider,
-      prompts,
+      prompts: promptsToAnalyze,
       date,
       context,
       rules,
-      onProgress: (current, total) => {
-        if (!isJsonMode && spinner && total > 1) {
-          spinner.text = `Analyzing ${String(prompts.length)} prompts (batch ${String(current + 1)}/${String(total)})...`;
+      onProgress: (current, batchTotal) => {
+        if (!isJsonMode && spinner && batchTotal > 1) {
+          spinner.text = `Analyzing ${String(total)} prompts${cacheInfo} (batch ${String(current + 1)}/${String(batchTotal)})...`;
         }
       },
       noCache,
+      cachedResults,
     });
 
+    // Save result for single-prompt case (watch mode benefit)
+    if (
+      !noCache &&
+      extractedPrompts?.length === 1 &&
+      promptsToAnalyze.length === 1
+    ) {
+      const prompt = extractedPrompts[0];
+      if (prompt) {
+        const model = extractModelFromProvider(provider.name);
+        const schemaType = determineSchemaType(provider);
+
+        try {
+          await savePromptResult(prompt.content, result, {
+            date: prompt.date,
+            project: prompt.project,
+            provider: provider.name,
+            model,
+            schemaType,
+          });
+        } catch (error) {
+          // Fail silently - cache save errors shouldn't break analysis
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          logger.debug(
+            `Failed to save prompt result: ${errorMessage}`,
+            'results',
+          );
+        }
+      }
+    }
+
     if (!isJsonMode) {
-      spinner?.succeed(chalk.green('Analysis complete'));
+      const hitRate =
+        total > 0 && cached > 0
+          ? ` - ${((cached / total) * 100).toFixed(0)}% cached`
+          : '';
+      spinner?.succeed(chalk.green(`Analysis complete${hitRate}`));
     }
 
     return result;
@@ -1052,6 +1114,96 @@ export async function analyzeWithProgress(
       spinner?.fail(chalk.red(`Analysis failed: ${errorMessage}`));
     }
     process.exit(EXIT_CODES.ERROR);
+  }
+}
+
+/**
+ * Determines the schema type from the provider.
+ *
+ * @param provider - Analysis provider
+ * @returns Schema type identifier
+ */
+function determineSchemaType(provider: AnalysisProvider): string {
+  // Extract schema name from provider
+  // Provider names typically follow the pattern "Provider (model-name)"
+  const providerName = provider.name.toLowerCase();
+
+  if (providerName.includes('anthropic')) {
+    return 'anthropic';
+  }
+
+  if (providerName.includes('ollama')) {
+    return 'ollama';
+  }
+
+  if (providerName.includes('google')) {
+    return 'google';
+  }
+
+  // Default fallback
+  return 'ollama';
+}
+
+/**
+ * Loads cached results and filters prompts that need analysis.
+ * Returns cached results map and list of prompts to analyze.
+ *
+ * @param extractedPrompts - All prompts from log files
+ * @param provider - Analysis provider
+ * @param noCache - Whether to bypass cache
+ * @returns Object with cached results and prompts to analyze
+ */
+async function loadAndFilterCachedResults(
+  extractedPrompts: readonly ExtractedPrompt[],
+  provider: AnalysisProvider,
+  noCache?: boolean,
+): Promise<{
+  readonly cachedResults: ReadonlyMap<string, AnalysisResult>;
+  readonly toAnalyze: readonly string[];
+}> {
+  // Skip cache if disabled
+  if (noCache) {
+    logger.debug('Cache disabled, analyzing all prompts', 'results');
+    return {
+      cachedResults: new Map(),
+      toAnalyze: extractedPrompts.map((p) => p.content),
+    };
+  }
+
+  try {
+    const model = extractModelFromProvider(provider.name);
+    const schemaType = determineSchemaType(provider);
+
+    // Load cached results in parallel
+    const { cached, toAnalyze } = await getPromptsWithCache(
+      extractedPrompts,
+      model,
+      schemaType,
+    );
+
+    // Log cache statistics
+    const total = extractedPrompts.length;
+    const hitRate =
+      total > 0 ? ((cached.size / total) * 100).toFixed(1) : '0.0';
+    logger.debug(
+      `Results cache: ${String(cached.size)}/${String(total)} hits (${hitRate}%)`,
+      'results',
+    );
+
+    return {
+      cachedResults: cached,
+      toAnalyze: toAnalyze.map((p) => p.content),
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.warn(
+      `Failed to load cached results: ${errorMessage}. Analyzing all prompts.`,
+      'results',
+    );
+    return {
+      cachedResults: new Map(),
+      toAnalyze: extractedPrompts.map((p) => p.content),
+    };
   }
 }
 
@@ -1143,14 +1295,66 @@ export async function runWatchMode(
     // Handle async analysis without blocking
     void (async (): Promise<void> => {
       try {
-        // Analyze single prompt
-        const result = await analyzePrompts({
-          provider,
-          prompts: [prompt.content],
-          date: prompt.date,
-          context,
-          rules,
-        });
+        let result: AnalysisResult;
+
+        // Check results cache first (if not disabled)
+        if (!args.noCache) {
+          const model = extractModelFromProvider(provider.name);
+          const schemaType = determineSchemaType(provider);
+
+          const cachedResult = await getPromptResult(prompt.content, {
+            date: prompt.date,
+            project: prompt.project,
+            model,
+            schemaType,
+          });
+
+          if (cachedResult) {
+            // Use cached result
+            logger.debug(
+              `Watch mode: using cached result for prompt on ${prompt.date}`,
+              'results',
+            );
+            result = cachedResult;
+          } else {
+            // Analyze and cache result
+            result = await analyzePrompts({
+              provider,
+              prompts: [prompt.content],
+              date: prompt.date,
+              context,
+              rules,
+            });
+
+            // Save to results cache
+            try {
+              await savePromptResult(prompt.content, result, {
+                date: prompt.date,
+                project: prompt.project,
+                provider: provider.name,
+                model,
+                schemaType,
+              });
+            } catch (error) {
+              // Fail silently - cache save errors shouldn't break analysis
+              const errorMessage =
+                error instanceof Error ? error.message : String(error);
+              logger.debug(
+                `Failed to save prompt result in watch mode: ${errorMessage}`,
+                'results',
+              );
+            }
+          }
+        } else {
+          // Cache disabled, just analyze
+          result = await analyzePrompts({
+            provider,
+            prompts: [prompt.content],
+            date: prompt.date,
+            context,
+            rules,
+          });
+        }
 
         // Get current time for timestamp
         const now = new Date();
@@ -1423,6 +1627,7 @@ export async function cli(): Promise<void> {
           config.rules,
           isJsonMode,
           args.noCache,
+          group.prompts,
         );
         results.push(result);
       }
@@ -1513,6 +1718,7 @@ export async function cli(): Promise<void> {
         config.rules,
         isJsonMode,
         args.noCache,
+        logResult.prompts,
       );
 
       // Write output file if specified

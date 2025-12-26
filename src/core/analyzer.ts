@@ -233,7 +233,7 @@ function inferProviderType(providerName: string): ProviderType {
  * @param providerName - Provider name (e.g., "Ollama (llama3.2)")
  * @returns Model identifier or provider name if no model found
  */
-function extractModelFromProvider(providerName: string): string {
+export function extractModelFromProvider(providerName: string): string {
   const match = /\((.*?)\)/.exec(providerName);
   return match?.[1] ?? providerName;
 }

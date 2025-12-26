@@ -42,6 +42,10 @@ vi.mock('./core/setup.js', () => ({
 
 vi.mock('./core/analyzer.js', () => ({
   analyzePrompts: vi.fn(),
+  extractModelFromProvider: vi.fn((name: string) => {
+    const match = /\((.*?)\)/.exec(name);
+    return match?.[1] ?? name;
+  }),
 }));
 
 vi.mock('./core/watcher.js', () => ({
