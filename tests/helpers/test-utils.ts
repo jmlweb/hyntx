@@ -296,3 +296,110 @@ export const isEmptyDirectory = (dir: string): boolean => {
     return false;
   }
 };
+
+/**
+ * Populates the incremental results cache with pre-generated results.
+ * Useful for testing cache hit behavior and performance.
+ *
+ * @param resultsDir - Base results directory (HYNTX_RESULTS_DIR)
+ * @param prompts - Array of prompts with their results
+ * @param metadata - Metadata for the results (date, project, model, schemaType)
+ */
+export const populateResultsCache = async (
+  resultsDir: string,
+  prompts: Array<{ content: string; result: PromptAnalysis }>,
+  metadata: {
+    date: string;
+    project?: string;
+    model: string;
+    schemaType: string;
+  },
+): Promise<void> => {
+  const { hashString, hashSystemPrompt } =
+    await import('../../src/cache/analysis-cache.js');
+  const { savePromptResult } =
+    await import('../../src/core/results-storage.js');
+
+  // Override HYNTX_RESULTS_DIR temporarily
+  const originalDir = process.env['HYNTX_RESULTS_DIR'];
+  process.env['HYNTX_RESULTS_DIR'] = resultsDir;
+
+  try {
+    for (const { content, result } of prompts) {
+      await savePromptResult(
+        content,
+        { ...result, date: metadata.date },
+        {
+          date: metadata.date,
+          project: metadata.project,
+          provider: 'test-provider',
+          model: metadata.model,
+          schemaType: metadata.schemaType,
+        },
+      );
+    }
+  } finally {
+    // Restore original directory
+    if (originalDir) {
+      process.env['HYNTX_RESULTS_DIR'] = originalDir;
+    } else {
+      delete process.env['HYNTX_RESULTS_DIR'];
+    }
+  }
+};
+
+/**
+ * Creates a minimal valid prompt analysis result for testing.
+ *
+ * @param overrides - Optional overrides for specific fields
+ * @returns A minimal PromptAnalysis object
+ */
+export const createMinimalAnalysis = (
+  overrides?: Partial<PromptAnalysis>,
+): PromptAnalysis => {
+  const defaults: PromptAnalysis = {
+    patterns: [],
+    stats: {
+      totalPrompts: 1,
+      promptsWithIssues: 0,
+      overallScore: 10,
+    },
+    topSuggestion: 'No issues found',
+  };
+
+  return {
+    ...defaults,
+    ...overrides,
+    patterns: overrides?.patterns || defaults.patterns,
+    stats: overrides?.stats || defaults.stats,
+  };
+};
+
+/**
+ * Generates performance test data with many prompt results.
+ *
+ * @param count - Number of results to generate
+ * @param baseDate - Base date for the results (defaults to '2025-01-20')
+ * @returns Array of prompt/result pairs for cache population
+ */
+export const generatePerformanceTestData = (
+  count: number,
+  baseDate = '2025-01-20',
+): Array<{ content: string; result: PromptAnalysis }> => {
+  const results: Array<{ content: string; result: PromptAnalysis }> = [];
+
+  for (let i = 0; i < count; i++) {
+    const content = `Test prompt ${i} with some additional content to make it realistic. This helps simulate real-world cache performance.`;
+    const result = createMinimalAnalysis({
+      stats: {
+        totalPrompts: 1,
+        promptsWithIssues: i % 3 === 0 ? 1 : 0,
+        overallScore: 7 + (i % 4),
+      },
+    });
+
+    results.push({ content, result });
+  }
+
+  return results;
+};
