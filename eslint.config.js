@@ -80,6 +80,7 @@ export default tseslint.config(
       '*.config.mjs',
       '.prettierrc.mjs',
       'tests/',
+      'scripts/',
     ],
   },
 );
