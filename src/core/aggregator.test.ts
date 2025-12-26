@@ -138,17 +138,20 @@ describe('aggregator', () => {
     });
 
     describe('example sanitization', () => {
-      it('should truncate long examples to 80 chars', () => {
-        const prompts = [
-          'This is a very long prompt that should be truncated because it exceeds the maximum length of eighty characters',
-        ];
+      it('should preserve full example text without truncation', () => {
+        const longPrompt =
+          'This is a very long prompt that should not be truncated because we want to show the full text to users so they can see the complete prompt example';
+        const prompts = [longPrompt];
         const examples = extractRealExamples('no-context', prompts, 3);
         expect(examples).toHaveLength(1);
         const example = examples[0];
         expect(example).toBeDefined();
         if (example) {
-          expect(example).toHaveLength(80);
-          expect(example.endsWith('...')).toBe(true);
+          // Should contain the full text (may have whitespace normalized)
+          expect(example.length).toBeGreaterThan(80);
+          expect(example).toContain('very long prompt');
+          expect(example).toContain('complete prompt example');
+          expect(example.endsWith('...')).toBe(false);
         }
       });
 

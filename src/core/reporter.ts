@@ -267,12 +267,11 @@ export function printReport(
     output.push('');
 
     for (const [index, pattern] of result.patterns.entries()) {
-      // Truncate long examples
+      // Truncate suggestion but keep examples full length
       const truncatedPattern = {
         ...pattern,
-        examples: pattern.examples.map((ex) =>
-          truncateText(ex, opts.maxTextLength),
-        ),
+        // Examples are shown in full, no truncation
+        examples: pattern.examples,
         suggestion: truncateText(pattern.suggestion, opts.maxTextLength),
       };
 

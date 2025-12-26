@@ -258,17 +258,14 @@ export function extractRealExamples(
 
 /**
  * Sanitizes an example prompt for display.
- * Truncates to 80 characters and removes extra whitespace.
+ * Removes extra whitespace but keeps full text (no truncation).
  *
  * @param prompt - Raw prompt string
  * @returns Sanitized prompt string
  */
 function sanitizeExample(prompt: string): string {
-  const trimmed = prompt.trim().replace(/\s+/g, ' ');
-  if (trimmed.length <= 80) {
-    return trimmed;
-  }
-  return trimmed.slice(0, 77) + '...';
+  // Only normalize whitespace, don't truncate
+  return prompt.trim().replace(/\s+/g, ' ');
 }
 
 // =============================================================================

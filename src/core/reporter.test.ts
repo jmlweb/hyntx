@@ -482,22 +482,33 @@ describe('printReport', () => {
     expect(output).not.toContain('After p2');
   });
 
-  it('should truncate long text to maxTextLength', () => {
+  it('should show full examples but truncate suggestions and before/after', () => {
     const longExample = 'x'.repeat(300);
+    const longSuggestion = 'y'.repeat(300);
     const pattern = createPattern('p1');
-    const patternWithLongExample: AnalysisPattern = {
+    const patternWithLongText: AnalysisPattern = {
       ...pattern,
       examples: [longExample],
+      suggestion: longSuggestion,
+      beforeAfter: {
+        before: 'z'.repeat(300),
+        after: 'w'.repeat(300),
+      },
     };
     const result = createAnalysisResult({
-      patterns: [patternWithLongExample],
+      patterns: [patternWithLongText],
     });
 
     printReport(result, { maxTextLength: 100 });
 
     const output = consoleSpy.mock.calls[0]?.[0] as string;
-    // Should not contain full long text
-    expect(output).not.toContain(longExample);
+    // Examples should be shown in full - count 'x' characters in examples section
+    const examplesSection =
+      output.split('Examples:')[1]?.split('Suggestion:')[0] ?? '';
+    const xCount = (examplesSection.match(/x/g) ?? []).length;
+    expect(xCount).toBe(300);
+    // Suggestions should be truncated - should not contain full longSuggestion
+    expect(output).not.toContain(longSuggestion);
     // Should contain truncated version with ellipsis
     expect(output).toContain('...');
   });
