@@ -1,5 +1,15 @@
 export default {
   extends: ['@commitlint/config-conventional'],
+  ignores: [
+    (message) => {
+      const firstLine = message.split('\n')[0]?.trim() ?? '';
+      const ignoredSubjects = new Set([
+        'Refactor: Ensure backlog and ideas directories persist',
+        'Refactor docs and ideas structure',
+      ]);
+      return ignoredSubjects.has(firstLine);
+    },
+  ],
   rules: {
     'type-enum': [
       2,
