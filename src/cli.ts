@@ -58,6 +58,7 @@ import {
   formatComparisonJson,
 } from './core/reporter.js';
 import { clearCache } from './cache/index.js';
+import { HyntxMcpServer } from './mcp/server.js';
 import type {
   AnalysisProvider,
   AnalysisResult,
@@ -100,6 +101,7 @@ export type ParsedArgs = {
   readonly quiet: boolean;
   readonly clearCache: boolean;
   readonly noCache: boolean;
+  readonly mcpServer: boolean;
 };
 
 // =============================================================================
@@ -211,6 +213,10 @@ export function parseArguments(): ParsedArgs {
           type: 'boolean',
           default: false,
         },
+        'mcp-server': {
+          type: 'boolean',
+          default: false,
+        },
         help: {
           type: 'boolean',
           short: 'h',
@@ -249,6 +255,7 @@ export function parseArguments(): ParsedArgs {
       quiet: values.quiet || false,
       clearCache: values['clear-cache'] || false,
       noCache: values['no-cache'] || false,
+      mcpServer: values['mcp-server'] || false,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1153,6 +1160,49 @@ export function handleError(error: Error, isJsonMode: boolean): void {
   process.exit(EXIT_CODES.ERROR);
 }
 
+/**
+ * Runs the MCP server mode.
+ *
+ * This function initializes and starts the MCP server for stdio-based
+ * JSON-RPC communication. It loads configuration, connects to a provider,
+ * and starts the server with graceful shutdown handling.
+ *
+ * CRITICAL: Never write to stdout in this mode - only stderr for logging.
+ * Stdout is reserved for JSON-RPC protocol messages.
+ */
+export async function runMcpServer(): Promise<never> {
+  try {
+    logger.debug('Starting MCP server mode', 'mcp');
+
+    // Load configuration (env + project config)
+    const envConfig = getEnvConfig();
+    const projectConfig = loadProjectConfigForCwd(process.cwd());
+    const config = mergeConfigs(envConfig, projectConfig);
+
+    // Connect to available provider
+    logger.debug('Connecting to analysis provider...', 'mcp');
+    const provider = await getAvailableProvider(config);
+    logger.debug(`Connected to provider: ${provider.name}`, 'mcp');
+
+    // Create and start MCP server
+    const server = new HyntxMcpServer(provider, {
+      name: 'hyntx',
+      version: VERSION,
+    });
+
+    await server.start();
+
+    // Keep process running - server handles signals for shutdown
+    return await new Promise<never>(() => {
+      // Intentionally empty - process exits via signal handlers only
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Failed to start MCP server: ${errorMessage}`, 'mcp');
+    process.exit(EXIT_CODES.ERROR);
+  }
+}
+
 // =============================================================================
 // Main Function
 // =============================================================================
@@ -1175,7 +1225,13 @@ export async function cli(): Promise<void> {
       logger.debug('Verbose mode enabled');
     }
 
-    // 2. Handle special flags (--help, --version, --check-config, --check-reminder)
+    // 2. Handle MCP server mode (exit early - runs indefinitely)
+    if (args.mcpServer) {
+      await runMcpServer();
+      return;
+    }
+
+    // 3. Handle special flags (--help, --version, --check-config, --check-reminder)
     if (args.help) {
       showHelp();
     }
@@ -1192,7 +1248,7 @@ export async function cli(): Promise<void> {
       showReminderStatus();
     }
 
-    // Handle cache clearing (exit early)
+    // 4. Handle cache clearing (exit early)
     if (args.clearCache) {
       const spinner = isJsonMode ? null : ora('Clearing cache...').start();
       await clearCache();
@@ -1206,7 +1262,7 @@ export async function cli(): Promise<void> {
       process.exit(EXIT_CODES.SUCCESS);
     }
 
-    // Handle history listing commands (read-only, exit early)
+    // 5. Handle history listing commands (read-only, exit early)
     if (args.history || args.historySummary) {
       const dates = await listAvailableDates();
       const entries: [string, HistoryEntry][] = [];
@@ -1227,10 +1283,10 @@ export async function cli(): Promise<void> {
       process.exit(EXIT_CODES.SUCCESS);
     }
 
-    // 3. Check for first run and run setup if needed
+    // 6. Check for first run and run setup if needed
     await checkAndRunSetup(isJsonMode);
 
-    // 4. Check reminder (unless dry-run)
+    // 7. Check reminder (unless dry-run)
     if (!args.dryRun && !isJsonMode) {
       const shouldContinue = await checkReminder();
       if (!shouldContinue) {
@@ -1238,35 +1294,35 @@ export async function cli(): Promise<void> {
       }
     }
 
-    // 5. Load project config and merge with env config
+    // 8. Load project config and merge with env config
     const envConfig = getEnvConfig();
     const projectConfig = loadProjectConfigForCwd(process.cwd());
     const config = mergeConfigs(envConfig, projectConfig);
 
-    // 6. Handle watch mode (exit early - runs indefinitely)
+    // 9. Handle watch mode (exit early - runs indefinitely)
     if (args.watch) {
       const provider = await connectProviderWithSpinner(isJsonMode);
       await runWatchMode(provider, args, config.context);
       return;
     }
 
-    // 7. Read logs with new filters
+    // 10. Read logs with new filters
     const logResult = await readLogsWithSpinner(args, isJsonMode);
 
-    // 8. Handle dry-run mode (exit early)
+    // 11. Handle dry-run mode (exit early)
     if (args.dryRun) {
       displayDryRunSummary(logResult.prompts, args);
       process.exit(EXIT_CODES.SUCCESS);
     }
 
-    // 9. Determine if multi-day
+    // 12. Determine if multi-day
     const isMultiDay = Boolean(args.from && args.to);
     const groups = isMultiDay ? groupByDay(logResult.prompts) : [];
 
-    // 10. Connect to provider
+    // 13. Connect to provider
     const provider = await connectProviderWithSpinner(isJsonMode);
 
-    // 11. Analyze (single-day or multi-day)
+    // 14. Analyze (single-day or multi-day)
     if (isMultiDay && groups.length > 0) {
       // Multi-day analysis with grouping
       const results: AnalysisResult[] = [];
@@ -1284,7 +1340,7 @@ export async function cli(): Promise<void> {
         results.push(result);
       }
 
-      // 12. Write output files if specified
+      // 15. Write output files if specified
       if (args.output) {
         const ext = extname(args.output);
         const format = ext === '.json' ? 'json' : 'md';
@@ -1342,7 +1398,7 @@ export async function cli(): Promise<void> {
         }
       }
 
-      // 13. Display results
+      // 16. Display results
       if (!args.output || !isJsonMode) {
         if (args.format === 'json') {
           console.log(
@@ -1443,10 +1499,10 @@ export async function cli(): Promise<void> {
       }
     }
 
-    // 14. Save last run timestamp
+    // 17. Save last run timestamp
     saveLastRun();
 
-    // 15. Report warnings
+    // 18. Report warnings
     if (!isJsonMode) {
       logger.reportWarnings();
     }

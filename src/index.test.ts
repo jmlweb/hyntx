@@ -153,6 +153,7 @@ describe('parseArguments', () => {
       quiet: false,
       clearCache: false,
       noCache: false,
+      mcpServer: false,
     });
   });
 
@@ -207,6 +208,7 @@ describe('parseArguments', () => {
       quiet: false,
       clearCache: false,
       noCache: false,
+      mcpServer: false,
     });
   });
 
@@ -903,6 +905,7 @@ describe('parseArguments - New Features', () => {
       quiet: false,
       clearCache: false,
       noCache: false,
+      mcpServer: false,
     });
   });
 });
