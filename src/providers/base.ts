@@ -232,6 +232,7 @@ export function parseResponse(
   response: string,
   date: string,
   taxonomy: IssueTaxonomy = ISSUE_TAXONOMY,
+  prompts?: readonly string[],
 ): AnalysisResult {
   // Try to extract JSON from markdown code blocks
   const codeBlockRegex = /```(?:json)?\s*\n?([\s\S]*?)\n?```/;
@@ -258,7 +259,7 @@ export function parseResponse(
   // 1. Try minimal schema (for small models)
   if (isValidMinimalResponse(parsed)) {
     const minimal = extractMinimalResult(parsed as Record<string, unknown>);
-    return convertMinimalToAnalysisResult(minimal, date, taxonomy);
+    return convertMinimalToAnalysisResult(minimal, date, taxonomy, prompts);
   }
 
   // 2. Try simple schema (for medium models)

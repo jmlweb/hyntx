@@ -95,6 +95,132 @@ function titleCase(str: string): string {
     .join(' ');
 }
 
+/**
+ * Extracts real examples from prompts based on issue type.
+ * Uses heuristic matching to identify prompts that exhibit the given issue.
+ *
+ * @param issueId - Issue identifier (kebab-case)
+ * @param prompts - Array of prompt strings to search
+ * @param limit - Maximum number of examples to return (default: 3)
+ * @returns Array of sanitized example prompts
+ *
+ * @example
+ * ```typescript
+ * extractRealExamples('vague', ['help me', 'fix auth bug in login.ts'], 3)
+ * // Returns: ['help me']
+ *
+ * extractRealExamples('no-context', ['fix it', 'update the config'], 3)
+ * // Returns: ['fix it', 'update the config']
+ * ```
+ */
+export function extractRealExamples(
+  issueId: string,
+  prompts: readonly string[],
+  limit = 3,
+): readonly string[] {
+  const matches: string[] = [];
+
+  for (const prompt of prompts) {
+    if (matches.length >= limit) {
+      break;
+    }
+
+    const trimmed = prompt.trim();
+    const lowerPrompt = trimmed.toLowerCase();
+    const wordCount = trimmed.split(/\s+/).length;
+
+    // Heuristic matching based on issue type
+    let isMatch = false;
+
+    switch (issueId) {
+      case 'vague':
+        // Short prompts (< 50 chars) with generic words and no specifics
+        isMatch =
+          trimmed.length < 50 &&
+          wordCount <= 5 &&
+          (lowerPrompt.includes('help') ||
+            lowerPrompt.includes('fix') ||
+            lowerPrompt.includes('do') ||
+            lowerPrompt.includes('make') ||
+            lowerPrompt.includes('create')) &&
+          /\w+\.(ts|js|tsx|jsx|py|go|java|rb|php)\b/.exec(lowerPrompt) === null;
+        break;
+
+      case 'no-context':
+        // Contains pronouns without file/function names
+        isMatch =
+          (lowerPrompt.includes('this') ||
+            lowerPrompt.includes('it') ||
+            lowerPrompt.includes('the bug') ||
+            lowerPrompt.includes('that')) &&
+          /\w+\.(ts|js|tsx|jsx|py|go|java|rb|php)\b/.exec(lowerPrompt) ===
+            null &&
+          /function|component|method|class/.exec(lowerPrompt) === null;
+        break;
+
+      case 'too-broad': {
+        // Long prompts (> 100 chars) with multiple requests
+        const andMatches = lowerPrompt.match(/\band\b/g);
+        isMatch =
+          trimmed.length > 100 &&
+          (andMatches?.length ?? 0) >= 2 &&
+          (lowerPrompt.includes('also') ||
+            lowerPrompt.includes('then') ||
+            lowerPrompt.includes('build') ||
+            lowerPrompt.includes('create'));
+        break;
+      }
+
+      case 'no-goal':
+        // Very short (< 30 chars) without clear action or question
+        isMatch =
+          trimmed.length < 30 &&
+          wordCount <= 4 &&
+          /\b(how|what|why|when|where|create|build|fix|add)\b/.exec(
+            lowerPrompt,
+          ) === null &&
+          !lowerPrompt.includes('?');
+        break;
+
+      case 'imperative':
+        // Short commands (< 20 chars) starting with verbs without explanation
+        isMatch =
+          trimmed.length < 20 &&
+          wordCount <= 3 &&
+          /^(add|delete|remove|update|change|modify)\b/.exec(lowerPrompt) !==
+            null &&
+          !lowerPrompt.includes('?');
+        break;
+
+      default:
+        // Unknown issue type - no match
+        isMatch = false;
+    }
+
+    if (isMatch) {
+      matches.push(sanitizeExample(trimmed));
+    }
+  }
+
+  // Deduplicate
+  return [...new Set(matches)];
+}
+
+/**
+ * Sanitizes an example prompt for display.
+ * Truncates to 80 characters and removes extra whitespace.
+ *
+ * @param prompt - Raw prompt string
+ * @returns Sanitized prompt string
+ */
+function sanitizeExample(prompt: string): string {
+  const trimmed = prompt.trim().replace(/\s+/g, ' ');
+  if (trimmed.length <= 80) {
+    return trimmed;
+  }
+  return trimmed.slice(0, 77) + '...';
+}
+
 // =============================================================================
 // Conversion Functions
 // =============================================================================
@@ -106,6 +232,7 @@ function titleCase(str: string): string {
  * @param minimal - Minimal result from small model
  * @param date - Date context for the analysis
  * @param taxonomy - Issue taxonomy for metadata lookup
+ * @param prompts - Optional array of prompts to extract real examples from
  * @returns Complete AnalysisResult
  *
  * @example
@@ -113,12 +240,21 @@ function titleCase(str: string): string {
  * const minimal = { issues: ['vague', 'no-context'], score: 40 };
  * const result = convertMinimalToAnalysisResult(minimal, '2025-01-15', ISSUE_TAXONOMY);
  * // Returns full AnalysisResult with patterns populated from taxonomy
+ *
+ * const withPrompts = convertMinimalToAnalysisResult(
+ *   minimal,
+ *   '2025-01-15',
+ *   ISSUE_TAXONOMY,
+ *   ['help me', 'fix this']
+ * );
+ * // Returns AnalysisResult with real examples from prompts
  * ```
  */
 export function convertMinimalToAnalysisResult(
   minimal: MinimalResult,
   date: string,
   taxonomy: IssueTaxonomy,
+  prompts?: readonly string[],
 ): AnalysisResult {
   // Count unique issues
   const issueCounts = new Map<string, number>();
@@ -134,12 +270,19 @@ export function convertMinimalToAnalysisResult(
     .map(([issueId, count]) => {
       const metadata = lookupIssueMetadata(issueId, taxonomy);
 
+      // Extract real examples from prompts if provided, otherwise use taxonomy examples
+      const examples = prompts
+        ? extractRealExamples(issueId, prompts, 3)
+        : metadata.exampleBefore
+          ? [metadata.exampleBefore]
+          : [];
+
       return {
         id: issueId,
         name: metadata.name,
         frequency: count,
         severity: metadata.severity,
-        examples: metadata.exampleBefore ? [metadata.exampleBefore] : [],
+        examples: [...examples],
         suggestion: metadata.suggestion,
         beforeAfter: {
           before: metadata.exampleBefore ?? 'Example not available',
@@ -170,6 +313,7 @@ export function convertMinimalToAnalysisResult(
  * @param results - Array of minimal results to aggregate
  * @param date - Date context for the analysis
  * @param taxonomy - Issue taxonomy for metadata lookup
+ * @param prompts - Optional array of prompts to extract real examples from
  * @returns Aggregated AnalysisResult
  * @throws Error if results array is empty
  *
@@ -187,6 +331,7 @@ export function aggregateMinimalResults(
   results: readonly MinimalResult[],
   date: string,
   taxonomy: IssueTaxonomy,
+  prompts?: readonly string[],
 ): AnalysisResult {
   if (results.length === 0) {
     throw new Error('Cannot aggregate empty results');
@@ -198,7 +343,7 @@ export function aggregateMinimalResults(
     if (!result) {
       throw new Error('Results array is empty');
     }
-    return convertMinimalToAnalysisResult(result, date, taxonomy);
+    return convertMinimalToAnalysisResult(result, date, taxonomy, prompts);
   }
 
   // Count issue frequencies across all results
@@ -219,12 +364,19 @@ export function aggregateMinimalResults(
     .map(([issueId, count]) => {
       const metadata = lookupIssueMetadata(issueId, taxonomy);
 
+      // Extract real examples from prompts if provided, otherwise use taxonomy examples
+      const examples = prompts
+        ? extractRealExamples(issueId, prompts, 3)
+        : metadata.exampleBefore
+          ? [metadata.exampleBefore]
+          : [];
+
       return {
         id: issueId,
         name: metadata.name,
         frequency: count,
         severity: metadata.severity,
-        examples: metadata.exampleBefore ? [metadata.exampleBefore] : [],
+        examples: [...examples],
         suggestion: metadata.suggestion,
         beforeAfter: {
           before: metadata.exampleBefore ?? 'Example not available',

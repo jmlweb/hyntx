@@ -8,11 +8,220 @@ import {
   convertMinimalToAnalysisResult,
   aggregateMinimalResults,
   normalizeScore,
+  extractRealExamples,
   type MinimalResult,
 } from './aggregator.js';
 import { ISSUE_TAXONOMY } from '../providers/schemas.js';
 
 describe('aggregator', () => {
+  describe('extractRealExamples', () => {
+    describe('vague issue matching', () => {
+      it('should match short generic prompts', () => {
+        const prompts = ['help me', 'fix this', 'do something'];
+        const examples = extractRealExamples('vague', prompts, 3);
+        expect(examples).toHaveLength(3);
+        expect(examples).toContain('help me');
+        expect(examples).toContain('fix this');
+        expect(examples).toContain('do something');
+      });
+
+      it('should not match prompts with file extensions', () => {
+        const prompts = ['help me', 'fix the bug in auth.ts'];
+        const examples = extractRealExamples('vague', prompts, 3);
+        expect(examples).toHaveLength(1);
+        expect(examples).toContain('help me');
+      });
+
+      it('should not match long prompts', () => {
+        const prompts = [
+          'help me',
+          'help me debug this TypeScript function that returns undefined when called with valid parameters',
+        ];
+        const examples = extractRealExamples('vague', prompts, 3);
+        expect(examples).toHaveLength(1);
+        expect(examples).toContain('help me');
+      });
+    });
+
+    describe('no-context issue matching', () => {
+      it('should match prompts with pronouns', () => {
+        const prompts = ['fix this', 'update it', 'the bug is here'];
+        const examples = extractRealExamples('no-context', prompts, 3);
+        expect(examples).toHaveLength(3);
+      });
+
+      it('should not match prompts with file names', () => {
+        const prompts = ['fix this', 'fix this bug in login.ts'];
+        const examples = extractRealExamples('no-context', prompts, 3);
+        expect(examples).toHaveLength(1);
+        expect(examples).toContain('fix this');
+      });
+
+      it('should not match prompts with function/class references', () => {
+        const prompts = [
+          'fix this',
+          'fix this function',
+          'update this component',
+        ];
+        const examples = extractRealExamples('no-context', prompts, 3);
+        expect(examples).toHaveLength(1);
+        expect(examples).toContain('fix this');
+      });
+    });
+
+    describe('too-broad issue matching', () => {
+      it('should match long prompts with multiple requests', () => {
+        const prompts = [
+          'Create a new user authentication system and also add a dashboard and then implement analytics and reporting',
+        ];
+        const examples = extractRealExamples('too-broad', prompts, 3);
+        expect(examples).toHaveLength(1);
+      });
+
+      it('should not match short prompts', () => {
+        const prompts = ['Create a button and add styles'];
+        const examples = extractRealExamples('too-broad', prompts, 3);
+        expect(examples).toHaveLength(0);
+      });
+
+      it('should not match long prompts without multiple requests', () => {
+        const prompts = [
+          'Create a new user authentication system with email verification, password reset, and session management features',
+        ];
+        const examples = extractRealExamples('too-broad', prompts, 3);
+        expect(examples).toHaveLength(0);
+      });
+    });
+
+    describe('no-goal issue matching', () => {
+      it('should match very short prompts without clear action', () => {
+        const prompts = ['look at this', 'see here'];
+        const examples = extractRealExamples('no-goal', prompts, 3);
+        expect(examples).toHaveLength(2);
+      });
+
+      it('should not match prompts with action verbs', () => {
+        const prompts = ['look at this', 'fix the bug'];
+        const examples = extractRealExamples('no-goal', prompts, 3);
+        expect(examples).toHaveLength(1);
+        expect(examples).toContain('look at this');
+      });
+
+      it('should not match questions', () => {
+        const prompts = ['look at this', 'what is this?'];
+        const examples = extractRealExamples('no-goal', prompts, 3);
+        expect(examples).toHaveLength(1);
+        expect(examples).toContain('look at this');
+      });
+    });
+
+    describe('imperative issue matching', () => {
+      it('should match short commands', () => {
+        const prompts = ['add button', 'delete user', 'update config'];
+        const examples = extractRealExamples('imperative', prompts, 3);
+        expect(examples).toHaveLength(3);
+      });
+
+      it('should not match longer commands', () => {
+        const prompts = ['add button', 'add a button to submit the form'];
+        const examples = extractRealExamples('imperative', prompts, 3);
+        expect(examples).toHaveLength(1);
+        expect(examples).toContain('add button');
+      });
+
+      it('should not match questions', () => {
+        const prompts = ['add button', 'add button?'];
+        const examples = extractRealExamples('imperative', prompts, 3);
+        expect(examples).toHaveLength(1);
+        expect(examples).toContain('add button');
+      });
+    });
+
+    describe('example sanitization', () => {
+      it('should truncate long examples to 80 chars', () => {
+        const prompts = [
+          'This is a very long prompt that should be truncated because it exceeds the maximum length of eighty characters',
+        ];
+        const examples = extractRealExamples('no-context', prompts, 3);
+        expect(examples).toHaveLength(1);
+        const example = examples[0];
+        expect(example).toBeDefined();
+        if (example) {
+          expect(example).toHaveLength(80);
+          expect(example.endsWith('...')).toBe(true);
+        }
+      });
+
+      it('should trim whitespace', () => {
+        const prompts = ['  fix this  '];
+        const examples = extractRealExamples('no-context', prompts, 3);
+        expect(examples).toHaveLength(1);
+        expect(examples[0]).toBe('fix this');
+      });
+
+      it('should normalize multiple spaces', () => {
+        const prompts = ['fix    this    now'];
+        const examples = extractRealExamples('no-context', prompts, 3);
+        expect(examples).toHaveLength(1);
+        expect(examples[0]).toBe('fix this now');
+      });
+    });
+
+    describe('deduplication', () => {
+      it('should remove duplicate examples', () => {
+        const prompts = ['help me', 'fix this', 'help me'];
+        const examples = extractRealExamples('vague', prompts, 3);
+        expect(examples).toHaveLength(2);
+        expect(examples).toContain('help me');
+        expect(examples).toContain('fix this');
+      });
+
+      it('should deduplicate after sanitization', () => {
+        const prompts = ['help me', '  help me  ', 'help    me'];
+        const examples = extractRealExamples('vague', prompts, 3);
+        expect(examples).toHaveLength(1);
+        expect(examples).toContain('help me');
+      });
+    });
+
+    describe('limit behavior', () => {
+      it('should respect the limit parameter', () => {
+        const prompts = ['help me', 'fix this', 'do something', 'make it work'];
+        const examples = extractRealExamples('vague', prompts, 2);
+        expect(examples).toHaveLength(2);
+      });
+
+      it('should use default limit of 3', () => {
+        const prompts = ['help me', 'fix this', 'do it', 'make work', 'help'];
+        const examples = extractRealExamples('vague', prompts);
+        expect(examples.length).toBeLessThanOrEqual(3);
+      });
+    });
+
+    describe('unknown issue types', () => {
+      it('should return empty array for unknown issue types', () => {
+        const prompts = ['any prompt', 'another prompt'];
+        const examples = extractRealExamples('unknown-issue', prompts, 3);
+        expect(examples).toHaveLength(0);
+      });
+    });
+
+    describe('empty inputs', () => {
+      it('should return empty array for empty prompts array', () => {
+        const examples = extractRealExamples('vague', [], 3);
+        expect(examples).toHaveLength(0);
+      });
+
+      it('should handle prompts with no matches', () => {
+        const prompts = [
+          'Fix the authentication bug in src/auth/login.ts where users are logged out',
+        ];
+        const examples = extractRealExamples('vague', prompts, 3);
+        expect(examples).toHaveLength(0);
+      });
+    });
+  });
+
   describe('normalizeScore', () => {
     it('should convert 0-100 score to 0-10 scale', () => {
       expect(normalizeScore(100)).toBe(10);
@@ -102,6 +311,45 @@ describe('aggregator', () => {
       expect(result.stats.promptsWithIssues).toBe(1);
       expect(result.stats.overallScore).toBe(4); // 40/10 = 4
       expect(result.topSuggestion).toBeTruthy();
+    });
+
+    it('should extract real examples from prompts when provided', () => {
+      const minimal: MinimalResult = {
+        issues: ['vague', 'no-context'],
+        score: 40,
+      };
+      const prompts = ['help me', 'fix this', 'update it'];
+
+      const result = convertMinimalToAnalysisResult(
+        minimal,
+        '2025-01-15',
+        ISSUE_TAXONOMY,
+        prompts,
+      );
+
+      const vaguePattern = result.patterns.find((p) => p.id === 'vague');
+      const contextPattern = result.patterns.find((p) => p.id === 'no-context');
+
+      expect(vaguePattern?.examples).toContain('help me');
+      expect(vaguePattern?.examples).toContain('fix this');
+      expect(contextPattern?.examples).toContain('fix this');
+      expect(contextPattern?.examples).toContain('update it');
+    });
+
+    it('should fall back to taxonomy examples when prompts not provided', () => {
+      const minimal: MinimalResult = {
+        issues: ['vague'],
+        score: 40,
+      };
+
+      const result = convertMinimalToAnalysisResult(
+        minimal,
+        '2025-01-15',
+        ISSUE_TAXONOMY,
+      );
+
+      const vaguePattern = result.patterns.find((p) => p.id === 'vague');
+      expect(vaguePattern?.examples).toEqual(['Help me with my code']);
     });
 
     it('should convert minimal result with no issues', () => {

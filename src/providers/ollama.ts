@@ -278,7 +278,7 @@ export class OllamaProvider implements AnalysisProvider {
         }
 
         // Parse and validate the response
-        return parseResponse(data.response, date);
+        return parseResponse(data.response, date, undefined, prompts);
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
 

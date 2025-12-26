@@ -221,7 +221,7 @@ export class GoogleProvider implements AnalysisProvider {
             }
 
             // Parse and validate the response
-            return parseResponse(textContent, date);
+            return parseResponse(textContent, date, undefined, prompts);
           } finally {
             clearTimeout(timeoutId);
           }

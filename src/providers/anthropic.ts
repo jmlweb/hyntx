@@ -217,7 +217,7 @@ export class AnthropicProvider implements AnalysisProvider {
             }
 
             // Parse and validate the response
-            return parseResponse(textContent.text, date);
+            return parseResponse(textContent.text, date, undefined, prompts);
           } finally {
             clearTimeout(timeoutId);
           }
