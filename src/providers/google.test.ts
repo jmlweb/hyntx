@@ -338,7 +338,7 @@ describe('GoogleProvider', () => {
       });
 
       const result = await provider.analyze(['test prompt'], '2025-01-15');
-      expect(result.stats.overallScore).toBe(100);
+      expect(result.stats.overallScore).toBe(10); // 100/10 = 10
     });
 
     it('should include system instruction in request', async () => {

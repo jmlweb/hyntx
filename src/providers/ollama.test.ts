@@ -536,7 +536,7 @@ describe('OllamaProvider', () => {
 
       const result = await provider.analyze(['Test'], '2025-01-15');
       expect(result.patterns).toEqual([]);
-      expect(result.stats.overallScore).toBe(100);
+      expect(result.stats.overallScore).toBe(10); // 100/10 = 10
     });
 
     it('should handle response with multiple patterns', async () => {

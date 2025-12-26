@@ -88,7 +88,10 @@ describe('base provider utilities', () => {
       expect(result).toEqual({
         date: '2025-01-15',
         patterns: validResponse.patterns,
-        stats: validResponse.stats,
+        stats: {
+          ...validResponse.stats,
+          overallScore: 7.5, // 75/10 normalized
+        },
         topSuggestion: validResponse.topSuggestion,
       });
     });
@@ -132,7 +135,7 @@ describe('base provider utilities', () => {
       const result = parseResponse(json, '2025-01-15');
 
       expect(result.patterns).toEqual([]);
-      expect(result.stats.overallScore).toBe(100);
+      expect(result.stats.overallScore).toBe(10); // 100/10 = 10
     });
 
     it('should parse response with multiple patterns', () => {
@@ -426,7 +429,7 @@ describe('base provider utilities', () => {
         expect(result.patterns).toHaveLength(2);
         expect(result.patterns[0]?.id).toBe('vague');
         expect(result.patterns[1]?.id).toBe('no-context');
-        expect(result.stats.overallScore).toBe(40);
+        expect(result.stats.overallScore).toBe(4); // 40/10 = 4
         expect(result.stats.totalPrompts).toBe(1);
         expect(result.stats.promptsWithIssues).toBe(1);
       });
@@ -443,7 +446,7 @@ describe('base provider utilities', () => {
         );
 
         expect(result.patterns).toHaveLength(0);
-        expect(result.stats.overallScore).toBe(95);
+        expect(result.stats.overallScore).toBe(9.5); // 95/10 = 9.5
         expect(result.stats.promptsWithIssues).toBe(0);
         expect(result.topSuggestion).toBe('Your prompts look good!');
       });
@@ -458,7 +461,7 @@ describe('base provider utilities', () => {
           '2025-01-15',
         );
 
-        expect(result.stats.overallScore).toBe(50);
+        expect(result.stats.overallScore).toBe(5); // 50/10 = 5
         expect(result.patterns).toHaveLength(1);
       });
 

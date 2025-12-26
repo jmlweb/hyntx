@@ -88,7 +88,10 @@ describe('base provider utilities', () => {
       expect(result).toEqual({
         date: '2025-01-15',
         patterns: validResponse.patterns,
-        stats: validResponse.stats,
+        stats: {
+          ...validResponse.stats,
+          overallScore: 7.5, // 75/10 normalized
+        },
         topSuggestion: validResponse.topSuggestion,
       });
     });
@@ -132,7 +135,7 @@ describe('base provider utilities', () => {
       const result = parseResponse(json, '2025-01-15');
 
       expect(result.patterns).toEqual([]);
-      expect(result.stats.overallScore).toBe(100);
+      expect(result.stats.overallScore).toBe(10); // 100/10 = 10
     });
 
     it('should parse response with multiple patterns', () => {

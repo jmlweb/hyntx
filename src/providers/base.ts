@@ -18,7 +18,10 @@ import {
   SYSTEM_PROMPT_FULL,
   type IssueTaxonomy,
 } from './schemas.js';
-import { convertMinimalToAnalysisResult } from '../core/aggregator.js';
+import {
+  convertMinimalToAnalysisResult,
+  normalizeScore,
+} from '../core/aggregator.js';
 
 /**
  * System prompt template for AI analysis providers.
@@ -268,7 +271,7 @@ export function parseResponse(
       stats: {
         totalPrompts: 0, // Will be filled by caller
         promptsWithIssues: simple.issues.length,
-        overallScore: simple.score,
+        overallScore: normalizeScore(simple.score),
       },
       topSuggestion: simple.tip,
     };
@@ -279,7 +282,10 @@ export function parseResponse(
     return {
       date,
       patterns: parsed.patterns,
-      stats: parsed.stats,
+      stats: {
+        ...parsed.stats,
+        overallScore: normalizeScore(parsed.stats.overallScore),
+      },
       topSuggestion: parsed.topSuggestion,
     };
   }

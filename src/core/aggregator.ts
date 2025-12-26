@@ -32,6 +32,18 @@ export type MinimalResult = {
 // =============================================================================
 
 /**
+ * Normalizes a score from 0-100 scale (from AI) to 0-10 scale (for display).
+ * Clamps the result to ensure it stays within valid bounds.
+ *
+ * @param score100 - Score on 0-100 scale
+ * @returns Score on 0-10 scale
+ */
+export function normalizeScore(score100: number): number {
+  const normalized = score100 / 10;
+  return Math.max(0, Math.min(10, normalized));
+}
+
+/**
  * Looks up issue metadata from taxonomy with graceful fallback.
  * Returns a generated metadata object for unknown issue IDs.
  *
@@ -142,7 +154,7 @@ export function convertMinimalToAnalysisResult(
     stats: {
       totalPrompts: 1,
       promptsWithIssues: minimal.issues.length > 0 ? 1 : 0,
-      overallScore: minimal.score,
+      overallScore: normalizeScore(minimal.score),
     },
     topSuggestion:
       patterns.length > 0 && patterns[0]
@@ -221,9 +233,7 @@ export function aggregateMinimalResults(
       };
     });
 
-  const avgScore = Math.round(
-    scores.reduce((sum, s) => sum + s, 0) / scores.length,
-  );
+  const avgScore = scores.reduce((sum, s) => sum + s, 0) / scores.length;
 
   return {
     date,
@@ -231,7 +241,7 @@ export function aggregateMinimalResults(
     stats: {
       totalPrompts: results.length,
       promptsWithIssues: results.filter((r) => r.issues.length > 0).length,
-      overallScore: avgScore,
+      overallScore: normalizeScore(avgScore),
     },
     topSuggestion:
       patterns.length > 0 && patterns[0]

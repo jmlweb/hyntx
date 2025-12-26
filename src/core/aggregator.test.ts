@@ -7,11 +7,31 @@ import {
   lookupIssueMetadata,
   convertMinimalToAnalysisResult,
   aggregateMinimalResults,
+  normalizeScore,
   type MinimalResult,
 } from './aggregator.js';
 import { ISSUE_TAXONOMY } from '../providers/schemas.js';
 
 describe('aggregator', () => {
+  describe('normalizeScore', () => {
+    it('should convert 0-100 score to 0-10 scale', () => {
+      expect(normalizeScore(100)).toBe(10);
+      expect(normalizeScore(50)).toBe(5);
+      expect(normalizeScore(0)).toBe(0);
+      expect(normalizeScore(75)).toBe(7.5);
+    });
+
+    it('should clamp score to valid range', () => {
+      expect(normalizeScore(-10)).toBe(0);
+      expect(normalizeScore(150)).toBe(10);
+    });
+
+    it('should handle edge cases', () => {
+      expect(normalizeScore(1)).toBe(0.1);
+      expect(normalizeScore(99)).toBe(9.9);
+    });
+  });
+
   describe('lookupIssueMetadata', () => {
     it('should return metadata for known issue ID', () => {
       const metadata = lookupIssueMetadata('vague', ISSUE_TAXONOMY);
@@ -80,7 +100,7 @@ describe('aggregator', () => {
       expect(result.patterns[1]?.id).toBe('no-context');
       expect(result.stats.totalPrompts).toBe(1);
       expect(result.stats.promptsWithIssues).toBe(1);
-      expect(result.stats.overallScore).toBe(40);
+      expect(result.stats.overallScore).toBe(4); // 40/10 = 4
       expect(result.topSuggestion).toBeTruthy();
     });
 
@@ -98,7 +118,7 @@ describe('aggregator', () => {
 
       expect(result.patterns).toHaveLength(0);
       expect(result.stats.promptsWithIssues).toBe(0);
-      expect(result.stats.overallScore).toBe(95);
+      expect(result.stats.overallScore).toBe(9.5); // 95/10 = 9.5
       expect(result.topSuggestion).toBe('Your prompts look good!');
     });
 
@@ -224,7 +244,7 @@ describe('aggregator', () => {
 
       expect(aggregated.stats.totalPrompts).toBe(3);
       expect(aggregated.stats.promptsWithIssues).toBe(3);
-      expect(aggregated.stats.overallScore).toBe(57); // Average of 60, 40, 70
+      expect(aggregated.stats.overallScore).toBeCloseTo(5.67, 1); // (60+40+70)/3/10 ≈ 5.67
     });
 
     it('should combine issue frequencies across results', () => {
@@ -283,10 +303,10 @@ describe('aggregator', () => {
 
       expect(aggregated.stats.totalPrompts).toBe(1);
       expect(aggregated.patterns).toHaveLength(1);
-      expect(aggregated.stats.overallScore).toBe(60);
+      expect(aggregated.stats.overallScore).toBe(6); // 60/10 = 6
     });
 
-    it('should round average score', () => {
+    it('should normalize average score to 0-10 scale', () => {
       const results: MinimalResult[] = [
         { issues: [], score: 60 },
         { issues: [], score: 65 },
@@ -299,7 +319,7 @@ describe('aggregator', () => {
         ISSUE_TAXONOMY,
       );
 
-      expect(aggregated.stats.overallScore).toBe(65); // (60 + 65 + 70) / 3 = 65
+      expect(aggregated.stats.overallScore).toBe(6.5); // (60+65+70)/3/10 = 6.5
     });
 
     it('should limit patterns to top 5 by total frequency', () => {
