@@ -280,9 +280,20 @@ export function parseResponse(
 
   // 3. Try full schema (for larger models)
   if (isValidFullResponse(parsed)) {
+    // Normalize patterns to ensure all have at least one example for consistent formatting
+    const normalizedPatterns = parsed.patterns.map((pattern) => {
+      if (pattern.examples.length === 0) {
+        return {
+          ...pattern,
+          examples: [pattern.beforeAfter.before],
+        };
+      }
+      return pattern;
+    });
+
     return {
       date,
-      patterns: parsed.patterns,
+      patterns: normalizedPatterns,
       stats: {
         ...parsed.stats,
         overallScore: normalizeScore(parsed.stats.overallScore),

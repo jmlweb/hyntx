@@ -318,11 +318,17 @@ export function convertMinimalToAnalysisResult(
       const metadata = lookupIssueMetadata(issueId, taxonomy);
 
       // Extract real examples from prompts if provided, otherwise use taxonomy examples
-      const examples = prompts
+      let examples = prompts
         ? extractRealExamples(issueId, prompts, 3)
         : metadata.exampleBefore
           ? [metadata.exampleBefore]
           : [];
+
+      // Ensure we always have at least one example for consistent formatting
+      const beforeExample = metadata.exampleBefore ?? 'Example not available';
+      if (examples.length === 0) {
+        examples = [beforeExample];
+      }
 
       return {
         id: issueId,
@@ -332,7 +338,7 @@ export function convertMinimalToAnalysisResult(
         examples: [...examples],
         suggestion: metadata.suggestion,
         beforeAfter: {
-          before: metadata.exampleBefore ?? 'Example not available',
+          before: beforeExample,
           after: metadata.exampleAfter ?? metadata.suggestion,
         },
       };
@@ -412,11 +418,17 @@ export function aggregateMinimalResults(
       const metadata = lookupIssueMetadata(issueId, taxonomy);
 
       // Extract real examples from prompts if provided, otherwise use taxonomy examples
-      const examples = prompts
+      let examples = prompts
         ? extractRealExamples(issueId, prompts, 3)
         : metadata.exampleBefore
           ? [metadata.exampleBefore]
           : [];
+
+      // Ensure we always have at least one example for consistent formatting
+      const beforeExample = metadata.exampleBefore ?? 'Example not available';
+      if (examples.length === 0) {
+        examples = [beforeExample];
+      }
 
       return {
         id: issueId,
@@ -426,7 +438,7 @@ export function aggregateMinimalResults(
         examples: [...examples],
         suggestion: metadata.suggestion,
         beforeAfter: {
-          before: metadata.exampleBefore ?? 'Example not available',
+          before: beforeExample,
           after: metadata.exampleAfter ?? metadata.suggestion,
         },
       };
