@@ -181,3 +181,48 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Cache build artifacts
+        uses: actions/cache/save@v4
+        with:
+          path: dist
+          key: dist-${{ github.sha }}
+
+  e2e-test:
+    name: E2E Test
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Restore build artifacts
+        uses: actions/cache/restore@v4
+        with:
+          path: dist
+          key: dist-${{ github.sha }}
+
+      - name: Smoke test - CLI help
+        run: node dist/index.js --help
+
+      - name: Smoke test - CLI version
+        run: node dist/index.js --version
+
+      - name: Run E2E tests
+        run: pnpm test:e2e
