@@ -1,3 +1,47 @@
+## [2.0.0](https://github.com/jmlweb/hyntx/compare/v1.5.0...v2.0.0) (2025-12-26)
+
+### ⚠ BREAKING CHANGES
+
+- All task/idea management now via GitHub Issues.
+  Local file-based workflow no longer supported.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+### Features
+
+- Add commitlint ignore for specific refactors ([f7e7524](https://github.com/jmlweb/hyntx/commit/f7e7524c920f799eb224e15f95063571f301ffa2))
+- **api:** create public ESM library API with zero CLI dependencies ([c498506](https://github.com/jmlweb/hyntx/commit/c498506667cc7be84e218c230c2a8c0d4c32ac4f)), closes [#38](https://github.com/jmlweb/hyntx/issues/38)
+- **cache:** implement disk-based cache for analysis results ([f745cc6](https://github.com/jmlweb/hyntx/commit/f745cc65ba9f72623bc963b351d8886c68ab3681))
+- **cli:** add --list-rules flag to display available analysis patterns ([ea40f6c](https://github.com/jmlweb/hyntx/commit/ea40f6cceac2f233d397b52050b5207506bc30b2))
+- commitlint github actions ([0f2c81c](https://github.com/jmlweb/hyntx/commit/0f2c81c864bb10fe91079a6c5b9f8bd25bb15b7f))
+- **config:** implement configurable analysis rules in .hyntxrc.json ([5163a79](https://github.com/jmlweb/hyntx/commit/5163a7958e67d90e3cc15b82d61e5d87c7233a75)), closes [#40](https://github.com/jmlweb/hyntx/issues/40)
+- **mcp:** add three MCP tools for prompt analysis ([7af056b](https://github.com/jmlweb/hyntx/commit/7af056b6123b48c17bcd93f6142d7f63b67890bb))
+- **mcp:** implement MCP server core with stdio transport ([6c9d720](https://github.com/jmlweb/hyntx/commit/6c9d72073fd89ac78bbbdb1ac664994ca1406ac4)), closes [#42](https://github.com/jmlweb/hyntx/issues/42)
+- **ollama:** implement adaptive micro-batching for small models ([01b3e7c](https://github.com/jmlweb/hyntx/commit/01b3e7cfcea384d2d867294d58b7003066594450))
+- **ollama:** implement progressive schema for small models ([bb7e5c2](https://github.com/jmlweb/hyntx/commit/bb7e5c26327e355cd08121329ea0fe40914771eb))
+- **ollama:** improve compatibility with small local models ([368f927](https://github.com/jmlweb/hyntx/commit/368f92751b8c076b5b9e7ca00751190ba38c0547))
+
+### Bug Fixes
+
+- **ci:** add commitlint ignore for legacy commit ([d83d9ab](https://github.com/jmlweb/hyntx/commit/d83d9abff692712d6c1ff17c12e9764a8562020c))
+- **tests:** correct e2e test imports and assertions ([901d463](https://github.com/jmlweb/hyntx/commit/901d463743e86e703025395660bde6599cefb39a))
+
+### Documentation
+
+- **mcp:** add comprehensive MCP integration documentation ([7f73108](https://github.com/jmlweb/hyntx/commit/7f731081ca69313a41284a3dfd615be25a07c29a)), closes [#44](https://github.com/jmlweb/hyntx/issues/44)
+- **roadmap:** replace epic with subtasks in roadmap ([de80a0a](https://github.com/jmlweb/hyntx/commit/de80a0a804cfab8c47043689e933e7753f50e8f1))
+- update documentation for watch mode and history features ([a7b098b](https://github.com/jmlweb/hyntx/commit/a7b098b92e9405fdba2297db18a047d4c1c14e0d))
+
+### Code Refactoring
+
+- Ensure backlog and ideas directories persist ([e0e4e8b](https://github.com/jmlweb/hyntx/commit/e0e4e8b9afdd531c8e4435d3626233ea136cfe12))
+
+### Chores
+
+- migrate task/idea management to GitHub Issues ([8972061](https://github.com/jmlweb/hyntx/commit/89720612610d62a58a520dc2edee8d477c5c2520))
+
 ## [1.5.0](https://github.com/jmlweb/hyntx/compare/v1.4.0...v1.5.0) (2025-12-25)
 
 ### Features
