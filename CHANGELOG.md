@@ -1,3 +1,10 @@
+## [2.2.1](https://github.com/jmlweb/hyntx/compare/v2.2.0...v2.2.1) (2025-12-26)
+
+### Bug Fixes
+
+- **ci:** add NPM_TOKEN to release workflow ([13ba589](https://github.com/jmlweb/hyntx/commit/13ba589a7b151cf62760fe73a0538bce8359575c))
+- **package:** remove leading ./ from bin path ([bafccbd](https://github.com/jmlweb/hyntx/commit/bafccbd2ba7e3dfe85979d986509845cc1dcde52))
+
 ## [2.2.0](https://github.com/jmlweb/hyntx/compare/v2.1.0...v2.2.0) (2025-12-26)
 
 ### Features
