@@ -1,3 +1,9 @@
+## [2.2.0](https://github.com/jmlweb/hyntx/compare/v2.1.0...v2.2.0) (2025-12-26)
+
+### Features
+
+- **core:** integrate incremental results cache in analyzer ([964d3d0](https://github.com/jmlweb/hyntx/commit/964d3d04dd8c43b64517610d98bd5a80b3ffd42a))
+
 ## [2.1.0](https://github.com/jmlweb/hyntx/compare/v2.0.1...v2.1.0) (2025-12-26)
 
 ### Features
