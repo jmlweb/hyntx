@@ -64,6 +64,7 @@ import type {
   AnalysisResult,
   JsonErrorResponse,
   ProjectContext,
+  RulesConfig,
   LogReadResult,
   ExtractedPrompt,
   HistoryMetadata,
@@ -928,6 +929,7 @@ export async function connectProviderWithSpinner(
  * @param prompts - Array of prompt strings
  * @param date - Date context
  * @param context - Optional project context
+ * @param rules - Optional rules configuration
  * @param isJsonMode - Whether JSON output mode is active
  * @param noCache - Whether to bypass cache
  * @returns Analysis result
@@ -937,6 +939,7 @@ export async function analyzeWithProgress(
   prompts: readonly string[],
   date: string,
   context: ProjectContext | undefined,
+  rules: RulesConfig | undefined,
   isJsonMode: boolean,
   noCache?: boolean,
 ): Promise<AnalysisResult> {
@@ -950,6 +953,7 @@ export async function analyzeWithProgress(
       prompts,
       date,
       context,
+      rules,
       onProgress: (current, total) => {
         if (!isJsonMode && spinner && total > 1) {
           spinner.text = `Analyzing ${String(prompts.length)} prompts (batch ${String(current + 1)}/${String(total)})...`;
@@ -1014,12 +1018,14 @@ function getSeverityIcon(severity: 'low' | 'medium' | 'high'): string {
  * @param provider - Analysis provider
  * @param args - Parsed arguments
  * @param context - Optional project context
+ * @param rules - Optional rules configuration
  * @returns Promise that never resolves naturally (runs until terminated)
  */
 export async function runWatchMode(
   provider: AnalysisProvider,
   args: ParsedArgs,
   context: ProjectContext | undefined,
+  rules: RulesConfig | undefined,
 ): Promise<never> {
   // LRU cache to prevent unbounded memory growth
   const MAX_ANALYZED = 1000;
@@ -1070,6 +1076,7 @@ export async function runWatchMode(
           prompts: [prompt.content],
           date: prompt.date,
           context,
+          rules,
         });
 
         // Get current time for timestamp
@@ -1302,7 +1309,7 @@ export async function cli(): Promise<void> {
     // 9. Handle watch mode (exit early - runs indefinitely)
     if (args.watch) {
       const provider = await connectProviderWithSpinner(isJsonMode);
-      await runWatchMode(provider, args, config.context);
+      await runWatchMode(provider, args, config.context, config.rules);
       return;
     }
 
@@ -1334,6 +1341,7 @@ export async function cli(): Promise<void> {
           prompts,
           group.date,
           config.context,
+          config.rules,
           isJsonMode,
           args.noCache,
         );
@@ -1423,6 +1431,7 @@ export async function cli(): Promise<void> {
         prompts,
         date,
         config.context,
+        config.rules,
         isJsonMode,
         args.noCache,
       );

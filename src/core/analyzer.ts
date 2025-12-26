@@ -16,9 +16,11 @@ import {
   type ProviderType,
   type ProviderLimits,
   type ProjectContext,
+  type RulesConfig,
   PROVIDER_LIMITS,
   CACHE_DEFAULTS,
 } from '../types/index.js';
+import { applyRulesConfig, ISSUE_TAXONOMY } from '../providers/schemas.js';
 
 // =============================================================================
 // Constants
@@ -102,6 +104,7 @@ type AnalyzePromptsOptions = {
   readonly prompts: readonly string[];
   readonly date: string;
   readonly context?: ProjectContext;
+  readonly rules?: RulesConfig;
   readonly onProgress?: (current: number, total: number) => void;
   readonly noCache?: boolean;
 };
@@ -614,6 +617,58 @@ export function mergeBatchResults(
 }
 
 /**
+ * Applies rules configuration to an analysis result.
+ * Filters out disabled patterns and updates severities.
+ *
+ * @param result - Analysis result to modify
+ * @param rules - Rules configuration
+ * @returns Modified analysis result
+ */
+function applyRulesToResult(
+  result: AnalysisResult,
+  rules: RulesConfig | undefined,
+): AnalysisResult {
+  if (!rules || Object.keys(rules).length === 0) {
+    return result;
+  }
+
+  // Create custom taxonomy with rules applied
+  const customTaxonomy = applyRulesConfig(rules, ISSUE_TAXONOMY);
+  const enabledPatternIds = Object.keys(customTaxonomy);
+
+  // Filter patterns to only include enabled ones
+  const filteredPatterns = result.patterns.filter((pattern) =>
+    enabledPatternIds.includes(pattern.id),
+  );
+
+  // Update severities based on rules
+  const updatedPatterns = filteredPatterns.map((pattern) => {
+    const ruleConfig = rules[pattern.id];
+    // ruleConfig should always exist since we filtered by enabledPatternIds,
+    // but we use optional chaining for type safety
+    if (ruleConfig?.severity) {
+      return {
+        ...pattern,
+        severity: ruleConfig.severity,
+      };
+    }
+    return pattern;
+  });
+
+  // Update top suggestion if patterns changed
+  const topSuggestion =
+    updatedPatterns.length > 0 && updatedPatterns[0]
+      ? updatedPatterns[0].suggestion
+      : result.topSuggestion;
+
+  return {
+    ...result,
+    patterns: updatedPatterns,
+    topSuggestion,
+  };
+}
+
+/**
  * Analyzes prompts using the provided AI provider.
  *
  * Orchestrates the full analysis workflow:
@@ -623,6 +678,7 @@ export function mergeBatchResults(
  * 4. Processes batches sequentially with progress updates
  * 5. Stores results in cache for future use
  * 6. Merges batch results into final output
+ * 7. Applies rules configuration to filter/modify patterns
  *
  * @param options - Analysis options
  * @returns Analysis result
@@ -642,7 +698,8 @@ export function mergeBatchResults(
 export async function analyzePrompts(
   options: AnalyzePromptsOptions,
 ): Promise<AnalysisResult> {
-  const { provider, prompts, date, context, onProgress, noCache } = options;
+  const { provider, prompts, date, context, rules, onProgress, noCache } =
+    options;
 
   logger.debug(
     `Starting analysis of ${String(prompts.length)} prompts for ${date}`,
@@ -740,7 +797,8 @@ export async function analyzePrompts(
         'analyzer',
       );
 
-      return result;
+      // Apply rules configuration
+      return applyRulesToResult(result, rules);
     }
 
     // Multiple results from fallback - merge them
@@ -755,7 +813,8 @@ export async function analyzePrompts(
       'analyzer',
     );
 
-    return mergedResult;
+    // Apply rules configuration
+    return applyRulesToResult(mergedResult, rules);
   }
 
   // Step 4: Process batches sequentially with progress updates
@@ -815,5 +874,6 @@ export async function analyzePrompts(
     'analyzer',
   );
 
-  return mergedResult;
+  // Apply rules configuration
+  return applyRulesToResult(mergedResult, rules);
 }

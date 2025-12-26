@@ -606,6 +606,7 @@ describe('analyzeWithProgress', () => {
       prompts,
       '2025-01-20',
       undefined,
+      undefined,
       false,
     );
 
@@ -640,6 +641,7 @@ describe('analyzeWithProgress', () => {
       prompts,
       '2025-01-20',
       undefined,
+      undefined,
       false,
     );
 
@@ -673,6 +675,7 @@ describe('analyzeWithProgress', () => {
       mockProvider,
       prompts,
       '2025-01-20',
+      undefined,
       undefined,
       false,
     );
@@ -1903,6 +1906,7 @@ describe('analyzeWithProgress - JSON mode', () => {
       prompts,
       '2025-01-20',
       undefined,
+      undefined,
       true,
     );
 
@@ -1923,6 +1927,7 @@ describe('analyzeWithProgress - JSON mode', () => {
       mockProvider,
       prompts,
       '2025-01-20',
+      undefined,
       undefined,
       true,
     );
@@ -3520,6 +3525,7 @@ describe('runWatchMode', () => {
       mockProvider as AnalysisProvider,
       mockArgs as ParsedArgs,
       undefined,
+      undefined,
     );
 
     // Give it a tick to initialize
@@ -3561,6 +3567,7 @@ describe('runWatchMode', () => {
     const promise = index.runWatchMode(
       mockProvider as AnalysisProvider,
       argsWithoutProject as ParsedArgs,
+      undefined,
       undefined,
     );
 

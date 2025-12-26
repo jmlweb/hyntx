@@ -13,7 +13,11 @@ import {
   type ProjectContext,
   type MinimalResult,
 } from '../types/index.js';
-import { ISSUE_TAXONOMY, SYSTEM_PROMPT_FULL } from './schemas.js';
+import {
+  ISSUE_TAXONOMY,
+  SYSTEM_PROMPT_FULL,
+  type IssueTaxonomy,
+} from './schemas.js';
 import { convertMinimalToAnalysisResult } from '../core/aggregator.js';
 
 /**
@@ -221,7 +225,11 @@ function tryFixTruncatedJson(json: string): string {
   return fixed;
 }
 
-export function parseResponse(response: string, date: string): AnalysisResult {
+export function parseResponse(
+  response: string,
+  date: string,
+  taxonomy: IssueTaxonomy = ISSUE_TAXONOMY,
+): AnalysisResult {
   // Try to extract JSON from markdown code blocks
   const codeBlockRegex = /```(?:json)?\s*\n?([\s\S]*?)\n?```/;
   const jsonMatch = codeBlockRegex.exec(response);
@@ -247,7 +255,7 @@ export function parseResponse(response: string, date: string): AnalysisResult {
   // 1. Try minimal schema (for small models)
   if (isValidMinimalResponse(parsed)) {
     const minimal = extractMinimalResult(parsed as Record<string, unknown>);
-    return convertMinimalToAnalysisResult(minimal, date, ISSUE_TAXONOMY);
+    return convertMinimalToAnalysisResult(minimal, date, taxonomy);
   }
 
   // 2. Try simple schema (for medium models)

@@ -5,9 +5,11 @@
  * - Issue taxonomy with predefined metadata
  * - System prompts for different schema types
  * - Type definitions for schema variants
+ * - Rules configuration utilities
  */
 
-import type { PatternSeverity } from '../types/index.js';
+import type { PatternSeverity, RulesConfig } from '../types/index.js';
+import { logger } from '../utils/logger-base.js';
 
 // =============================================================================
 // Types
@@ -131,3 +133,112 @@ Rules:
  * Returns complete patterns with frequency, severity, and examples.
  */
 export const SYSTEM_PROMPT_FULL = SYSTEM_PROMPT_SIMPLE;
+
+// =============================================================================
+// Rules Configuration
+// =============================================================================
+
+/**
+ * Known valid pattern IDs from ISSUE_TAXONOMY.
+ */
+const VALID_PATTERN_IDS = Object.keys(ISSUE_TAXONOMY);
+
+/**
+ * Applies rules configuration to the issue taxonomy.
+ * Filters out disabled rules and overrides severities.
+ *
+ * @param rules - Rules configuration from .hyntxrc.json
+ * @param baseTaxonomy - Base taxonomy to apply rules to (defaults to ISSUE_TAXONOMY)
+ * @returns Modified taxonomy with rules applied
+ *
+ * @example
+ * ```typescript
+ * const customTaxonomy = applyRulesConfig({
+ *   'no-context': { enabled: false },
+ *   vague: { severity: 'high' }
+ * });
+ * // Returns taxonomy without 'no-context' and with vague set to high severity
+ * ```
+ */
+export function applyRulesConfig(
+  rules: RulesConfig | undefined,
+  baseTaxonomy: IssueTaxonomy = ISSUE_TAXONOMY,
+): IssueTaxonomy {
+  // If no rules config, return base taxonomy unchanged
+  if (!rules || Object.keys(rules).length === 0) {
+    return baseTaxonomy;
+  }
+
+  // Warn about invalid rule IDs - use immediate warning for config errors
+  for (const ruleId of Object.keys(rules)) {
+    if (!VALID_PATTERN_IDS.includes(ruleId)) {
+      logger.warn(
+        `Unknown rule ID "${ruleId}" in configuration. Valid IDs are: ${VALID_PATTERN_IDS.join(', ')}`,
+        'config',
+      );
+    }
+  }
+
+  // Build new taxonomy
+  const newTaxonomy: Record<string, IssueMetadata> = {};
+
+  for (const [patternId, metadata] of Object.entries(baseTaxonomy)) {
+    const ruleConfig = rules[patternId];
+
+    // Skip if explicitly disabled
+    if (ruleConfig?.enabled === false) {
+      continue;
+    }
+
+    // Apply severity override if present
+    if (ruleConfig?.severity) {
+      newTaxonomy[patternId] = {
+        ...metadata,
+        severity: ruleConfig.severity,
+      };
+    } else {
+      newTaxonomy[patternId] = metadata;
+    }
+  }
+
+  // Warn if all rules are disabled
+  if (Object.keys(newTaxonomy).length === 0) {
+    logger.collectWarning(
+      'All analysis rules are disabled in configuration. No patterns will be detected.',
+      'config',
+    );
+  }
+
+  return newTaxonomy;
+}
+
+/**
+ * Gets list of enabled pattern IDs from rules configuration.
+ *
+ * @param rules - Rules configuration from .hyntxrc.json
+ * @returns Array of enabled pattern IDs
+ *
+ * @example
+ * ```typescript
+ * const enabled = getEnabledPatternIds({
+ *   'no-context': { enabled: false },
+ *   vague: { enabled: true }
+ * });
+ * // Returns ['vague', 'too-broad', 'no-goal', 'imperative']
+ * ```
+ */
+export function getEnabledPatternIds(
+  rules: RulesConfig | undefined,
+): readonly string[] {
+  // If no rules config, all patterns are enabled
+  if (!rules || Object.keys(rules).length === 0) {
+    return VALID_PATTERN_IDS;
+  }
+
+  // Filter based on rules config
+  return VALID_PATTERN_IDS.filter((patternId) => {
+    const ruleConfig = rules[patternId];
+    // Include if not explicitly disabled
+    return ruleConfig?.enabled !== false;
+  });
+}

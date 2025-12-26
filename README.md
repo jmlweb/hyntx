@@ -118,9 +118,75 @@ hyntx --date yesterday --output yesterday-analysis.md
 
 ## Configuration
 
+### Rules Configuration
+
+Hyntx allows you to customize which analysis rules are enabled and their severity levels through a `.hyntxrc.json` file in your project root.
+
+#### Available Pattern IDs
+
+- `vague` - Detects vague requests lacking specificity
+- `no-context` - Detects missing background information
+- `too-broad` - Detects overly broad requests that should be broken down
+- `no-goal` - Detects prompts without a clear outcome
+- `imperative` - Detects commands without explanation
+
+#### Configuration Options
+
+For each pattern, you can:
+
+- **Disable**: Set `enabled: false` to skip detection
+- **Override severity**: Set `severity` to `"low"`, `"medium"`, or `"high"`
+
+#### Example Configuration
+
+Create `.hyntxrc.json` in your project root:
+
+```json
+{
+  "rules": {
+    "imperative": {
+      "enabled": false
+    },
+    "vague": {
+      "severity": "high"
+    },
+    "no-context": {
+      "severity": "high"
+    },
+    "too-broad": {
+      "severity": "medium"
+    }
+  }
+}
+```
+
+#### What Happens When Patterns Are Disabled
+
+- **Filtered out**: Disabled patterns are completely excluded from analysis results
+- **No detection**: The AI will not look for those specific issues
+- **Updated stats**: Pattern counts and frequency calculations exclude disabled patterns
+- **Warning**: If all patterns are disabled, you'll see a warning that no analysis will occur
+
+#### How Severity Overrides Work
+
+- **Changed priority**: Patterns are sorted by severity (high → medium → low), then by frequency
+- **Updated display**: The reporter shows severity badges based on your configuration
+- **No effect on detection**: Severity only affects sorting and display, not whether the pattern is detected
+
+#### Configuration Warnings
+
+Hyntx will warn you about:
+
+- **Invalid pattern IDs**: If you specify a pattern ID that doesn't exist
+- **All patterns disabled**: If your configuration disables every pattern
+
+These warnings appear immediately when the configuration is loaded.
+
+### Environment Variables
+
 Hyntx uses environment variables for configuration. The interactive setup can **auto-save** these to your shell config (`~/.zshrc`, `~/.bashrc`).
 
-### Multi-Provider Configuration
+#### Multi-Provider Configuration
 
 Configure one or more providers in priority order. Hyntx will try each provider in order and fall back to the next if unavailable.
 
@@ -140,7 +206,7 @@ export HYNTX_ANTHROPIC_KEY=sk-ant-your-key-here
 export HYNTX_OLLAMA_MODEL=llama3.2
 ```
 
-### Provider-Specific Variables
+#### Provider-Specific Variables
 
 **Ollama:**
 
@@ -163,14 +229,14 @@ export HYNTX_OLLAMA_MODEL=llama3.2
 | `HYNTX_GOOGLE_MODEL` | `gemini-2.0-flash-exp` | Model to use       |
 | `HYNTX_GOOGLE_KEY`   | -                      | API key (required) |
 
-### Reminder Settings
+#### Reminder Settings
 
 ```bash
 # Set reminder frequency (7d, 14d, 30d, or never)
 export HYNTX_REMINDER=7d
 ```
 
-### Complete Example
+#### Complete Example
 
 ```bash
 # Add to ~/.zshrc or ~/.bashrc (or let Hyntx auto-save it)

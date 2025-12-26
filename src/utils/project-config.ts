@@ -16,7 +16,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import { z } from 'zod';
-import type { EnvConfig, ProjectContext } from '../types/index.js';
+import type { EnvConfig, ProjectContext, RulesConfig } from '../types/index.js';
 import { logger } from './logger-base.js';
 
 // =============================================================================
@@ -50,10 +50,24 @@ const PROJECT_CONTEXT_SCHEMA = z.object({
 });
 
 /**
+ * Zod schema for a single rule configuration.
+ */
+const RULE_CONFIG_SCHEMA = z.object({
+  enabled: z.boolean().optional(),
+  severity: z.enum(['low', 'medium', 'high']).optional(),
+});
+
+/**
+ * Zod schema for rules configuration.
+ */
+const RULES_CONFIG_SCHEMA = z.record(z.string(), RULE_CONFIG_SCHEMA);
+
+/**
  * Zod schema for the .hyntxrc.json file.
  */
 const PROJECT_CONFIG_SCHEMA = z.object({
   context: PROJECT_CONTEXT_SCHEMA.optional(),
+  rules: RULES_CONFIG_SCHEMA.optional(),
 });
 
 /**
@@ -199,10 +213,11 @@ export function loadProjectConfig(configPath: string): ProjectConfig | null {
  * - Environment variables take precedence over project config
  * - If envConfig.context is set (from env vars), it overrides project context
  * - Otherwise, project context is used if available
+ * - Rules from project config are always included if present
  *
  * @param envConfig - Configuration from environment variables
  * @param projectConfig - Configuration from .hyntxrc.json
- * @returns Merged configuration with context field
+ * @returns Merged configuration with context and rules fields
  *
  * @example
  * ```typescript
@@ -210,30 +225,45 @@ export function loadProjectConfig(configPath: string): ProjectConfig | null {
  * if (merged.context) {
  *   // Use project context in analysis
  * }
+ * if (merged.rules) {
+ *   // Apply custom rules configuration
+ * }
  * ```
  */
 export function mergeConfigs(
   envConfig: EnvConfig,
   projectConfig: ProjectConfig | null,
-): EnvConfig & { context?: ProjectContext } {
-  // If no project config or no context in project config, return envConfig as-is
-  if (!projectConfig?.context) {
+): EnvConfig & { context?: ProjectContext; rules?: RulesConfig } {
+  // If no project config, return envConfig as-is
+  if (!projectConfig) {
     return envConfig;
   }
 
   // If envConfig already has context (from env vars), env vars take precedence
   const existingEnvConfig = envConfig as EnvConfig & {
     context?: ProjectContext;
+    rules?: RulesConfig;
   };
-  if (existingEnvConfig.context) {
-    return existingEnvConfig;
+
+  // Build merged config
+  const merged: EnvConfig & { context?: ProjectContext; rules?: RulesConfig } =
+    {
+      ...envConfig,
+    };
+
+  // Merge context (env vars take precedence)
+  if (projectConfig.context && !existingEnvConfig.context) {
+    merged.context = projectConfig.context;
+  } else if (existingEnvConfig.context) {
+    merged.context = existingEnvConfig.context;
   }
 
-  // Merge: env config + project context
-  return {
-    ...envConfig,
-    context: projectConfig.context,
-  };
+  // Merge rules (project config rules are always used if present)
+  if (projectConfig.rules) {
+    merged.rules = projectConfig.rules;
+  }
+
+  return merged;
 }
 
 // =============================================================================

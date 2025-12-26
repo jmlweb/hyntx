@@ -206,6 +206,21 @@ export const PROVIDER_LIMITS: Record<ProviderType, ProviderLimits> = {
 } as const;
 
 /**
+ * Configuration for a single analysis rule.
+ * Allows enabling/disabling rules and overriding their severity.
+ */
+export type RuleConfig = {
+  readonly enabled?: boolean;
+  readonly severity?: PatternSeverity;
+};
+
+/**
+ * Configuration for all analysis rules.
+ * Maps rule IDs to their configuration.
+ */
+export type RulesConfig = Record<string, RuleConfig>;
+
+/**
  * Project-specific context information.
  * Loaded from .hyntxrc.json files to provide additional context during analysis.
  */

@@ -63,6 +63,21 @@ function createValidConfig(): object {
   };
 }
 
+/**
+ * Creates a config with rules.
+ */
+function createConfigWithRules(): object {
+  return {
+    context: {
+      role: 'developer',
+    },
+    rules: {
+      'no-context': { enabled: false },
+      vague: { severity: 'high' },
+    },
+  };
+}
+
 // =============================================================================
 // Tests
 // =============================================================================
@@ -185,6 +200,29 @@ describe('loadProjectConfig', () => {
 
     const result = loadProjectConfig(configPath);
     expect(result).toEqual(noContextConfig);
+  });
+
+  it('loads config with rules', () => {
+    const configPath = join(tempDir, '.hyntxrc.json');
+    const configWithRules = createConfigWithRules();
+    writeFileSync(configPath, JSON.stringify(configWithRules));
+
+    const result = loadProjectConfig(configPath);
+    expect(result).toEqual(configWithRules);
+  });
+
+  it('loads config with only rules (no context)', () => {
+    const configPath = join(tempDir, '.hyntxrc.json');
+    const rulesOnlyConfig = {
+      rules: {
+        vague: { enabled: false },
+        'no-context': { severity: 'low' as const },
+      },
+    };
+    writeFileSync(configPath, JSON.stringify(rulesOnlyConfig));
+
+    const result = loadProjectConfig(configPath);
+    expect(result).toEqual(rulesOnlyConfig);
   });
 
   it('returns null for invalid JSON', () => {
@@ -330,6 +368,50 @@ describe('mergeConfigs', () => {
     expect(result.ollama).toEqual(envConfig.ollama);
     expect(result.anthropic).toEqual(envConfig.anthropic);
     expect(result.google).toEqual(envConfig.google);
+  });
+
+  it('merges rules from project config', () => {
+    const envConfig = createMockEnvConfig();
+    const projectConfig = {
+      rules: {
+        'no-context': { enabled: false },
+        vague: { severity: 'high' as const },
+      },
+    };
+
+    const result = mergeConfigs(envConfig, projectConfig);
+
+    expect(result.rules).toEqual(projectConfig.rules);
+  });
+
+  it('merges both context and rules', () => {
+    const envConfig = createMockEnvConfig();
+    const projectConfig = {
+      context: {
+        role: 'developer',
+      },
+      rules: {
+        vague: { enabled: false },
+      },
+    };
+
+    const result = mergeConfigs(envConfig, projectConfig);
+
+    expect(result.context).toEqual(projectConfig.context);
+    expect(result.rules).toEqual(projectConfig.rules);
+  });
+
+  it('returns undefined rules when project config has no rules', () => {
+    const envConfig = createMockEnvConfig();
+    const projectConfig = {
+      context: {
+        role: 'developer',
+      },
+    };
+
+    const result = mergeConfigs(envConfig, projectConfig);
+
+    expect(result.rules).toBeUndefined();
   });
 });
 
