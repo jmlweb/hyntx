@@ -10,7 +10,7 @@ import {
   type EnvConfig,
   type ProviderType,
 } from '../types/index.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '../utils/logger-base.js';
 import { OllamaProvider } from './ollama.js';
 import { AnthropicProvider } from './anthropic.js';
 import { GoogleProvider } from './google.js';

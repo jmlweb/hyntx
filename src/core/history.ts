@@ -10,7 +10,7 @@ import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { join } from 'node:path';
 import { format, parseISO, subDays, subMonths } from 'date-fns';
 import { HYNTX_HISTORY_DIR } from '../utils/paths.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '../utils/logger-base.js';
 import { sanitize } from './sanitizer.js';
 import type {
   AnalysisResult,

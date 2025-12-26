@@ -6,7 +6,7 @@
  */
 
 import { sanitizePrompts } from './sanitizer.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '../utils/logger-base.js';
 import { getCachedResult, setCachedResult } from '../cache/index.js';
 import {
   type AnalysisProvider,

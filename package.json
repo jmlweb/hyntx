@@ -66,12 +66,27 @@
     "vitest": "^4.0.16"
   },
   "bin": {
-    "hyntx": "./dist/index.js"
+    "hyntx": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cli": {
+      "types": "./dist/cli.d.ts",
+      "import": "./dist/cli.js"
+    },
+    "./api": {
+      "types": "./dist/api/index.d.ts",
+      "import": "./dist/api/index.js"
+    }
   },
   "files": [
-    "dist/index.js",
-    "dist/index.d.ts"
+    "dist/**/*.js",
+    "dist/**/*.d.ts"
   ],
+  "sideEffects": false,
   "lint-staged": {
     "*.ts": [
       "bash -c 'if [[ \"$1\" != tests/* && \"$1\" != *.config.ts ]]; then eslint --fix \"$1\"; fi' --",

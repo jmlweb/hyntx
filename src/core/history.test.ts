@@ -40,7 +40,7 @@ vi.mock('../utils/paths.js', () => ({
 }));
 
 // Mock logger module
-vi.mock('../utils/logger.js', () => ({
+vi.mock('../utils/logger-base.js', () => ({
   logger: {
     warn: vi.fn(),
     debug: vi.fn(),
@@ -152,7 +152,7 @@ describe('saveAnalysisResult', () => {
       saveAnalysisResult(mockResult, mockMetadata),
     ).resolves.toBeUndefined();
 
-    const { logger } = await import('../utils/logger.js');
+    const { logger } = await import('../utils/logger-base.js');
     // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining('Failed to save analysis to history'),
@@ -213,7 +213,7 @@ describe('loadAnalysisResult', () => {
 
     expect(result).toBeNull();
 
-    const { logger } = await import('../utils/logger.js');
+    const { logger } = await import('../utils/logger-base.js');
     // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining('Failed to load history'),
@@ -231,7 +231,7 @@ describe('loadAnalysisResult', () => {
 
     expect(result).toBeNull();
 
-    const { logger } = await import('../utils/logger.js');
+    const { logger } = await import('../utils/logger-base.js');
     // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining('Invalid history entry'),

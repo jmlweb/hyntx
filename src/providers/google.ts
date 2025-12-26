@@ -14,7 +14,7 @@ import {
   type GoogleConfig,
   type ProjectContext,
 } from '../types/index.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '../utils/logger-base.js';
 import {
   createRateLimiter,
   DEFAULT_RATE_LIMITS,

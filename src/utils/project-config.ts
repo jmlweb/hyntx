@@ -17,7 +17,7 @@ import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import { z } from 'zod';
 import type { EnvConfig, ProjectContext } from '../types/index.js';
-import { logger } from './logger.js';
+import { logger } from './logger-base.js';
 
 // =============================================================================
 // Constants

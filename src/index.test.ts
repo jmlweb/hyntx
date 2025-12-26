@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import * as index from './index.js';
-import type { ParsedArgs } from './index.js';
+import * as index from './cli.js';
+import type { ParsedArgs } from './cli.js';
 
 // Mock all dependencies
 vi.mock('ora', () => ({
@@ -2709,7 +2709,7 @@ describe('main - integration tests', () => {
       },
     });
 
-    await index.main();
+    await index.cli();
 
     expect(mockListAvailableDates).toHaveBeenCalled();
     expect(mockPrintHistoryList).toHaveBeenCalled();
@@ -2734,7 +2734,7 @@ describe('main - integration tests', () => {
       },
     });
 
-    await index.main();
+    await index.cli();
 
     expect(mockPrintHistorySummary).toHaveBeenCalled();
     expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.SUCCESS);
@@ -2756,7 +2756,7 @@ describe('main - integration tests', () => {
       warnings: [],
     });
 
-    await index.main();
+    await index.cli();
 
     expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.SUCCESS);
   });
@@ -2793,7 +2793,7 @@ describe('main - integration tests', () => {
     mockAnalyzePrompts.mockResolvedValue(mockResult);
     mockSaveAnalysisResult.mockResolvedValue(undefined);
 
-    await index.main();
+    await index.cli();
 
     expect(mockAnalyzePrompts).toHaveBeenCalled();
     expect(mockPrintReport).toHaveBeenCalledWith(mockResult);
@@ -2867,7 +2867,7 @@ describe('main - integration tests', () => {
       },
     });
 
-    await index.main();
+    await index.cli();
 
     expect(mockGetDateOneWeekAgo).toHaveBeenCalled();
     expect(mockCompareResults).toHaveBeenCalled();
@@ -2908,7 +2908,7 @@ describe('main - integration tests', () => {
     mockSaveAnalysisResult.mockResolvedValue(undefined);
     mockLoadAnalysisResult.mockResolvedValue(null);
 
-    await index.main();
+    await index.cli();
 
     expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.NO_DATA);
   });
@@ -2987,7 +2987,7 @@ describe('main - integration tests', () => {
     };
     mockAnalyzePrompts.mockResolvedValue(mockResult);
 
-    await index.main();
+    await index.cli();
 
     expect(mockGroupByDay).toHaveBeenCalled();
     expect(mockAnalyzePrompts).toHaveBeenCalledTimes(2);
@@ -3053,7 +3053,7 @@ describe('main - integration tests', () => {
     mockWriteFile.mockResolvedValue(undefined);
     mockRename.mockResolvedValue(undefined);
 
-    await index.main();
+    await index.cli();
 
     expect(mockWriteFile).toHaveBeenCalled();
     expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.SUCCESS);
@@ -3101,7 +3101,7 @@ describe('main - integration tests', () => {
     mockWriteFile.mockResolvedValue(undefined);
     mockRename.mockResolvedValue(undefined);
 
-    await index.main();
+    await index.cli();
 
     expect(mockWriteFile).toHaveBeenCalled();
     expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.SUCCESS);
@@ -3138,7 +3138,7 @@ describe('main - integration tests', () => {
     };
     mockAnalyzePrompts.mockResolvedValue(mockResult);
 
-    await index.main();
+    await index.cli();
 
     expect(mockSaveAnalysisResult).not.toHaveBeenCalled();
     expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.SUCCESS);
@@ -3210,7 +3210,7 @@ describe('main - integration tests', () => {
       },
     });
 
-    await index.main();
+    await index.cli();
 
     // In JSON mode, should output formatComparisonJson
     expect(mockLog).toHaveBeenCalled();
@@ -3233,7 +3233,7 @@ describe('main - integration tests', () => {
       warnings: [],
     });
 
-    await index.main();
+    await index.cli();
 
     // Verbose mode should enable logger verbose
     expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.SUCCESS);
@@ -3243,7 +3243,7 @@ describe('main - integration tests', () => {
     process.argv = ['node', 'index.js', '--unknown-flag'];
 
     // parseArguments will throw for unknown flag
-    await index.main();
+    await index.cli();
 
     expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.ERROR);
   });
@@ -3265,7 +3265,7 @@ describe('main - integration tests', () => {
       warnings: [],
     });
 
-    await index.main();
+    await index.cli();
 
     // Should exit early without analysis (checkReminder returns false before provider connection)
     expect(mockExit).toHaveBeenCalledWith(EXIT_CODES.SUCCESS);

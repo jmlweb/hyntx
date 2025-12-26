@@ -51,7 +51,7 @@ describe('CLI Integration - Full Workflow', () => {
       'json',
     ];
 
-    const { parseArguments } = await import('../../src/index.js');
+    const { parseArguments } = await import('../../src/cli.js');
 
     const args = parseArguments();
 
@@ -63,7 +63,7 @@ describe('CLI Integration - Full Workflow', () => {
   it('should handle --help flag', async () => {
     process.argv = ['node', 'hyntx', '--help'];
 
-    const { parseArguments } = await import('../../src/index.js');
+    const { parseArguments } = await import('../../src/cli.js');
 
     const args = parseArguments();
 
@@ -73,7 +73,7 @@ describe('CLI Integration - Full Workflow', () => {
   it('should handle --version flag', async () => {
     process.argv = ['node', 'hyntx', '--version'];
 
-    const { parseArguments } = await import('../../src/index.js');
+    const { parseArguments } = await import('../../src/cli.js');
 
     const args = parseArguments();
 
@@ -83,7 +83,7 @@ describe('CLI Integration - Full Workflow', () => {
   it('should default to today when no date is specified', async () => {
     process.argv = ['node', 'hyntx'];
 
-    const { parseArguments } = await import('../../src/index.js');
+    const { parseArguments } = await import('../../src/cli.js');
 
     const args = parseArguments();
 

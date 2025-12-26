@@ -348,6 +348,206 @@ Make sure you've used Claude Code at least once. Logs are stored in:
 - Verify you used Claude Code on those dates
 - Try `--dry-run` to see what logs are being read
 
+## Programmatic API
+
+Hyntx can also be used as a library in your Node.js applications for custom integrations, CI/CD pipelines, or building tooling on top of the analysis engine.
+
+### Installation
+
+```bash
+npm install hyntx
+# or
+pnpm add hyntx
+```
+
+### Basic Usage
+
+```typescript
+import {
+  analyzePrompts,
+  sanitizePrompts,
+  readLogs,
+  createProvider,
+  getEnvConfig,
+  type AnalysisResult,
+  type ExtractedPrompt,
+} from 'hyntx';
+
+// Read Claude Code logs for a specific date
+const { prompts } = await readLogs({ date: 'today' });
+
+// Sanitize prompts to remove secrets
+const { prompts: sanitizedTexts } = sanitizePrompts(
+  prompts.map((p: ExtractedPrompt) => p.content),
+);
+
+// Get environment configuration
+const config = getEnvConfig();
+
+// Create an AI provider
+const provider = await createProvider('ollama', config);
+
+// Analyze the prompts
+const result: AnalysisResult = await analyzePrompts({
+  provider,
+  prompts: sanitizedTexts,
+  date: '2025-12-26',
+});
+
+// Use the results
+console.log(`Overall score: ${result.stats.overallScore}/10`);
+console.log(`Patterns detected: ${result.patterns.length}`);
+
+result.patterns.forEach((pattern) => {
+  console.log(`- ${pattern.name}: ${pattern.severity}`);
+  console.log(`  Suggestion: ${pattern.suggestion}`);
+});
+```
+
+### Advanced Examples
+
+**CI/CD Integration** - Fail builds when prompt quality drops below threshold:
+
+```typescript
+import { analyzePrompts, readLogs, createProvider, getEnvConfig } from 'hyntx';
+
+const config = getEnvConfig();
+const provider = await createProvider('ollama', config);
+const { prompts } = await readLogs({ date: 'today' });
+
+const result = await analyzePrompts({
+  provider,
+  prompts: prompts.map((p) => p.content),
+  date: new Date().toISOString().split('T')[0],
+});
+
+// Fail CI if quality score is too low
+const QUALITY_THRESHOLD = 7.0;
+if (result.stats.overallScore < QUALITY_THRESHOLD) {
+  console.error(
+    `Quality score ${result.stats.overallScore} below threshold ${QUALITY_THRESHOLD}`,
+  );
+  process.exit(1);
+}
+```
+
+**Custom Analysis** - Analyze specific prompts without reading logs:
+
+```typescript
+import { analyzePrompts, createProvider, getEnvConfig } from 'hyntx';
+
+const config = getEnvConfig();
+const provider = await createProvider('anthropic', config);
+
+const customPrompts = [
+  'Fix the bug',
+  'Make it better',
+  'Refactor the authentication module to use JWT tokens instead of sessions',
+];
+
+const result = await analyzePrompts({
+  provider,
+  prompts: customPrompts,
+  date: '2025-12-26',
+  context: {
+    role: 'developer',
+    techStack: ['TypeScript', 'React', 'Node.js'],
+  },
+});
+
+console.log(result.patterns);
+```
+
+**History Management** - Track analysis over time:
+
+```typescript
+import {
+  analyzePrompts,
+  saveAnalysisResult,
+  loadAnalysisResult,
+  compareResults,
+  type HistoryMetadata,
+} from 'hyntx';
+
+// Run analysis
+const result = await analyzePrompts({
+  /* ... */
+});
+
+// Save to history
+const metadata: HistoryMetadata = {
+  date: '2025-12-26',
+  promptCount: result.stats.promptCount,
+  score: result.stats.overallScore,
+  projectFilter: undefined,
+  provider: 'ollama',
+};
+await saveAnalysisResult(result, metadata);
+
+// Load previous analysis
+const previousResult = await loadAnalysisResult('2025-12-19');
+
+// Compare results
+const comparison = await compareResults('2025-12-19', '2025-12-26');
+console.log(
+  `Score change: ${comparison.scoreChange > 0 ? '+' : ''}${comparison.scoreChange}`,
+);
+```
+
+### API Reference
+
+#### Core Functions
+
+- **`analyzePrompts(options: AnalysisOptions): Promise<AnalysisResult>`** - Analyze prompts and detect anti-patterns
+- **`readLogs(options?: ReadLogsOptions): Promise<LogReadResult>`** - Read Claude Code conversation logs
+- **`sanitize(text: string): SanitizeResult`** - Remove secrets from a single text
+- **`sanitizePrompts(prompts: string[]): { prompts: string[]; totalRedacted: number }`** - Remove secrets from multiple prompts
+
+#### Provider Functions
+
+- **`createProvider(type: ProviderType, config: EnvConfig): Promise<AnalysisProvider>`** - Create an AI provider instance
+- **`getAvailableProvider(config: EnvConfig, onFallback?: Function): Promise<AnalysisProvider>`** - Get first available provider with fallback
+- **`getAllProviders(services: string[], config: EnvConfig): AnalysisProvider[]`** - Get all configured providers
+
+#### History Functions
+
+- **`saveAnalysisResult(result: AnalysisResult, metadata: HistoryMetadata): Promise<void>`** - Save analysis to history
+- **`loadAnalysisResult(date: string): Promise<HistoryEntry | null>`** - Load analysis from history
+- **`listAvailableDates(): Promise<string[]>`** - Get list of dates with saved analyses
+- **`compareResults(beforeDate: string, afterDate: string): Promise<ComparisonResult>`** - Compare two analyses
+
+#### Utility Functions
+
+- **`getEnvConfig(): EnvConfig`** - Get environment configuration
+- **`claudeProjectsExist(): boolean`** - Check if Claude projects directory exists
+- **`parseDate(dateStr: string): Date`** - Parse date string to Date object
+- **`groupByDay(prompts: ExtractedPrompt[]): DayGroup[]`** - Group prompts by day
+
+#### Cache Functions
+
+- **`generateCacheKey(config: CacheKeyConfig): string`** - Generate cache key for analysis
+- **`getCachedResult(cacheKey: string): Promise<AnalysisResult | null>`** - Get cached result
+- **`setCachedResult(cacheKey: string, result: AnalysisResult, ttlMinutes?: number): Promise<void>`** - Cache analysis result
+
+### TypeScript Support
+
+Hyntx is written in TypeScript and provides full type definitions. All types are exported:
+
+```typescript
+import type {
+  AnalysisResult,
+  AnalysisPattern,
+  AnalysisStats,
+  ExtractedPrompt,
+  ProviderType,
+  EnvConfig,
+  HistoryEntry,
+  ComparisonResult,
+} from 'hyntx';
+```
+
+See the TypeScript definitions for complete API documentation.
+
 ## Development
 
 ### Setup
@@ -375,7 +575,10 @@ pnpm start
 ```text
 hyntx/
 ├── src/
-│   ├── index.ts              # CLI entry point
+│   ├── index.ts              # Library entry point (re-exports api/)
+│   ├── cli.ts                # CLI entry point
+│   ├── api/
+│   │   └── index.ts          # Public API surface
 │   ├── core/                 # Core business logic
 │   │   ├── setup.ts         # Interactive setup (multi-provider)
 │   │   ├── reminder.ts      # Reminder system
@@ -396,6 +599,8 @@ hyntx/
 │   │   ├── env.ts           # Environment config
 │   │   ├── shell-config.ts  # Shell auto-configuration
 │   │   ├── paths.ts         # System path constants
+│   │   ├── logger-base.ts   # Base logger (no CLI deps)
+│   │   ├── logger.ts        # CLI logger (with chalk)
 │   │   └── terminal.ts      # Terminal utilities
 │   └── types/
 │       └── index.ts         # TypeScript type definitions

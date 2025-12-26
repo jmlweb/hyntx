@@ -5,7 +5,7 @@
  * information from prompts before sending them to AI providers.
  */
 
-import { logger } from '../utils/logger.js';
+import { logger } from '../utils/logger-base.js';
 
 /**
  * Result of sanitizing a single text.

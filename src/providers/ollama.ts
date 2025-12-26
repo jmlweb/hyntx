@@ -18,7 +18,7 @@ import {
   type SchemaType,
   BATCH_STRATEGIES,
 } from '../types/index.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '../utils/logger-base.js';
 import { buildUserPrompt, parseResponse } from './base.js';
 import { SYSTEM_PROMPT_MINIMAL, SYSTEM_PROMPT_FULL } from './schemas.js';
 

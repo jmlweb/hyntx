@@ -18,7 +18,7 @@ import {
 } from '../types/index.js';
 import { CLAUDE_PROJECTS_DIR } from '../utils/paths.js';
 import { validateLogEntry } from './schema-validator.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '../utils/logger-base.js';
 
 /**
  * Options for filtering logs.
