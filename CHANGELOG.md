@@ -1,3 +1,10 @@
+## [2.0.1](https://github.com/jmlweb/hyntx/compare/v2.0.0...v2.0.1) (2025-12-26)
+
+### Bug Fixes
+
+- **core:** extract real examples from prompts instead of placeholders ([e2c41ee](https://github.com/jmlweb/hyntx/commit/e2c41ee1ef0854b98ac3e610df67b9f25e5e8444)), closes [#46](https://github.com/jmlweb/hyntx/issues/46)
+- **core:** normalize overallScore from 0-100 to 0-10 scale ([be3041e](https://github.com/jmlweb/hyntx/commit/be3041ea8b98e4feb98ceeea7b9de173ac04e290)), closes [#45](https://github.com/jmlweb/hyntx/issues/45)
+
 ## [2.0.0](https://github.com/jmlweb/hyntx/compare/v1.5.0...v2.0.0) (2025-12-26)
 
 ### ⚠ BREAKING CHANGES
