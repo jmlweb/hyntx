@@ -65,3 +65,28 @@ export const CACHE_ANALYSIS_DIR = join(HYNTX_CACHE_DIR, 'analysis');
  * Stores system prompt hash for invalidation detection.
  */
 export const CACHE_META_FILE = join(CACHE_ANALYSIS_DIR, '.metadata.json');
+
+/**
+ * Path to Hyntx results directory.
+ * Contains individual prompt analysis results organized by date.
+ *
+ * Structure: ~/.hyntx/results/YYYY-MM-DD/<hash>.json
+ *
+ * Can be overridden via HYNTX_RESULTS_DIR environment variable.
+ */
+export const HYNTX_RESULTS_DIR =
+  process.env['HYNTX_RESULTS_DIR'] ?? join(HOME, '.hyntx', 'results');
+
+/**
+ * Gets the path to a results directory for a specific date.
+ *
+ * @param date - Date string in YYYY-MM-DD format
+ * @returns Full path to the date-specific results directory
+ *
+ * @example
+ * getResultsDateDir('2025-12-26')
+ * // Returns: ~/.hyntx/results/2025-12-26/
+ */
+export function getResultsDateDir(date: string): string {
+  return join(HYNTX_RESULTS_DIR, date);
+}
