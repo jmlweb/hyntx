@@ -1,5 +1,7 @@
 import { execSync } from 'child_process';
 
+import { createInterface } from 'readline';
+
 const DRY_RUN = process.argv.includes('--dry-run');
 
 function run(command, options = {}) {
@@ -35,7 +37,9 @@ function getPublishedVersions() {
       );
       return ['0.0.1'];
     }
-    return JSON.parse(json);
+    // npm view returns a string if there's only one version, or an array if multiple
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? parsed : [parsed];
   } catch (e) {
     console.warn(
       "Could not parse npm versions, assuming ['0.0.1']:",
@@ -68,10 +72,25 @@ function sortVersions(versions) {
   });
 }
 
+function askOtp() {
+  return new Promise((resolve) => {
+    const rl = createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+    rl.question('Enter OTP code (leave empty if not needed): ', (answer) => {
+      rl.close();
+      resolve(answer.trim());
+    });
+  });
+}
+
 async function main() {
   const currentBranch = run('git branch --show-current', { alwaysRun: true });
 
   try {
+    const otp = await askOtp();
+
     console.log('Fetching published versions...');
     const publishedVersions = getPublishedVersions();
     console.log('Published versions:', publishedVersions);
@@ -89,7 +108,9 @@ async function main() {
     });
 
     if (pendingTags.length === 0) {
-      console.log('No pending versions found.');
+      console.log(
+        'No pending versions found. All tags utilize published versions.',
+      );
       return;
     }
 
@@ -104,7 +125,7 @@ async function main() {
       console.log(`\nProcessing tag: ${tag}`);
 
       // Checkout tag
-      run(`git checkout ${tag}`, { alwaysRun: !DRY_RUN }); // Should verify this logic
+      run(`git checkout ${tag}`, { alwaysRun: !DRY_RUN });
 
       // Install dependencies (important if deps changed)
       run('pnpm install --frozen-lockfile', { ignoreError: true });
@@ -115,7 +136,8 @@ async function main() {
       // Publish
       // Using --no-git-checks because we are in detached HEAD
       console.log(`Publishing ${tag}...`);
-      run('pnpm publish --no-git-checks --access public');
+      const otpFlag = otp ? `--otp=${otp}` : '';
+      run(`pnpm publish --no-git-checks --access public ${otpFlag}`);
     }
 
     console.log('\nAll done!');
