@@ -1,3 +1,11 @@
+## [2.1.0](https://github.com/jmlweb/hyntx/compare/v2.0.1...v2.1.0) (2025-12-26)
+
+### Features
+
+- **core:** add incremental results storage module ([19728b4](https://github.com/jmlweb/hyntx/commit/19728b4c6650db8affce70b92733dccf45ca6b15)), closes [#49](https://github.com/jmlweb/hyntx/issues/49)
+- **core:** add incremental results storage paths and design doc ([666a8af](https://github.com/jmlweb/hyntx/commit/666a8af95c45df266adac5f2e7be8e4dbaa1b7ec))
+- **types:** add PromptResult and PromptResultMetadata types ([a672f4d](https://github.com/jmlweb/hyntx/commit/a672f4d66f90a826034ce2d70ea36d871a01d45c)), closes [#48](https://github.com/jmlweb/hyntx/issues/48)
+
 ## [2.0.1](https://github.com/jmlweb/hyntx/compare/v2.0.0...v2.0.1) (2025-12-26)
 
 ### Bug Fixes
