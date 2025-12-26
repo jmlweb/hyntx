@@ -247,7 +247,9 @@ describe('aggregator', () => {
 
       expect(metadata.name).toBe('Vague Request');
       expect(metadata.severity).toBe('high');
-      expect(metadata.suggestion).toBe('Be more specific about what you need');
+      expect(metadata.suggestion).toBe(
+        'Be more specific about what you need - include function names, file paths, error messages, or specific behaviors',
+      );
       expect(metadata.exampleBefore).toBeDefined();
       expect(metadata.exampleAfter).toBeDefined();
     });
@@ -455,7 +457,7 @@ describe('aggregator', () => {
       const pattern = result.patterns[0];
       expect(pattern?.beforeAfter.before).toBe('Help me with my code');
       expect(pattern?.beforeAfter.after).toBe(
-        'Help me debug this TypeScript function that returns undefined',
+        'Help me debug the calculateTotal() function in utils.ts that returns undefined when called with an empty array',
       );
     });
 

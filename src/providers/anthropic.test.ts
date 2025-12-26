@@ -344,7 +344,7 @@ describe('AnthropicProvider', () => {
         messages: { role: string }[];
       };
       expect(requestBody.system).toContain(
-        'Analyze prompts for quality issues',
+        'You are an expert prompt quality analyst',
       );
       expect(requestBody.messages[0]?.role).toBe('user');
     });
