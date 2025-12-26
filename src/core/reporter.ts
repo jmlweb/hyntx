@@ -777,3 +777,87 @@ export function printHistorySummary(
 
   console.log(output.join('\n'));
 }
+
+// =============================================================================
+// Rules Listing
+// =============================================================================
+
+/**
+ * Entry for a rule in the rules list.
+ * Includes metadata about the rule and its current status.
+ */
+export type RuleListEntry = {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly defaultSeverity: PatternSeverity;
+  readonly currentSeverity: PatternSeverity;
+  readonly enabled: boolean;
+  readonly overridden: boolean;
+};
+
+/**
+ * Prints a list of available analysis rules to the terminal.
+ *
+ * @param entries - Array of rule list entries
+ */
+export function printRulesList(entries: readonly RuleListEntry[]): void {
+  const output: string[] = [];
+
+  output.push('');
+  output.push(chalk.bold.cyan('Available Analysis Rules'));
+  output.push('');
+
+  const table = new Table({
+    head: [
+      chalk.bold('Pattern'),
+      chalk.bold('Default Severity'),
+      chalk.bold('Current Severity'),
+      chalk.bold('Status'),
+    ],
+    colWidths: [28, 18, 18, 14],
+  });
+
+  for (const entry of entries) {
+    const statusText = entry.enabled
+      ? entry.overridden
+        ? chalk.yellow('overridden')
+        : chalk.green('enabled')
+      : chalk.red('disabled');
+
+    table.push([
+      `${entry.id}\n${chalk.dim(entry.name)}`,
+      `${severityIcon(entry.defaultSeverity)} ${entry.defaultSeverity}`,
+      `${severityIcon(entry.currentSeverity)} ${entry.currentSeverity}`,
+      statusText,
+    ]);
+  }
+
+  output.push(table.toString());
+  output.push('');
+
+  // Add legend
+  output.push(chalk.dim('Legend:'));
+  output.push(chalk.dim('  enabled    - Rule is active with default settings'));
+  output.push(
+    chalk.dim('  overridden - Rule has custom severity in .hyntxrc.json'),
+  );
+  output.push(chalk.dim('  disabled   - Rule is disabled in .hyntxrc.json'));
+  output.push('');
+
+  console.log(output.join('\n'));
+}
+
+/**
+ * Formats a list of analysis rules as JSON.
+ *
+ * @param entries - Array of rule list entries
+ * @param compact - Whether to use compact JSON
+ * @returns JSON string
+ */
+export function formatRulesListJson(
+  entries: readonly RuleListEntry[],
+  compact = false,
+): string {
+  return compact ? JSON.stringify(entries) : JSON.stringify(entries, null, 2);
+}

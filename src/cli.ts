@@ -22,8 +22,16 @@ import {
 } from './core/log-reader.js';
 import { runSetup } from './core/setup.js';
 import { analyzePrompts } from './core/analyzer.js';
-import { printReport, formatJson, formatMarkdown } from './core/reporter.js';
+import {
+  printReport,
+  formatJson,
+  formatMarkdown,
+  printRulesList,
+  formatRulesListJson,
+} from './core/reporter.js';
+import type { RuleListEntry } from './core/reporter.js';
 import { getAvailableProvider } from './providers/index.js';
+import { ISSUE_TAXONOMY } from './providers/schemas.js';
 import { CLAUDE_PROJECTS_DIR } from './utils/paths.js';
 import { logger } from './utils/logger.js';
 import { EXIT_CODES } from './types/index.js';
@@ -103,6 +111,7 @@ export type ParsedArgs = {
   readonly clearCache: boolean;
   readonly noCache: boolean;
   readonly mcpServer: boolean;
+  readonly listRules: boolean;
 };
 
 // =============================================================================
@@ -218,6 +227,10 @@ export function parseArguments(): ParsedArgs {
           type: 'boolean',
           default: false,
         },
+        'list-rules': {
+          type: 'boolean',
+          default: false,
+        },
         help: {
           type: 'boolean',
           short: 'h',
@@ -257,6 +270,7 @@ export function parseArguments(): ParsedArgs {
       clearCache: values['clear-cache'] || false,
       noCache: values['no-cache'] || false,
       mcpServer: values['mcp-server'] || false,
+      listRules: values['list-rules'] || false,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -584,6 +598,62 @@ export function showReminderStatus(): void {
 }
 
 /**
+ * Builds the list of rule entries with current configuration status.
+ *
+ * @param rulesConfig - Rules configuration from .hyntxrc.json
+ * @returns Array of rule list entries
+ */
+export function buildRulesList(
+  rulesConfig: RulesConfig | undefined,
+): RuleListEntry[] {
+  const entries: RuleListEntry[] = [];
+
+  for (const [id, metadata] of Object.entries(ISSUE_TAXONOMY)) {
+    const ruleConfig = rulesConfig?.[id];
+    const enabled = ruleConfig?.enabled !== false;
+    const currentSeverity = ruleConfig?.severity ?? metadata.severity;
+    const overridden =
+      enabled &&
+      (ruleConfig?.severity !== undefined || ruleConfig?.enabled !== undefined);
+
+    entries.push({
+      id,
+      name: metadata.name,
+      description: metadata.suggestion,
+      defaultSeverity: metadata.severity,
+      currentSeverity,
+      enabled,
+      overridden,
+    });
+  }
+
+  return entries;
+}
+
+/**
+ * Displays available analysis rules and exits.
+ *
+ * @param format - Output format ('terminal' or 'json')
+ * @param compact - Whether to use compact JSON
+ * @param rulesConfig - Rules configuration from .hyntxrc.json
+ */
+export function showRulesList(
+  format: 'terminal' | 'json',
+  compact: boolean,
+  rulesConfig: RulesConfig | undefined,
+): void {
+  const entries = buildRulesList(rulesConfig);
+
+  if (format === 'json') {
+    console.log(formatRulesListJson(entries, compact));
+  } else {
+    printRulesList(entries);
+  }
+
+  process.exit(EXIT_CODES.SUCCESS);
+}
+
+/**
  * Displays help message and exits.
  */
 export function showHelp(): void {
@@ -627,6 +697,7 @@ ${chalk.bold('Options:')}
   -v, --verbose        Enable debug output to stderr
   --check-config       Validate configuration and test provider connectivity
   --check-reminder     Show reminder status and exit
+  --list-rules         List all available analysis rules and their status
 
   ${chalk.bold('Information:')}
   -h, --help           Show help
@@ -684,6 +755,8 @@ ${chalk.bold('Examples:')}
   ${chalk.bold('Status checks:')}
   hyntx --check-config                # Validate configuration
   hyntx --check-reminder              # Show reminder status
+  hyntx --list-rules                  # List all analysis rules
+  hyntx --list-rules --format json    # List rules as JSON
 `;
 
   console.log(helpText);
@@ -1255,7 +1328,13 @@ export async function cli(): Promise<void> {
       showReminderStatus();
     }
 
-    // 4. Handle cache clearing (exit early)
+    // 4. Handle list-rules flag (exit early)
+    if (args.listRules) {
+      const projectConfig = loadProjectConfigForCwd(process.cwd());
+      showRulesList(args.format, args.compact, projectConfig?.rules);
+    }
+
+    // 5. Handle cache clearing (exit early)
     if (args.clearCache) {
       const spinner = isJsonMode ? null : ora('Clearing cache...').start();
       await clearCache();
@@ -1269,7 +1348,7 @@ export async function cli(): Promise<void> {
       process.exit(EXIT_CODES.SUCCESS);
     }
 
-    // 5. Handle history listing commands (read-only, exit early)
+    // 6. Handle history listing commands (read-only, exit early)
     if (args.history || args.historySummary) {
       const dates = await listAvailableDates();
       const entries: [string, HistoryEntry][] = [];
@@ -1290,10 +1369,10 @@ export async function cli(): Promise<void> {
       process.exit(EXIT_CODES.SUCCESS);
     }
 
-    // 6. Check for first run and run setup if needed
+    // 7. Check for first run and run setup if needed
     await checkAndRunSetup(isJsonMode);
 
-    // 7. Check reminder (unless dry-run)
+    // 8. Check reminder (unless dry-run)
     if (!args.dryRun && !isJsonMode) {
       const shouldContinue = await checkReminder();
       if (!shouldContinue) {
@@ -1301,35 +1380,35 @@ export async function cli(): Promise<void> {
       }
     }
 
-    // 8. Load project config and merge with env config
+    // 9. Load project config and merge with env config
     const envConfig = getEnvConfig();
     const projectConfig = loadProjectConfigForCwd(process.cwd());
     const config = mergeConfigs(envConfig, projectConfig);
 
-    // 9. Handle watch mode (exit early - runs indefinitely)
+    // 10. Handle watch mode (exit early - runs indefinitely)
     if (args.watch) {
       const provider = await connectProviderWithSpinner(isJsonMode);
       await runWatchMode(provider, args, config.context, config.rules);
       return;
     }
 
-    // 10. Read logs with new filters
+    // 11. Read logs with new filters
     const logResult = await readLogsWithSpinner(args, isJsonMode);
 
-    // 11. Handle dry-run mode (exit early)
+    // 12. Handle dry-run mode (exit early)
     if (args.dryRun) {
       displayDryRunSummary(logResult.prompts, args);
       process.exit(EXIT_CODES.SUCCESS);
     }
 
-    // 12. Determine if multi-day
+    // 13. Determine if multi-day
     const isMultiDay = Boolean(args.from && args.to);
     const groups = isMultiDay ? groupByDay(logResult.prompts) : [];
 
-    // 13. Connect to provider
+    // 14. Connect to provider
     const provider = await connectProviderWithSpinner(isJsonMode);
 
-    // 14. Analyze (single-day or multi-day)
+    // 15. Analyze (single-day or multi-day)
     if (isMultiDay && groups.length > 0) {
       // Multi-day analysis with grouping
       const results: AnalysisResult[] = [];
@@ -1348,7 +1427,7 @@ export async function cli(): Promise<void> {
         results.push(result);
       }
 
-      // 15. Write output files if specified
+      // 16. Write output files if specified
       if (args.output) {
         const ext = extname(args.output);
         const format = ext === '.json' ? 'json' : 'md';
@@ -1406,7 +1485,7 @@ export async function cli(): Promise<void> {
         }
       }
 
-      // 16. Display results
+      // 17. Display results
       if (!args.output || !isJsonMode) {
         if (args.format === 'json') {
           console.log(
@@ -1508,10 +1587,10 @@ export async function cli(): Promise<void> {
       }
     }
 
-    // 17. Save last run timestamp
+    // 18. Save last run timestamp
     saveLastRun();
 
-    // 18. Report warnings
+    // 19. Report warnings
     if (!isJsonMode) {
       logger.reportWarnings();
     }
