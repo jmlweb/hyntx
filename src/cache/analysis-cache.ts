@@ -74,7 +74,7 @@ function getCacheFilePath(cacheKey: string): string {
  * @param input - String to hash
  * @returns Hex-encoded hash
  */
-function hashString(input: string): string {
+export function hashString(input: string): string {
   return createHash('sha256').update(input, 'utf-8').digest('hex');
 }
 
