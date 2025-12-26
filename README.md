@@ -360,6 +360,219 @@ When running, Hyntx will show fallback behavior:
 ──────────────────────────────────────────────────
 ```
 
+## MCP Integration
+
+Hyntx can run as a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server, enabling real-time prompt analysis directly within MCP-compatible clients like Claude Code.
+
+### Quick Setup
+
+Add hyntx to your Claude Code MCP configuration:
+
+**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+**Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+**Linux:** `~/.config/Claude/claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "hyntx": {
+      "command": "hyntx",
+      "args": ["--mcp-server"]
+    }
+  }
+}
+```
+
+After editing, restart Claude Code. The hyntx tools will be available in your conversations.
+
+### Prerequisites
+
+- **Hyntx installed globally**: `npm install -g hyntx`
+- **AI provider configured**: Set up Ollama (recommended) or cloud providers via environment variables
+
+If using Ollama (recommended for privacy):
+
+```bash
+# Ensure Ollama is running
+ollama serve
+
+# Pull a model if needed
+ollama pull llama3.2
+
+# Set environment variables (add to ~/.zshrc or ~/.bashrc)
+export HYNTX_SERVICES=ollama
+export HYNTX_OLLAMA_MODEL=llama3.2
+```
+
+### Available MCP Tools
+
+Hyntx exposes three tools through the MCP interface:
+
+#### analyze-prompt
+
+Analyze a prompt to detect anti-patterns, issues, and get improvement suggestions.
+
+**Input Schema:**
+
+| Parameter | Type   | Required | Description                                           |
+| --------- | ------ | -------- | ----------------------------------------------------- |
+| `prompt`  | string | Yes      | The prompt text to analyze                            |
+| `date`    | string | No       | Date context in ISO format. Defaults to current date. |
+
+**Example Output:**
+
+```json
+{
+  "patterns": [
+    {
+      "id": "no-context",
+      "name": "Missing Context",
+      "severity": "high",
+      "frequency": "100%",
+      "suggestion": "Include specific error messages and file paths",
+      "examples": ["Fix the bug in auth"]
+    }
+  ],
+  "stats": {
+    "promptCount": 1,
+    "overallScore": 4.5
+  },
+  "topSuggestion": "Add error messages and stack traces for faster resolution"
+}
+```
+
+#### suggest-improvements
+
+Get concrete before/after rewrites showing how to improve a prompt.
+
+**Input Schema:**
+
+| Parameter | Type   | Required | Description                                           |
+| --------- | ------ | -------- | ----------------------------------------------------- |
+| `prompt`  | string | Yes      | The prompt text to analyze for improvements           |
+| `date`    | string | No       | Date context in ISO format. Defaults to current date. |
+
+**Example Output:**
+
+```json
+{
+  "improvements": [
+    {
+      "issue": "Missing Context",
+      "before": "Fix the bug in auth",
+      "after": "Fix authentication bug in src/auth/login.ts where users get 'Invalid token' error. Using Next.js 14.1.0 with next-auth 4.24.5.",
+      "suggestion": "Include specific error messages, framework versions, and file paths"
+    }
+  ],
+  "summary": "Found 1 improvement(s)",
+  "topSuggestion": "Add error messages and stack traces for faster resolution"
+}
+```
+
+#### check-context
+
+Verify if a prompt has sufficient context for effective AI interaction.
+
+**Input Schema:**
+
+| Parameter | Type   | Required | Description                                           |
+| --------- | ------ | -------- | ----------------------------------------------------- |
+| `prompt`  | string | Yes      | The prompt text to check for context                  |
+| `date`    | string | No       | Date context in ISO format. Defaults to current date. |
+
+**Example Output:**
+
+```json
+{
+  "hasSufficientContext": false,
+  "score": 4.5,
+  "issues": ["Missing Context", "Vague Instructions"],
+  "suggestion": "Include specific error messages and file paths",
+  "details": "Prompt lacks sufficient context for effective AI interaction"
+}
+```
+
+### Usage Examples
+
+Once configured, you can use these tools in your Claude Code conversations:
+
+**Analyze a prompt before sending:**
+
+```text
+Use the analyze-prompt tool to check: "Fix the login bug"
+```
+
+**Get improvement suggestions:**
+
+```text
+Use suggest-improvements on: "Make the API faster"
+```
+
+**Check if your prompt has enough context:**
+
+```text
+Use check-context to verify: "Update the component to handle errors"
+```
+
+### MCP Server Troubleshooting
+
+#### "Server failed to start"
+
+1. Verify hyntx is installed globally:
+
+   ```bash
+   which hyntx
+   # Should output: /usr/local/bin/hyntx or similar
+   ```
+
+2. Test manual startup:
+
+   ```bash
+   hyntx --mcp-server
+   # Should output: MCP server running on stdio
+   ```
+
+3. Check environment variables are set (if using cloud providers):
+
+   ```bash
+   echo $HYNTX_SERVICES
+   echo $HYNTX_ANTHROPIC_KEY  # if using Anthropic
+   ```
+
+#### "Analysis failed: Provider not available"
+
+1. If using Ollama, ensure it's running:
+
+   ```bash
+   ollama list
+   # If no output, start Ollama:
+   ollama serve
+   ```
+
+2. If using cloud providers, verify API keys are set:
+
+   ```bash
+   # Check if keys are configured
+   env | grep HYNTX_
+   ```
+
+#### "Tools not appearing in Claude Code"
+
+1. Restart Claude Code completely after config changes
+2. Verify the config file path is correct for your OS
+3. Check JSON syntax in the config file:
+
+   ```bash
+   # macOS
+   cat ~/Library/Application\ Support/Claude/claude_desktop_config.json | jq .
+   ```
+
+#### "Slow responses"
+
+- Local Ollama models are fastest but require GPU for best performance
+- Consider using a faster model: `export HYNTX_OLLAMA_MODEL=llama3.2:1b`
+- Cloud providers (Anthropic, Google) offer faster responses but require API keys
+
 ## Privacy & Security
 
 Hyntx takes your privacy seriously:
