@@ -23,6 +23,9 @@ describe('schemas', () => {
         'too-broad',
         'no-goal',
         'imperative',
+        'missing-technical-details',
+        'unclear-priorities',
+        'insufficient-constraints',
       ];
 
       for (const issue of expectedIssues) {
@@ -73,7 +76,7 @@ describe('schemas', () => {
     it('should have clear before/after examples', () => {
       const vague = ISSUE_TAXONOMY['vague'];
       expect(vague?.exampleBefore).toBe('Help me with my code');
-      expect(vague?.exampleAfter).toContain('TypeScript function');
+      expect(vague?.exampleAfter).toContain('calculateTotal()');
 
       // After examples should be more specific than before
       for (const metadata of Object.values(ISSUE_TAXONOMY)) {
@@ -99,6 +102,9 @@ describe('schemas', () => {
         'too-broad',
         'no-goal',
         'imperative',
+        'missing-technical-details',
+        'unclear-priorities',
+        'insufficient-constraints',
       ];
 
       for (const id of validIssueIds) {
@@ -130,7 +136,7 @@ describe('schemas', () => {
 
   describe('SYSTEM_PROMPT_SIMPLE', () => {
     it('should contain schema definition', () => {
-      expect(SYSTEM_PROMPT_SIMPLE).toContain('Schema:');
+      expect(SYSTEM_PROMPT_SIMPLE).toContain('schema');
       expect(SYSTEM_PROMPT_SIMPLE).toContain('{"issues"');
     });
 
@@ -140,29 +146,39 @@ describe('schemas', () => {
       expect(SYSTEM_PROMPT_SIMPLE).toContain('"fix"');
     });
 
-    it('should include rules section', () => {
-      expect(SYSTEM_PROMPT_SIMPLE).toContain('Rules:');
-      expect(SYSTEM_PROMPT_SIMPLE).toContain('- issues:');
-      expect(SYSTEM_PROMPT_SIMPLE).toContain('- score:');
-      expect(SYSTEM_PROMPT_SIMPLE).toContain('- tip:');
+    it('should include analysis criteria and guidelines', () => {
+      expect(SYSTEM_PROMPT_SIMPLE).toContain('Analysis criteria');
+      expect(SYSTEM_PROMPT_SIMPLE).toContain('Issue types to look for');
+      expect(SYSTEM_PROMPT_SIMPLE).toContain('Score guidelines');
     });
 
     it('should specify JSON-only output', () => {
-      expect(SYSTEM_PROMPT_SIMPLE).toContain('ONLY JSON');
+      expect(SYSTEM_PROMPT_SIMPLE.toLowerCase()).toContain('only');
+      expect(SYSTEM_PROMPT_SIMPLE.toLowerCase()).toContain('json');
       expect(SYSTEM_PROMPT_SIMPLE).toContain('no other text');
     });
   });
 
   describe('SYSTEM_PROMPT_FULL', () => {
-    it('should be same as simple for now', () => {
-      // Current implementation uses same prompt for simple and full
-      expect(SYSTEM_PROMPT_FULL).toBe(SYSTEM_PROMPT_SIMPLE);
+    it('should be different from simple (more detailed)', () => {
+      // Full prompt should be more comprehensive than simple
+      expect(SYSTEM_PROMPT_FULL).not.toBe(SYSTEM_PROMPT_SIMPLE);
+      expect(SYSTEM_PROMPT_FULL.length).toBeGreaterThan(
+        SYSTEM_PROMPT_SIMPLE.length,
+      );
     });
 
-    it('should contain schema definition', () => {
+    it('should contain full schema definition with patterns', () => {
       expect(SYSTEM_PROMPT_FULL).toContain('Schema:');
-      expect(SYSTEM_PROMPT_FULL).toContain('issues');
-      expect(SYSTEM_PROMPT_FULL).toContain('score');
+      expect(SYSTEM_PROMPT_FULL).toContain('patterns');
+      expect(SYSTEM_PROMPT_FULL).toContain('stats');
+      expect(SYSTEM_PROMPT_FULL).toContain('overallScore');
+    });
+
+    it('should include quality dimensions', () => {
+      expect(SYSTEM_PROMPT_FULL).toContain('QUALITY DIMENSIONS');
+      expect(SYSTEM_PROMPT_FULL).toContain('SPECIFICITY');
+      expect(SYSTEM_PROMPT_FULL).toContain('CONTEXT PROVISION');
     });
   });
 
@@ -257,9 +273,9 @@ describe('schemas', () => {
       expect(vague).toBeDefined();
       expect(vague?.name).toBe('Vague Request');
       expect(vague?.severity).toBe('low'); // Overridden
-      expect(vague?.suggestion).toBe('Be more specific about what you need');
+      expect(vague?.suggestion).toContain('specific');
       expect(vague?.exampleBefore).toBe('Help me with my code');
-      expect(vague?.exampleAfter).toContain('TypeScript function');
+      expect(vague?.exampleAfter).toContain('calculateTotal()');
     });
 
     it('should handle enabled:true explicitly (no-op)', () => {
@@ -319,6 +335,9 @@ describe('schemas', () => {
         'too-broad',
         'no-goal',
         'imperative',
+        'missing-technical-details',
+        'unclear-priorities',
+        'insufficient-constraints',
       ]);
     });
 
@@ -331,6 +350,9 @@ describe('schemas', () => {
         'too-broad',
         'no-goal',
         'imperative',
+        'missing-technical-details',
+        'unclear-priorities',
+        'insufficient-constraints',
       ]);
     });
 
@@ -341,7 +363,15 @@ describe('schemas', () => {
 
       const result = getEnabledPatternIds(rules);
 
-      expect(result).toEqual(['vague', 'too-broad', 'no-goal', 'imperative']);
+      expect(result).toEqual([
+        'vague',
+        'too-broad',
+        'no-goal',
+        'imperative',
+        'missing-technical-details',
+        'unclear-priorities',
+        'insufficient-constraints',
+      ]);
       expect(result).not.toContain('no-context');
     });
 
@@ -359,6 +389,9 @@ describe('schemas', () => {
         'too-broad',
         'no-goal',
         'imperative',
+        'missing-technical-details',
+        'unclear-priorities',
+        'insufficient-constraints',
       ]);
     });
 
@@ -371,7 +404,13 @@ describe('schemas', () => {
 
       const result = getEnabledPatternIds(rules);
 
-      expect(result).toEqual(['no-goal', 'imperative']);
+      expect(result).toEqual([
+        'no-goal',
+        'imperative',
+        'missing-technical-details',
+        'unclear-priorities',
+        'insufficient-constraints',
+      ]);
     });
 
     it('should ignore severity overrides for enabled check', () => {
@@ -393,6 +432,9 @@ describe('schemas', () => {
         'too-broad': { enabled: false },
         'no-goal': { enabled: false },
         imperative: { enabled: false },
+        'missing-technical-details': { enabled: false },
+        'unclear-priorities': { enabled: false },
+        'insufficient-constraints': { enabled: false },
       };
 
       const result = getEnabledPatternIds(rules);

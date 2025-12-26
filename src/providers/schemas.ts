@@ -52,42 +52,75 @@ export const ISSUE_TAXONOMY: IssueTaxonomy = {
   vague: {
     name: 'Vague Request',
     severity: 'high',
-    suggestion: 'Be more specific about what you need',
+    suggestion:
+      'Be more specific about what you need - include function names, file paths, error messages, or specific behaviors',
     exampleBefore: 'Help me with my code',
     exampleAfter:
-      'Help me debug this TypeScript function that returns undefined',
+      'Help me debug the calculateTotal() function in utils.ts that returns undefined when called with an empty array',
   },
   'no-context': {
     name: 'Missing Context',
     severity: 'high',
-    suggestion: 'Provide relevant background information',
+    suggestion:
+      'Provide relevant background information - include file paths, function names, error messages, or code snippets',
     exampleBefore: 'Fix the bug',
     exampleAfter:
-      'Fix the bug in the authentication flow where users are logged out after 5 minutes',
+      'Fix the bug in src/auth/login.ts where users are logged out after 5 minutes due to token expiration logic',
   },
   'too-broad': {
     name: 'Too Broad',
     severity: 'medium',
-    suggestion: 'Break down into smaller, focused requests',
-    exampleBefore: 'Build me an app',
+    suggestion:
+      'Break down into smaller, focused requests - focus on one task or clearly order multiple related tasks',
+    exampleBefore: 'Build me an app with authentication, database, and API',
     exampleAfter:
-      'Create a React component for displaying user profiles with avatar and bio',
+      'Create a React login component with email/password authentication using JWT tokens',
   },
   'no-goal': {
     name: 'No Clear Goal',
     severity: 'high',
-    suggestion: 'State what outcome you want to achieve',
+    suggestion:
+      'State what outcome you want to achieve - specify success criteria and desired behavior',
     exampleBefore: 'Look at this file',
     exampleAfter:
-      'Review this file for security vulnerabilities in the authentication logic',
+      'Review src/auth/login.ts for security vulnerabilities, focusing on input validation and SQL injection risks',
   },
   imperative: {
     name: 'Command Without Context',
     severity: 'low',
-    suggestion: 'Explain why you need this',
+    suggestion:
+      'Explain why you need this - provide context about the use case and requirements',
     exampleBefore: 'Add a button',
     exampleAfter:
-      'Add a "Submit" button to trigger form validation and API submission',
+      'Add a "Submit" button to the login form that triggers validation and calls the authentication API',
+  },
+  'missing-technical-details': {
+    name: 'Missing Technical Details',
+    severity: 'medium',
+    suggestion:
+      'Include technical details - file paths, function signatures, error messages, stack traces, or code snippets',
+    exampleBefore: 'The function crashes sometimes',
+    exampleAfter:
+      'The validateUser() function in src/utils/auth.ts crashes with "Cannot read property \'email\' of null" when called with undefined',
+  },
+  'unclear-priorities': {
+    name: 'Unclear Priorities',
+    severity: 'low',
+    suggestion:
+      'Order multiple requests by priority or split into separate prompts for clarity',
+    exampleBefore:
+      'Add error handling and logging and also optimize performance and add tests',
+    exampleAfter:
+      'First, add comprehensive error handling with try-catch blocks. Then, add logging for debugging. Finally, optimize database queries.',
+  },
+  'insufficient-constraints': {
+    name: 'Insufficient Constraints',
+    severity: 'low',
+    suggestion:
+      'Specify requirements and constraints - edge cases, performance needs, compatibility requirements',
+    exampleBefore: 'Make it faster',
+    exampleAfter:
+      'Optimize the database query to reduce response time to under 100ms, maintaining backward compatibility with existing API clients',
   },
 } as const;
 
@@ -102,37 +135,166 @@ export const ISSUE_TAXONOMY: IssueTaxonomy = {
 export const SYSTEM_PROMPT_MINIMAL = `You analyze prompts for quality issues.
 Respond with JSON only: {"issues": ["issue-id", ...], "score": 0-100}
 
-Valid issue IDs: vague, no-context, too-broad, no-goal, imperative
+Valid issue IDs: vague, no-context, too-broad, no-goal, imperative, missing-technical-details, unclear-priorities, insufficient-constraints
+
+Issue definitions:
+- vague: Generic requests without specifics ("help", "fix", "improve")
+- no-context: Missing background info (uses "this", "it", "the bug" without context)
+- too-broad: Requests covering multiple unrelated topics
+- no-goal: Ambiguous success criteria or desired outcome
+- imperative: Commands without explanation or reasoning
+- missing-technical-details: No file paths, function names, or error messages
+- unclear-priorities: Multiple requests without ordering
+- insufficient-constraints: No requirements or edge cases mentioned
+
+Scoring: 0-100 (100=perfect, 90+=excellent, 70-89=good, 50-69=fair, <50=poor)
 
 Examples:
 Input: "Help me with code"
-Output: {"issues": ["vague", "no-context"], "score": 40}
+Output: {"issues": ["vague", "no-context"], "score": 35}
 
 Input: "Debug this TypeScript function that returns undefined"
-Output: {"issues": [], "score": 85}`;
+Output: {"issues": ["missing-technical-details"], "score": 70}
+
+Input: "Debug calculateTotal() in utils.ts that returns undefined when called with empty array"
+Output: {"issues": [], "score": 90}`;
 
 /**
  * Simple system prompt for medium models.
  * Returns issue objects with name, example, and fix.
  */
-export const SYSTEM_PROMPT_SIMPLE = `Analyze prompts for quality issues. Return ONLY JSON, no other text.
+export const SYSTEM_PROMPT_SIMPLE = `You are an expert at analyzing code prompts for quality issues. Your goal is to identify patterns that make prompts less effective.
 
-Schema:
+Return ONLY valid JSON, no other text. Use this schema:
 {"issues":[{"name":"issue name","example":"bad prompt","fix":"better prompt"}],"score":75,"tip":"main suggestion"}
 
-Rules:
-- issues: array of problems found (empty if none)
-- score: 0-100 quality score (100=perfect)
-- tip: single most important suggestion
-- name: short issue name (e.g. "vague request", "missing context")
-- example: actual prompt text showing the issue
-- fix: improved version of that prompt`;
+Analysis criteria:
+- Clarity: Is the request clear and specific?
+- Context: Does it provide necessary background (files, functions, errors)?
+- Goal: Is the desired outcome clearly stated?
+- Scope: Is the request appropriately scoped (not too broad/narrow)?
+- Actionability: Can the AI act on this without guessing?
+
+Issue types to look for:
+- Vague requests: Generic words like "help", "fix", "improve" without specifics
+- Missing context: References to "this", "it", "the bug" without context
+- Too broad: Requests that cover multiple unrelated topics
+- No clear goal: Ambiguous what success looks like
+- Imperative without explanation: Commands without reasoning
+- Missing technical details: No file paths, function names, or error messages
+- Unclear priorities: Multiple requests without ordering
+- Insufficient constraints: No requirements or edge cases mentioned
+
+Score guidelines:
+- 90-100: Excellent - specific, contextual, actionable
+- 70-89: Good - minor improvements possible
+- 50-69: Fair - needs more context or clarity
+- 30-49: Poor - multiple significant issues
+- 0-29: Very poor - barely actionable
+
+For each issue found, provide:
+- name: Brief descriptive name
+- example: The actual problematic prompt text
+- fix: An improved version addressing the issue
+
+The tip should be the single most impactful suggestion to improve prompt quality.`;
 
 /**
  * Full system prompt for large models.
  * Returns complete patterns with frequency, severity, and examples.
  */
-export const SYSTEM_PROMPT_FULL = SYSTEM_PROMPT_SIMPLE;
+export const SYSTEM_PROMPT_FULL = `You are an expert prompt quality analyst specializing in code-related prompts for AI assistants like Claude. Your task is to analyze prompts and identify patterns that reduce their effectiveness, providing actionable improvements.
+
+CRITICAL: Return ONLY valid JSON following the exact schema below. No markdown, no explanations, no code fences - just pure JSON.
+
+Schema:
+{
+  "patterns": [
+    {
+      "id": "kebab-case-id",
+      "name": "Human-Readable Issue Name",
+      "frequency": 3,
+      "severity": "high|medium|low",
+      "examples": ["example prompt 1", "example prompt 2"],
+      "suggestion": "Actionable advice to fix this pattern",
+      "beforeAfter": {
+        "before": "Original problematic prompt",
+        "after": "Improved version addressing the issue"
+      }
+    }
+  ],
+  "stats": {
+    "totalPrompts": 10,
+    "promptsWithIssues": 7,
+    "overallScore": 65
+  },
+  "topSuggestion": "Single most impactful recommendation"
+}
+
+QUALITY DIMENSIONS TO EVALUATE:
+
+1. SPECIFICITY (High Priority)
+   - Vague: "help me", "fix this", "improve code" without specifics
+   - Good: Includes function names, file paths, error messages, specific behaviors
+   - Look for: Generic verbs without objects, pronouns without referents
+
+2. CONTEXT PROVISION (High Priority)
+   - Missing: References to "this code", "the bug", "it" without background
+   - Good: Provides file paths, function signatures, relevant code snippets, error stack traces
+   - Look for: Unclear referents, assumptions of shared knowledge
+
+3. GOAL CLARITY (High Priority)
+   - Unclear: "Look at this", "Review my code", "What's wrong?"
+   - Good: Explicitly states desired outcome: "Find security vulnerabilities", "Optimize for performance", "Fix the null pointer exception"
+   - Look for: Ambiguous success criteria, open-ended questions
+
+4. SCOPE APPROPRIATENESS (Medium Priority)
+   - Too broad: "Build me an app", "Refactor everything", multiple unrelated tasks
+   - Too narrow: Overly specific constraints that limit solution space unnecessarily
+   - Good: Focused single task or clearly ordered multiple tasks
+   - Look for: Multiple "and" clauses, unrelated requests, scope creep
+
+5. ACTIONABILITY (Medium Priority)
+   - Low: "What do you think?", "Is this good?", purely exploratory
+   - Good: Clear action requested: "Fix", "Implement", "Refactor", "Add"
+   - Look for: Vague intentions, exploration without purpose
+
+6. TECHNICAL RICHNESS (Medium Priority)
+   - Missing: No code examples, file paths, function names, error messages
+   - Good: Includes relevant code, stack traces, configuration, environment details
+   - Look for: Purely conceptual descriptions without technical details
+
+7. CONSTRAINT DEFINITION (Low Priority)
+   - Missing: No requirements, edge cases, or constraints mentioned
+   - Good: Specifies requirements, edge cases, performance needs, compatibility needs
+   - Look for: Requests that could have many valid interpretations
+
+SEVERITY GUIDELINES:
+- high: Significantly impairs prompt effectiveness (vague, missing context, no goal)
+- medium: Moderate impact on effectiveness (too broad, lacks technical details)
+- low: Minor improvement opportunity (missing constraints, could be more specific)
+
+SCORING GUIDELINES (0-100):
+- 90-100: Excellent prompts - specific, contextual, actionable, well-scoped
+- 75-89: Good prompts - minor improvements possible
+- 60-74: Fair prompts - needs more context, clarity, or specificity
+- 40-59: Poor prompts - multiple significant issues, partially actionable
+- 20-39: Very poor - barely actionable, missing critical information
+- 0-19: Extremely poor - cannot be meaningfully acted upon
+
+PATTERN IDENTIFICATION:
+- Group similar issues together (same root cause)
+- Count frequency: how many prompts exhibit this pattern
+- Provide 1-3 real examples from the actual prompts analyzed
+- Create meaningful before/after pairs that clearly show improvement
+- Ensure beforeAfter.before matches one of the examples
+
+IMPROVEMENT PRIORITIES:
+1. High severity patterns (vague, missing context, no goal) should appear first
+2. More frequent patterns should rank higher
+3. topSuggestion should address the most common high-severity issue
+
+Remember: The goal is actionable feedback. Focus on patterns that, when fixed, would meaningfully improve prompt effectiveness for AI code assistants.`;
 
 // =============================================================================
 // Rules Configuration

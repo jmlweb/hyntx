@@ -192,6 +192,56 @@ export function extractRealExamples(
           !lowerPrompt.includes('?');
         break;
 
+      case 'missing-technical-details': {
+        // No file paths, function names, error messages, or code references
+        const hasFileRef =
+          /\w+\.(ts|js|tsx|jsx|py|go|java|rb|php|json|yaml|yml)\b/.exec(
+            lowerPrompt,
+          ) !== null;
+        const hasFunctionRef =
+          /function|def |class |const |let |var |(\.\w+\()/.exec(
+            lowerPrompt,
+          ) !== null;
+        const hasErrorRef =
+          /error|exception|failed|crash|undefined|null/.exec(lowerPrompt) !==
+          null;
+        isMatch =
+          !hasFileRef && !hasFunctionRef && !hasErrorRef && wordCount >= 3;
+        break;
+      }
+
+      case 'unclear-priorities': {
+        // Multiple requests with conjunctions but no ordering
+        const andMatches = lowerPrompt.match(/\band\b/g);
+        const orMatches = lowerPrompt.match(/\bor\b/g);
+        const alsoMatches = lowerPrompt.match(/\balso\b/g);
+        const conjunctionCount =
+          (andMatches?.length ?? 0) +
+          (orMatches?.length ?? 0) +
+          (alsoMatches?.length ?? 0);
+        isMatch =
+          conjunctionCount >= 2 &&
+          !/\b(first|second|third|then|next|finally|after|before)\b/.exec(
+            lowerPrompt,
+          ) &&
+          wordCount >= 10;
+        break;
+      }
+
+      case 'insufficient-constraints':
+        // Requests without constraints, edge cases, or requirements
+        isMatch =
+          !/\b(constraint|requirement|must|should|edge case|boundary|limit|performance|compatib)\b/.exec(
+            lowerPrompt,
+          ) &&
+          !/\b(<|>|<=|>=|\d+ms|\d+mb|\d+kb)\b/.exec(lowerPrompt) &&
+          (lowerPrompt.includes('optimize') ||
+            lowerPrompt.includes('improve') ||
+            lowerPrompt.includes('make') ||
+            lowerPrompt.includes('add')) &&
+          wordCount >= 4;
+        break;
+
       default:
         // Unknown issue type - no match
         isMatch = false;
