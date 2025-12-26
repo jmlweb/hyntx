@@ -525,3 +525,33 @@ export type CacheOptions = {
 export const CACHE_DEFAULTS = {
   ttlMs: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
 } as const;
+
+// =============================================================================
+// Incremental Results Storage Types
+// =============================================================================
+
+/**
+ * Metadata for an individual prompt analysis result.
+ * Used for cache validation and tracking analysis provenance.
+ *
+ * Note: systemPromptHash is included in the file hash (not stored here)
+ * per PERFORMANCE_OPTIMIZATION.md Decision 1 & 4.
+ */
+export type PromptResultMetadata = {
+  readonly promptHash: string;
+  readonly date: string;
+  readonly project?: string;
+  readonly analyzedAt: number;
+  readonly provider: string;
+  readonly model: string;
+  readonly schemaType: string;
+};
+
+/**
+ * Complete cached result for an individual prompt.
+ * Stored as JSON files in ~/.hyntx/results/<YYYY-MM-DD>/<hash>.json
+ */
+export type PromptResult = {
+  readonly result: AnalysisResult;
+  readonly metadata: PromptResultMetadata;
+};
