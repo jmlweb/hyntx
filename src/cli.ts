@@ -5,84 +5,86 @@
  * and generates improvement suggestions.
  */
 
-import { parseArgs } from 'node:util';
 import { readFileSync, realpathSync } from 'node:fs';
-import { writeFile, mkdir, rename } from 'node:fs/promises';
+import { mkdir, rename, writeFile } from 'node:fs/promises';
+import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { dirname, join, extname, resolve } from 'node:path';
+import { parseArgs } from 'node:util';
+
 import chalk from 'chalk';
-import ora from 'ora';
 import { isAfter } from 'date-fns';
-import { isFirstRun, getEnvConfig } from './utils/env.js';
-import {
-  claudeProjectsExist,
-  readLogs,
-  groupByDay,
-  parseDate,
-} from './core/log-reader.js';
-import { runSetup } from './core/setup.js';
+import ora from 'ora';
+
+import { clearCache } from './cache/index.js';
 import { analyzePrompts, extractModelFromProvider } from './core/analyzer.js';
 import {
-  printReport,
-  formatJson,
-  formatMarkdown,
-  printRulesList,
-  formatRulesListJson,
-} from './core/reporter.js';
+  compareResults,
+  getDateOneMonthAgo,
+  getDateOneWeekAgo,
+  listAvailableDates,
+  loadAnalysisResult,
+  saveAnalysisResult,
+} from './core/history.js';
+import {
+  claudeProjectsExist,
+  groupByDay,
+  parseDate,
+  readLogs,
+} from './core/log-reader.js';
+import {
+  checkReminder,
+  getDaysElapsed,
+  getLastRun,
+  saveLastRun,
+  shouldShowReminder,
+} from './core/reminder.js';
 import type { RuleListEntry } from './core/reporter.js';
 import {
+  formatJson,
+  formatMarkdown,
+  formatRulesListJson,
+  printReport,
+  printRulesList,
+} from './core/reporter.js';
+import {
+  formatComparisonJson,
+  printComparison,
+  printHistoryList,
+  printHistorySummary,
+} from './core/reporter.js';
+import {
+  getPromptResult,
   getPromptsWithCache,
   savePromptResult,
-  getPromptResult,
 } from './core/results-storage.js';
+import { runSetup } from './core/setup.js';
+import { createLogWatcher } from './core/watcher.js';
+import { HyntxMcpServer } from './mcp/server.js';
 import { getAvailableProvider } from './providers/index.js';
 import { ISSUE_TAXONOMY } from './providers/schemas.js';
-import { CLAUDE_PROJECTS_DIR } from './utils/paths.js';
-import { logger } from './utils/logger.js';
+import type {
+  AnalysisProvider,
+  AnalysisResult,
+  ExtractedPrompt,
+  HistoryEntry,
+  HistoryMetadata,
+  JsonErrorResponse,
+  LogReadResult,
+  ProjectContext,
+  RulesConfig,
+} from './types/index.js';
 import { EXIT_CODES } from './types/index.js';
-import { createLogWatcher } from './core/watcher.js';
+import {
+  printHealthCheckResult,
+  validateAllProviders,
+} from './utils/config-validator.js';
+import { getEnvConfig, isFirstRun } from './utils/env.js';
+import { logger } from './utils/logger.js';
+import { CLAUDE_PROJECTS_DIR } from './utils/paths.js';
 import {
   loadProjectConfigForCwd,
   mergeConfigs,
 } from './utils/project-config.js';
-import {
-  validateAllProviders,
-  printHealthCheckResult,
-} from './utils/config-validator.js';
-import {
-  checkReminder,
-  saveLastRun,
-  getLastRun,
-  getDaysElapsed,
-  shouldShowReminder,
-} from './core/reminder.js';
-import {
-  saveAnalysisResult,
-  loadAnalysisResult,
-  listAvailableDates,
-  compareResults,
-  getDateOneWeekAgo,
-  getDateOneMonthAgo,
-} from './core/history.js';
-import {
-  printComparison,
-  printHistoryList,
-  printHistorySummary,
-  formatComparisonJson,
-} from './core/reporter.js';
-import { clearCache } from './cache/index.js';
-import { HyntxMcpServer } from './mcp/server.js';
-import type {
-  AnalysisProvider,
-  AnalysisResult,
-  JsonErrorResponse,
-  ProjectContext,
-  RulesConfig,
-  LogReadResult,
-  ExtractedPrompt,
-  HistoryMetadata,
-  HistoryEntry,
-} from './types/index.js';
 
 // =============================================================================
 // Types

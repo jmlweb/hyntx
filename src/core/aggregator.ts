@@ -7,12 +7,12 @@
  * - Look up issue metadata from the taxonomy with graceful fallback
  */
 
+import type { IssueMetadata, IssueTaxonomy } from '../providers/schemas.js';
 import type {
-  AnalysisResult,
   AnalysisPattern,
+  AnalysisResult,
   PatternSeverity,
 } from '../types/index.js';
-import type { IssueTaxonomy, IssueMetadata } from '../providers/schemas.js';
 
 // =============================================================================
 // Types

@@ -2,10 +2,12 @@
  * Tests for disk-based cache system.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { existsSync } from 'node:fs';
-import { rm, mkdir } from 'node:fs/promises';
+import { mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import type { AnalysisResult, CacheOptions } from '../types/index.js';
 
 // Mock logger to prevent console output during tests

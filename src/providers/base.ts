@@ -8,20 +8,20 @@
  */
 
 import {
-  type AnalysisResult,
-  type AnalysisPattern,
-  type ProjectContext,
-  type MinimalResult,
-} from '../types/index.js';
-import {
-  ISSUE_TAXONOMY,
-  SYSTEM_PROMPT_FULL,
-  type IssueTaxonomy,
-} from './schemas.js';
-import {
   convertMinimalToAnalysisResult,
   normalizeScore,
 } from '../core/aggregator.js';
+import {
+  type AnalysisPattern,
+  type AnalysisResult,
+  type MinimalResult,
+  type ProjectContext,
+} from '../types/index.js';
+import {
+  ISSUE_TAXONOMY,
+  type IssueTaxonomy,
+  SYSTEM_PROMPT_FULL,
+} from './schemas.js';
 
 /**
  * System prompt template for AI analysis providers.

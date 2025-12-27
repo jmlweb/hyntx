@@ -6,22 +6,24 @@
  */
 
 import { existsSync, readdirSync } from 'node:fs';
-import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+
 import { format, parseISO, subDays, subMonths } from 'date-fns';
-import { HYNTX_HISTORY_DIR } from '../utils/paths.js';
-import { logger } from '../utils/logger-base.js';
-import { sanitize } from './sanitizer.js';
+
 import type {
+  AnalysisPattern,
   AnalysisResult,
+  ComparisonChanges,
+  ComparisonResult,
   HistoryEntry,
   HistoryMetadata,
-  ComparisonResult,
-  ComparisonChanges,
-  PatternChange,
   ListHistoryOptions,
-  AnalysisPattern,
+  PatternChange,
 } from '../types/index.js';
+import { logger } from '../utils/logger-base.js';
+import { HYNTX_HISTORY_DIR } from '../utils/paths.js';
+import { sanitize } from './sanitizer.js';
 
 // =============================================================================
 // Directory Management

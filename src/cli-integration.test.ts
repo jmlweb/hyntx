@@ -5,7 +5,8 @@
  * integrating with the incremental results cache.
  */
 
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import type { AnalysisProvider, ExtractedPrompt } from './types/index.js';
 
 // Mock the results-storage module

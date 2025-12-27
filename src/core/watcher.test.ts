@@ -2,12 +2,14 @@
  * Tests for the watcher module.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { writeFile, mkdir, rm, appendFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { appendFile, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { createLogWatcher } from './watcher.js';
+import { join } from 'node:path';
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import type { PromptEvent } from '../types/index.js';
+import { createLogWatcher } from './watcher.js';
 
 describe('createLogWatcher', () => {
   let testDir: string;

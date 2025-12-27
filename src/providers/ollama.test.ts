@@ -8,9 +8,10 @@
 /* eslint-disable @typescript-eslint/require-await */
 /* eslint-disable @typescript-eslint/no-confusing-void-expression */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { OllamaProvider, detectBatchStrategy } from './ollama.js';
-import { type OllamaConfig, BATCH_STRATEGIES } from '../types/index.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { BATCH_STRATEGIES, type OllamaConfig } from '../types/index.js';
+import { detectBatchStrategy, OllamaProvider } from './ollama.js';
 
 describe('OllamaProvider', () => {
   const mockConfig: OllamaConfig = {

@@ -11,28 +11,28 @@
 // =============================================================================
 
 export { analyzePrompts } from '../core/analyzer.js';
-export { sanitize, sanitizePrompts } from '../core/sanitizer.js';
 export {
-  readLogs,
   claudeProjectsExist,
   extractProjectName,
-  parseDate,
   groupByDay,
+  parseDate,
+  readLogs,
 } from '../core/log-reader.js';
+export { sanitize, sanitizePrompts } from '../core/sanitizer.js';
 
 // =============================================================================
 // History Functions
 // =============================================================================
 
 export {
-  saveAnalysisResult,
-  loadAnalysisResult,
-  listAvailableDates,
   compareResults,
-  getDateOneWeekAgo,
-  getDateOneMonthAgo,
-  getHistoryDir,
   ensureHistoryDir,
+  getDateOneMonthAgo,
+  getDateOneWeekAgo,
+  getHistoryDir,
+  listAvailableDates,
+  loadAnalysisResult,
+  saveAnalysisResult,
 } from '../core/history.js';
 
 // =============================================================================
@@ -41,8 +41,8 @@ export {
 
 export {
   createProvider,
-  getAvailableProvider,
   getAllProviders,
+  getAvailableProvider,
 } from '../providers/index.js';
 
 // =============================================================================
@@ -51,9 +51,9 @@ export {
 
 export { getEnvConfig, isFirstRun, parseServices } from '../utils/env.js';
 export {
+  loadProjectConfig,
   loadProjectConfigForCwd,
   mergeConfigs,
-  loadProjectConfig,
 } from '../utils/project-config.js';
 
 // =============================================================================
@@ -61,13 +61,13 @@ export {
 // =============================================================================
 
 export {
-  generateCacheKey,
-  hashSystemPrompt,
-  validateSystemPrompt,
-  getCachedResult,
-  setCachedResult,
-  clearCache,
   cleanupExpiredEntries,
+  clearCache,
+  generateCacheKey,
+  getCachedResult,
+  hashSystemPrompt,
+  setCachedResult,
+  validateSystemPrompt,
 } from '../cache/index.js';
 
 // =============================================================================
@@ -75,67 +75,67 @@ export {
 // =============================================================================
 
 export type {
+  AnalysisPattern,
   // Core types
   AnalysisProvider,
   AnalysisResult,
-  AnalysisPattern,
   AnalysisStats,
-  PromptAnalysis,
-  BeforeAfter,
-  PatternSeverity,
-  // Provider types
-  ProviderType,
-  ProviderLimits,
+  AnthropicConfig,
   BatchStrategy,
   BatchStrategyType,
+  BeforeAfter,
+  CachedBatchResult,
+  // Cache types
+  CacheMetadata,
+  CacheOptions,
   // Log types
   ClaudeMessage,
-  LogEntry,
-  ExtractedPrompt,
-  LogReadResult,
+  // CLI types (for library users who might need them)
+  CliOptions,
+  ComparisonChanges,
+  ComparisonResult,
   DayGroup,
-  SchemaVersion,
-  // Configuration types
-  OllamaConfig,
-  AnthropicConfig,
-  GoogleConfig,
   EnvConfig,
-  ProjectContext,
+  ExitCode,
+  ExtractedPrompt,
+  FilePosition,
+  GoogleConfig,
   // History types
   HistoryEntry,
   HistoryMetadata,
-  ComparisonResult,
-  ComparisonChanges,
-  PatternChange,
-  ListHistoryOptions,
-  // Cache types
-  CacheMetadata,
-  CachedBatchResult,
-  CacheOptions,
-  // Watcher types
-  LogWatcher,
-  WatcherOptions,
-  PromptEvent,
-  FilePosition,
-  // CLI types (for library users who might need them)
-  CliOptions,
-  ExitCode,
-  JsonErrorResponse,
-  OutputFormat,
-  // Shell types
-  ShellType,
-  ShellConfigResult,
-  // Schema types
-  SchemaType,
   IssueMetadata,
   IssueTaxonomy,
+  JsonErrorResponse,
+  ListHistoryOptions,
+  LogEntry,
+  LogReadResult,
+  // Watcher types
+  LogWatcher,
   MinimalResult,
+  // Configuration types
+  OllamaConfig,
+  OutputFormat,
+  PatternChange,
+  PatternSeverity,
+  ProjectContext,
+  PromptAnalysis,
+  PromptEvent,
+  ProviderLimits,
+  // Provider types
+  ProviderType,
+  // Schema types
+  SchemaType,
+  SchemaVersion,
+  ShellConfigResult,
+  // Shell types
+  ShellType,
+  WatcherOptions,
 } from '../types/index.js';
 
 // Re-export sanitizer types
 export type {
-  SanitizeResult,
   SanitizePromptsResult,
+  SanitizeResult,
 } from '../core/sanitizer.js';
 
 // Re-export log reader types
@@ -149,18 +149,17 @@ export type { FallbackCallback } from '../providers/index.js';
 // =============================================================================
 
 export {
-  EXIT_CODES,
-  ENV_DEFAULTS,
-  PROVIDER_LIMITS,
   BATCH_STRATEGIES,
   CACHE_DEFAULTS,
+  ENV_DEFAULTS,
+  EXIT_CODES,
+  PROVIDER_LIMITS,
 } from '../types/index.js';
-
 export {
-  CLAUDE_PROJECTS_DIR,
-  LAST_RUN_FILE,
-  HYNTX_HISTORY_DIR,
-  HYNTX_CACHE_DIR,
   CACHE_ANALYSIS_DIR,
   CACHE_META_FILE,
+  CLAUDE_PROJECTS_DIR,
+  HYNTX_CACHE_DIR,
+  HYNTX_HISTORY_DIR,
+  LAST_RUN_FILE,
 } from '../utils/paths.js';

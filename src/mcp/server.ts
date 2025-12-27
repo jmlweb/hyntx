@@ -8,14 +8,15 @@
 import { Server as McpServerInternal } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
-  ListToolsRequestSchema,
   CallToolRequestSchema,
+  ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
+
+import { analyzePrompts } from '../core/analyzer.js';
 import type { AnalysisProvider } from '../types/index.js';
+import type { AnalysisPattern } from '../types/index.js';
 import { logger } from '../utils/logger-base.js';
 import type { McpServerOptions, McpServerState } from './types.js';
-import { analyzePrompts } from '../core/analyzer.js';
-import type { AnalysisPattern } from '../types/index.js';
 
 /**
  * MCP tool response type.

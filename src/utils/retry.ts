@@ -155,4 +155,4 @@ async function withRetry<T>(
   throw lastError;
 }
 
-export { withRetry, isTransientError, sleep, type RetryOptions };
+export { isTransientError, type RetryOptions, sleep, withRetry };

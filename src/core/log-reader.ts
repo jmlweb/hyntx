@@ -8,17 +8,19 @@
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
+
+import { isAfter, isBefore, isSameDay, parseISO, startOfDay } from 'date-fns';
 import { glob } from 'glob';
-import { parseISO, startOfDay, isSameDay, isAfter, isBefore } from 'date-fns';
+
 import {
   type ClaudeMessage,
-  type ExtractedPrompt,
   type DayGroup,
+  type ExtractedPrompt,
   type LogReadResult,
 } from '../types/index.js';
+import { logger } from '../utils/logger-base.js';
 import { CLAUDE_PROJECTS_DIR } from '../utils/paths.js';
 import { validateLogEntry } from './schema-validator.js';
-import { logger } from '../utils/logger-base.js';
 
 /**
  * Options for filtering logs.

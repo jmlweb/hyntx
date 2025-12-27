@@ -6,9 +6,10 @@
  */
 
 import { existsSync, readFileSync } from 'node:fs';
+
 import {
-  type EnvConfig,
   ENV_DEFAULTS,
+  type EnvConfig,
   type ProviderType,
 } from '../types/index.js';
 import { detectShellConfigFile, findMarkerPositions } from './shell-config.js';

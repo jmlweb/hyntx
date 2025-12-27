@@ -4,9 +4,10 @@
 
 /* eslint-disable @typescript-eslint/unbound-method */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { HyntxMcpServer } from './server.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import type { AnalysisProvider, AnalysisResult } from '../types/index.js';
+import { HyntxMcpServer } from './server.js';
 
 /**
  * Creates a mock analysis provider for testing.

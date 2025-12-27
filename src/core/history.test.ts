@@ -2,24 +2,26 @@
  * Tests for the history module.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as fsPromises from 'node:fs/promises';
-import {
-  getHistoryDir,
-  ensureHistoryDir,
-  saveAnalysisResult,
-  loadAnalysisResult,
-  listAvailableDates,
-  compareResults,
-  getDateOneWeekAgo,
-  getDateOneMonthAgo,
-} from './history.js';
+
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import type {
   AnalysisResult,
-  HistoryMetadata,
   HistoryEntry,
+  HistoryMetadata,
 } from '../types/index.js';
+import {
+  compareResults,
+  ensureHistoryDir,
+  getDateOneMonthAgo,
+  getDateOneWeekAgo,
+  getHistoryDir,
+  listAvailableDates,
+  loadAnalysisResult,
+  saveAnalysisResult,
+} from './history.js';
 
 // Mock fs modules
 vi.mock('node:fs', () => ({

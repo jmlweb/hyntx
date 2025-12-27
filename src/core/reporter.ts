@@ -5,18 +5,19 @@
  * including patterns, statistics, and suggestions.
  */
 
-import chalk from 'chalk';
 import boxen from 'boxen';
+import chalk from 'chalk';
 import Table from 'cli-table3';
 import figlet from 'figlet';
+
 import type {
-  AnalysisResult,
   AnalysisPattern,
-  BeforeAfter,
-  PatternSeverity,
+  AnalysisResult,
   AnalysisStats,
+  BeforeAfter,
   ComparisonResult,
   HistoryEntry,
+  PatternSeverity,
 } from '../types/index.js';
 
 /**

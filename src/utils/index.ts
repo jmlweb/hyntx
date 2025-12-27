@@ -13,8 +13,8 @@ export {
   type RateLimiterOptions,
 } from './rate-limiter.js';
 export {
-  withRetry,
   isTransientError,
-  sleep,
   type RetryOptions,
+  sleep,
+  withRetry,
 } from './retry.js';

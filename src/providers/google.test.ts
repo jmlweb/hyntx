@@ -5,9 +5,10 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/require-await */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { GoogleProvider } from './google.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { type GoogleConfig } from '../types/index.js';
+import { GoogleProvider } from './google.js';
 
 describe('GoogleProvider', () => {
   const mockConfig: GoogleConfig = {

@@ -14,6 +14,7 @@ import {
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
+
 import type {
   EnvConfig,
   ShellConfigResult,

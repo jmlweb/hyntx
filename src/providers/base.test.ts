@@ -2,7 +2,8 @@
  * Tests for base provider utilities.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
 import { buildUserPrompt, parseResponse } from './base.js';
 
 describe('base provider utilities', () => {

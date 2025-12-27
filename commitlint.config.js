@@ -1,5 +1,6 @@
-export default {
-  extends: ['@commitlint/config-conventional'],
+import { createCommitlintConfig } from '@jmlweb/commitlint-config';
+
+const baseConfig = createCommitlintConfig({
   ignores: [
     (message) => {
       const firstLine = message.split('\n')[0]?.trim() ?? '';
@@ -11,32 +12,19 @@ export default {
       return ignoredSubjects.has(firstLine);
     },
   ],
+});
+
+export default {
+  ...baseConfig,
   rules: {
-    'type-enum': [
-      2,
-      'always',
-      [
-        'feat', // New feature
-        'fix', // Bug fix
-        'docs', // Documentation only
-        'style', // Formatting, no code change
-        'refactor', // Code change without feat/fix
-        'perf', // Performance improvement
-        'test', // Adding tests
-        'chore', // Maintenance tasks
-        'ci', // CI/CD changes
-        'revert', // Revert previous commit
-      ],
-    ],
+    ...baseConfig.rules,
+    // Allow flexible subject case (not just lower-case)
     'subject-case': [
       2,
       'never',
       ['sentence-case', 'start-case', 'pascal-case', 'upper-case'],
     ],
-    'subject-empty': [2, 'never'],
-    'subject-full-stop': [2, 'never', '.'],
-    'type-case': [2, 'always', 'lower-case'],
-    'type-empty': [2, 'never'],
+    // Disable body line length limit for longer descriptions
     'body-max-line-length': [0, 'always', Infinity],
   },
 };

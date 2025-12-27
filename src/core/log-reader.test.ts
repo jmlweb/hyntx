@@ -2,20 +2,22 @@
  * Tests for the log-reader module.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { glob } from 'glob';
+
 import { format } from 'date-fns';
+import { glob } from 'glob';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { CLAUDE_PROJECTS_DIR } from '../utils/paths.js';
 import {
   claudeProjectsExist,
-  readLogs,
   getProjects,
-  parseDate,
   groupByDay,
   isClaudeMessage,
+  parseDate,
+  readLogs,
 } from './log-reader.js';
-import { CLAUDE_PROJECTS_DIR } from '../utils/paths.js';
 
 // Mock external dependencies
 vi.mock('node:fs', () => ({

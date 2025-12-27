@@ -7,14 +7,15 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { type EnvConfig } from '../types/index.js';
 import {
   createProvider,
-  getAvailableProvider,
-  getAllProviders,
   type FallbackCallback,
+  getAllProviders,
+  getAvailableProvider,
 } from './index.js';
-import { type EnvConfig } from '../types/index.js';
 
 // Mock the provider modules
 // In Vitest 4.x, we use vi.fn() as a constructor with a function implementation
@@ -48,9 +49,9 @@ vi.mock('./google.js', () => ({
   }),
 }));
 
-import { OllamaProvider } from './ollama.js';
 import { AnthropicProvider } from './anthropic.js';
 import { GoogleProvider } from './google.js';
+import { OllamaProvider } from './ollama.js';
 
 describe('Provider Factory', () => {
   const mockConfig: EnvConfig = {

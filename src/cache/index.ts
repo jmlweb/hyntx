@@ -5,11 +5,11 @@
  */
 
 export {
-  generateCacheKey,
-  hashSystemPrompt,
-  validateSystemPrompt,
-  getCachedResult,
-  setCachedResult,
-  clearCache,
   cleanupExpiredEntries,
+  clearCache,
+  generateCacheKey,
+  getCachedResult,
+  hashSystemPrompt,
+  setCachedResult,
+  validateSystemPrompt,
 } from './analysis-cache.js';

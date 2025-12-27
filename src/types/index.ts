@@ -9,12 +9,12 @@
 // Re-exports from other modules
 // =============================================================================
 
+export type { MinimalResult } from '../core/aggregator.js';
 export type {
-  SchemaType,
   IssueMetadata,
   IssueTaxonomy,
+  SchemaType,
 } from '../providers/schemas.js';
-export type { MinimalResult } from '../core/aggregator.js';
 
 // =============================================================================
 // Schema and Log Types

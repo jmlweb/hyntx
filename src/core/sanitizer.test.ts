@@ -2,7 +2,8 @@
  * Tests for the sanitizer module.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
 import { sanitize, sanitizePrompts } from './sanitizer.js';
 
 describe('sanitize', () => {

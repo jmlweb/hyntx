@@ -2,10 +2,11 @@
  * Tests for interactive setup system.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import prompts from 'prompts';
-import { runSetup, showManualInstructions } from './setup.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import type { EnvConfig } from '../types/index.js';
+import { runSetup, showManualInstructions } from './setup.js';
 
 // Mock prompts module
 vi.mock('prompts', () => ({

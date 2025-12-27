@@ -2,9 +2,12 @@
  * Tests for shell configuration utilities.
  */
 
-import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
+
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import type { EnvConfig } from '../types/index.js';
 import {
   detectShellConfigFile,
   findMarkerPositions,
@@ -14,7 +17,6 @@ import {
   saveConfigToShell,
   updateShellConfig,
 } from './shell-config.js';
-import type { EnvConfig } from '../types/index.js';
 
 // Mock fs module
 vi.mock('node:fs', () => ({

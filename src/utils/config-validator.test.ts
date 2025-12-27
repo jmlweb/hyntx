@@ -4,9 +4,10 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { validateProvider, validateAllProviders } from './config-validator.js';
-import { type EnvConfig, type AnalysisProvider } from '../types/index.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { type AnalysisProvider, type EnvConfig } from '../types/index.js';
+import { validateAllProviders, validateProvider } from './config-validator.js';
 
 // Mock the provider modules
 vi.mock('../providers/index.js', () => ({

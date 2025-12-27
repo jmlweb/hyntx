@@ -5,9 +5,10 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/require-await */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { AnthropicProvider } from './anthropic.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { type AnthropicConfig } from '../types/index.js';
+import { AnthropicProvider } from './anthropic.js';
 
 describe('AnthropicProvider', () => {
   const mockConfig: AnthropicConfig = {

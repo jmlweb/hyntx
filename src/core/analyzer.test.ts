@@ -4,18 +4,19 @@
 
 /* eslint-disable @typescript-eslint/require-await */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
 import {
-  estimateTokens,
-  batchPrompts,
-  mergeBatchResults,
-  analyzePrompts,
-} from './analyzer.js';
-import {
+  type AnalysisPattern,
   type AnalysisProvider,
   type AnalysisResult,
-  type AnalysisPattern,
 } from '../types/index.js';
+import {
+  analyzePrompts,
+  batchPrompts,
+  estimateTokens,
+  mergeBatchResults,
+} from './analyzer.js';
 
 describe('estimateTokens', () => {
   it('should return 0 for empty string', () => {

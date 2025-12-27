@@ -6,23 +6,25 @@
  */
 
 import { EventEmitter } from 'node:events';
-import { watch, type FSWatcher, createReadStream, stat } from 'node:fs';
+import { createReadStream, type FSWatcher, stat, watch } from 'node:fs';
+
 import { parseISO } from 'date-fns';
 import { glob } from 'glob';
+
 import type {
-  WatcherOptions,
-  LogWatcher,
-  PromptEvent,
   ExtractedPrompt,
   FilePosition,
+  LogWatcher,
+  PromptEvent,
+  WatcherOptions,
 } from '../types/index.js';
+import { CLAUDE_PROJECTS_DIR } from '../utils/paths.js';
 import {
-  parseLine,
-  isUserMessage,
   extractContent,
   extractProjectName,
+  isUserMessage,
+  parseLine,
 } from './log-reader.js';
-import { CLAUDE_PROJECTS_DIR } from '../utils/paths.js';
 
 /**
  * Default debounce time in milliseconds.

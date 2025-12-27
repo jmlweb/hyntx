@@ -6,12 +6,13 @@
  */
 
 import chalk from 'chalk';
+
 import { BaseLogger } from './logger-base.js';
 
 /**
  * Re-export types from base logger for convenience.
  */
-export type { LogLevel, CollectedWarning } from './logger-base.js';
+export type { CollectedWarning, LogLevel } from './logger-base.js';
 
 /**
  * CLI logger class with chalk-based coloring.

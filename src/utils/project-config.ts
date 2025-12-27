@@ -13,9 +13,11 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
+import { dirname, join } from 'node:path';
+
 import { z } from 'zod';
+
 import type { EnvConfig, ProjectContext, RulesConfig } from '../types/index.js';
 import { logger } from './logger-base.js';
 

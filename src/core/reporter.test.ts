@@ -5,35 +5,36 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
-  severityIcon,
-  scoreColor,
-  truncateText,
-  formatBeforeAfter,
-  printReport,
-  formatHeader,
-  formatStats,
-  formatPattern,
-  formatTopSuggestion,
-  formatJson,
-  formatMarkdown,
-  printComparison,
-  formatComparisonMarkdown,
-  formatComparisonJson,
-  printHistoryList,
-  printHistorySummary,
-} from './reporter.js';
+import chalk from 'chalk';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import type {
-  AnalysisResult,
   AnalysisPattern,
-  BeforeAfter,
+  AnalysisResult,
   AnalysisStats,
+  BeforeAfter,
   ComparisonResult,
   HistoryEntry,
   PatternChange,
 } from '../types/index.js';
-import chalk from 'chalk';
+import {
+  formatBeforeAfter,
+  formatComparisonJson,
+  formatComparisonMarkdown,
+  formatHeader,
+  formatJson,
+  formatMarkdown,
+  formatPattern,
+  formatStats,
+  formatTopSuggestion,
+  printComparison,
+  printHistoryList,
+  printHistorySummary,
+  printReport,
+  scoreColor,
+  severityIcon,
+  truncateText,
+} from './reporter.js';
 
 describe('severityIcon', () => {
   it('should return red circle for high severity', () => {
@@ -64,14 +65,14 @@ describe('scoreColor', () => {
     const result = scoreColor(8, 'test');
     expect(result).toContain('test');
     // Green ANSI code: \x1b[32m
-    // eslint-disable-next-line no-control-regex
+
     expect(result).toMatch(/\x1b\[32m/);
   });
 
   it('should return green text for score 10', () => {
     const result = scoreColor(10, 'perfect');
     expect(result).toContain('perfect');
-    // eslint-disable-next-line no-control-regex
+
     expect(result).toMatch(/\x1b\[32m/);
   });
 
@@ -79,14 +80,14 @@ describe('scoreColor', () => {
     const result = scoreColor(6, 'test');
     expect(result).toContain('test');
     // Yellow ANSI code: \x1b[33m
-    // eslint-disable-next-line no-control-regex
+
     expect(result).toMatch(/\x1b\[33m/);
   });
 
   it('should return yellow text for score 7', () => {
     const result = scoreColor(7, 'okay');
     expect(result).toContain('okay');
-    // eslint-disable-next-line no-control-regex
+
     expect(result).toMatch(/\x1b\[33m/);
   });
 
@@ -94,14 +95,14 @@ describe('scoreColor', () => {
     const result = scoreColor(5, 'test');
     expect(result).toContain('test');
     // Red ANSI code: \x1b[31m
-    // eslint-disable-next-line no-control-regex
+
     expect(result).toMatch(/\x1b\[31m/);
   });
 
   it('should return red text for score 0', () => {
     const result = scoreColor(0, 'bad');
     expect(result).toContain('bad');
-    // eslint-disable-next-line no-control-regex
+
     expect(result).toMatch(/\x1b\[31m/);
   });
 });
@@ -2350,7 +2351,7 @@ describe('printHistorySummary', () => {
 
     const output = consoleSpy.mock.calls[0]?.[0] as string;
     // Should contain ANSI color codes (green for high score)
-    // eslint-disable-next-line no-control-regex
+
     expect(output).toMatch(/\x1b\[32m/);
   });
 

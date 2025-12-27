@@ -11,16 +11,16 @@
 import {
   type AnalysisProvider,
   type AnalysisResult,
+  BATCH_STRATEGIES,
+  type BatchStrategyType,
   type OllamaConfig,
   type ProjectContext,
   type ProviderLimits,
-  type BatchStrategyType,
   type SchemaType,
-  BATCH_STRATEGIES,
 } from '../types/index.js';
 import { logger } from '../utils/logger-base.js';
 import { buildUserPrompt, parseResponse } from './base.js';
-import { SYSTEM_PROMPT_MINIMAL, SYSTEM_PROMPT_FULL } from './schemas.js';
+import { SYSTEM_PROMPT_FULL, SYSTEM_PROMPT_MINIMAL } from './schemas.js';
 
 /**
  * Maximum number of retry attempts for network errors.

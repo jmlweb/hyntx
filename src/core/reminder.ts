@@ -5,14 +5,16 @@
  * periodic reminders to encourage regular prompt analysis.
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { differenceInDays, parseISO } from 'date-fns';
+
 import chalk from 'chalk';
+import { differenceInDays, parseISO } from 'date-fns';
 import prompts from 'prompts';
+
 import { getEnvConfig } from '../utils/env.js';
-import { LAST_RUN_FILE } from '../utils/paths.js';
 import { logger } from '../utils/logger.js';
+import { LAST_RUN_FILE } from '../utils/paths.js';
 
 /**
  * Valid reminder frequencies.

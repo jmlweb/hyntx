@@ -10,10 +10,9 @@
 
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync } from 'node:fs';
-import { readFile, writeFile, mkdir, rename, rm } from 'node:fs/promises';
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { CACHE_ANALYSIS_DIR, CACHE_META_FILE } from '../utils/paths.js';
-import { logger } from '../utils/logger-base.js';
+
 import { SYSTEM_PROMPT_FULL } from '../providers/schemas.js';
 import type {
   AnalysisResult,
@@ -22,6 +21,8 @@ import type {
   CacheOptions,
 } from '../types/index.js';
 import { CACHE_DEFAULTS } from '../types/index.js';
+import { logger } from '../utils/logger-base.js';
+import { CACHE_ANALYSIS_DIR, CACHE_META_FILE } from '../utils/paths.js';
 
 // =============================================================================
 // Types

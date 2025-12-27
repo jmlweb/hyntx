@@ -5,22 +5,22 @@
  * merging results, and orchestrating the analysis workflow.
  */
 
-import { sanitizePrompts } from './sanitizer.js';
-import { logger } from '../utils/logger-base.js';
 import { getCachedResult, setCachedResult } from '../cache/index.js';
+import { applyRulesConfig, ISSUE_TAXONOMY } from '../providers/schemas.js';
 import {
+  type AnalysisPattern,
   type AnalysisProvider,
   type AnalysisResult,
-  type AnalysisPattern,
-  type PatternSeverity,
-  type ProviderType,
-  type ProviderLimits,
-  type ProjectContext,
-  type RulesConfig,
-  PROVIDER_LIMITS,
   CACHE_DEFAULTS,
+  type PatternSeverity,
+  type ProjectContext,
+  PROVIDER_LIMITS,
+  type ProviderLimits,
+  type ProviderType,
+  type RulesConfig,
 } from '../types/index.js';
-import { applyRulesConfig, ISSUE_TAXONOMY } from '../providers/schemas.js';
+import { logger } from '../utils/logger-base.js';
+import { sanitizePrompts } from './sanitizer.js';
 
 // =============================================================================
 // Constants

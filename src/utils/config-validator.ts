@@ -6,8 +6,9 @@
  */
 
 import chalk from 'chalk';
-import { type EnvConfig, type ProviderType } from '../types/index.js';
+
 import { createProvider } from '../providers/index.js';
+import { type EnvConfig, type ProviderType } from '../types/index.js';
 import { logger } from './logger.js'; // CLI logger with chalk support
 
 /**

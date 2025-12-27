@@ -2,16 +2,17 @@
  * Tests for minimal result aggregation and conversion.
  */
 
-import { describe, it, expect } from 'vitest';
-import {
-  lookupIssueMetadata,
-  convertMinimalToAnalysisResult,
-  aggregateMinimalResults,
-  normalizeScore,
-  extractRealExamples,
-  type MinimalResult,
-} from './aggregator.js';
+import { describe, expect, it } from 'vitest';
+
 import { ISSUE_TAXONOMY } from '../providers/schemas.js';
+import {
+  aggregateMinimalResults,
+  convertMinimalToAnalysisResult,
+  extractRealExamples,
+  lookupIssueMetadata,
+  type MinimalResult,
+  normalizeScore,
+} from './aggregator.js';
 
 describe('aggregator', () => {
   describe('extractRealExamples', () => {

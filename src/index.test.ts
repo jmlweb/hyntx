@@ -2,9 +2,10 @@
  * Tests for the CLI entry point.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import * as index from './cli.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import type { ParsedArgs } from './cli.js';
+import * as index from './cli.js';
 
 // Mock all dependencies
 vi.mock('ora', () => ({
@@ -84,27 +85,29 @@ vi.mock('./providers/index.js', () => ({
   getAvailableProvider: vi.fn(),
 }));
 
+import { mkdir, rename, writeFile } from 'node:fs/promises';
+
 import ora from 'ora';
-import { writeFile, mkdir, rename } from 'node:fs/promises';
-import { isFirstRun, getEnvConfig } from './utils/env.js';
-import { claudeProjectsExist, readLogs } from './core/log-reader.js';
-import { runSetup } from './core/setup.js';
+
 import { analyzePrompts } from './core/analyzer.js';
+import { claudeProjectsExist, readLogs } from './core/log-reader.js';
 import {
-  printReport,
   formatJson,
   printComparison,
   printHistoryList,
   printHistorySummary,
+  printReport,
 } from './core/reporter.js';
+import { runSetup } from './core/setup.js';
 import { getAvailableProvider } from './providers/index.js';
-import { EXIT_CODES } from './types/index.js';
 import type {
-  EnvConfig,
-  AnalysisResult,
   AnalysisProvider,
+  AnalysisResult,
+  EnvConfig,
   LogWatcher,
 } from './types/index.js';
+import { EXIT_CODES } from './types/index.js';
+import { getEnvConfig, isFirstRun } from './utils/env.js';
 
 const mockIsFirstRun = vi.mocked(isFirstRun);
 const mockGetEnvConfig = vi.mocked(getEnvConfig);
@@ -2253,8 +2256,8 @@ vi.mock('./utils/config-validator.js', () => ({
 }));
 
 import {
-  validateAllProviders,
   printHealthCheckResult,
+  validateAllProviders,
 } from './utils/config-validator.js';
 
 const mockValidateAllProviders = vi.mocked(validateAllProviders);
@@ -2359,8 +2362,8 @@ describe('runConfigCheck', () => {
 // =============================================================================
 
 import {
-  getLastRun,
   getDaysElapsed,
+  getLastRun,
   shouldShowReminder,
 } from './core/reminder.js';
 
@@ -2633,16 +2636,16 @@ vi.mock('./utils/project-config.js', () => ({
   mergeConfigs: vi.fn(),
 }));
 
-import { checkReminder, saveLastRun } from './core/reminder.js';
-import { groupByDay } from './core/log-reader.js';
 import {
-  saveAnalysisResult,
-  loadAnalysisResult,
-  listAvailableDates,
   compareResults,
-  getDateOneWeekAgo,
   getDateOneMonthAgo,
+  getDateOneWeekAgo,
+  listAvailableDates,
+  loadAnalysisResult,
+  saveAnalysisResult,
 } from './core/history.js';
+import { groupByDay } from './core/log-reader.js';
+import { checkReminder, saveLastRun } from './core/reminder.js';
 import {
   loadProjectConfigForCwd,
   mergeConfigs,

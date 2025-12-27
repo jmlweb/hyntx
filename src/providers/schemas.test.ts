@@ -2,17 +2,18 @@
  * Tests for schema definitions and issue taxonomy.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
+import type { RulesConfig } from '../types/index.js';
 import {
-  ISSUE_TAXONOMY,
-  SYSTEM_PROMPT_MINIMAL,
-  SYSTEM_PROMPT_SIMPLE,
-  SYSTEM_PROMPT_FULL,
   applyRulesConfig,
   getEnabledPatternIds,
+  ISSUE_TAXONOMY,
   type IssueMetadata,
+  SYSTEM_PROMPT_FULL,
+  SYSTEM_PROMPT_MINIMAL,
+  SYSTEM_PROMPT_SIMPLE,
 } from './schemas.js';
-import type { RulesConfig } from '../types/index.js';
 
 describe('schemas', () => {
   describe('ISSUE_TAXONOMY', () => {

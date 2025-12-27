@@ -1,8 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as fs from 'node:fs';
 
-import { ENV_DEFAULTS } from '../types/index.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ENV_DEFAULTS } from '../types/index.js';
 import { getEnvConfig, isFirstRun, parseServices } from './env.js';
 
 // Mock shell-config module

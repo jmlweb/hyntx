@@ -2,12 +2,14 @@
  * Tests for the reminder system module.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import {
+  getDaysElapsed,
   getLastRun,
   saveLastRun,
-  getDaysElapsed,
   shouldShowReminder,
 } from './reminder.js';
 

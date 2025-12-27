@@ -1,8 +1,10 @@
-import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { existsSync } from 'node:fs';
-import { rm, mkdir, readFile } from 'node:fs/promises';
+import { mkdir, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
+
 import { format, subDays } from 'date-fns';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import type * as PathsModule from '../utils/paths.js';
 
 // Mock the paths module to use test directory
@@ -20,19 +22,19 @@ vi.mock('../utils/paths.js', async (): Promise<typeof PathsModule> => {
 const TEST_RESULTS_DIR = join(process.cwd(), '.test-results');
 const originalEnv = process.env['HYNTX_RESULTS_DIR'];
 
-import {
-  getPromptResultHash,
-  getPromptResult,
-  savePromptResult,
-  getPromptsWithCache,
-  cleanupResults,
-} from './results-storage.js';
 import { hashSystemPrompt } from '../cache/analysis-cache.js';
 import type {
-  ExtractedPrompt,
   AnalysisResult,
+  ExtractedPrompt,
   PromptResultMetadata,
 } from '../types/index.js';
+import {
+  cleanupResults,
+  getPromptResult,
+  getPromptResultHash,
+  getPromptsWithCache,
+  savePromptResult,
+} from './results-storage.js';
 
 // Mock data
 const mockResult: AnalysisResult = {

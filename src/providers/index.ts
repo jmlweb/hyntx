@@ -11,9 +11,9 @@ import {
   type ProviderType,
 } from '../types/index.js';
 import { logger } from '../utils/logger-base.js';
-import { OllamaProvider } from './ollama.js';
 import { AnthropicProvider } from './anthropic.js';
 import { GoogleProvider } from './google.js';
+import { OllamaProvider } from './ollama.js';
 
 /**
  * Callback type for fallback notifications.

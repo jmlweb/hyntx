@@ -2,18 +2,20 @@
  * Tests for project-specific configuration system.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+import type { EnvConfig, ProjectContext } from '../types/index.js';
 import {
+  clearConfigCache,
   findProjectConfig,
   loadProjectConfig,
-  mergeConfigs,
   loadProjectConfigForCwd,
-  clearConfigCache,
+  mergeConfigs,
 } from './project-config.js';
-import type { EnvConfig, ProjectContext } from '../types/index.js';
 
 // =============================================================================
 // Test Helpers

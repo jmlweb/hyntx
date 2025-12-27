@@ -5,9 +5,10 @@
  * through configuring Hyntx with providers, models, and API keys.
  */
 
+import boxen from 'boxen';
 import chalk from 'chalk';
 import prompts from 'prompts';
-import boxen from 'boxen';
+
 import type {
   EnvConfig,
   ProviderType,
@@ -15,8 +16,8 @@ import type {
 } from '../types/index.js';
 import { ENV_DEFAULTS, EXIT_CODES } from '../types/index.js';
 import {
-  saveConfigToShell,
   getManualInstructions,
+  saveConfigToShell,
 } from '../utils/shell-config.js';
 
 /**
