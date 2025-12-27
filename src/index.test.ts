@@ -163,6 +163,10 @@ describe('parseArguments', () => {
       mcpServer: false,
       listRules: false,
       analysisMode: 'batch',
+      detailedStats: false,
+      showClusters: false,
+      trendAnalysis: false,
+      noEmbeddings: false,
     });
   });
 
@@ -220,6 +224,10 @@ describe('parseArguments', () => {
       mcpServer: false,
       listRules: false,
       analysisMode: 'batch',
+      detailedStats: false,
+      showClusters: false,
+      trendAnalysis: false,
+      noEmbeddings: false,
     });
   });
 
@@ -922,6 +930,10 @@ describe('parseArguments - New Features', () => {
       mcpServer: false,
       listRules: false,
       analysisMode: 'batch',
+      detailedStats: false,
+      showClusters: false,
+      trendAnalysis: false,
+      noEmbeddings: false,
     });
   });
 });
