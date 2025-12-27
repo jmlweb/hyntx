@@ -89,6 +89,47 @@ export HYNTX_OLLAMA_MODEL=llama3.2
 export HYNTX_OLLAMA_HOST=http://localhost:11434
 ```
 
+## Recommended Balanced Model
+
+### `mistral:7b` (Best Quality/Performance Balance)
+
+**For most users looking for the best balance between quality and resources, `mistral:7b` is the recommended choice.**
+
+**Why it's the balanced choice**:
+
+- ✅ **Better quality**: Uses the "Small Schema" (more detailed than Minimal Schema used by `llama3.2`)
+  - Better analysis quality with pattern detection and basic analysis
+  - Some custom examples extracted from your prompts
+  - Basic contextual information included
+- ✅ **Manageable resources**: ~4GB disk space, ~5-10s/prompt on CPU (without GPU)
+- ✅ **Performance**: Good balance between quality and speed
+  - Recommended for production analysis and code reviews
+  - Works well on modern hardware (8GB+ RAM recommended)
+  - Compatible with Intel i7/i9, AMD Ryzen 7/9, and Apple M-series CPUs
+
+**Configuration**:
+
+```bash
+# Install the model
+ollama pull mistral:7b
+
+# Configure Hyntx to use it
+export HYNTX_OLLAMA_MODEL=mistral:7b
+```
+
+**When to use `mistral:7b`**:
+
+- You want better analysis quality than `llama3.2` but don't need maximum quality
+- You have modern hardware (8GB+ RAM, modern CPU)
+- You're doing production analysis or code reviews
+- You want custom examples from your prompts (not just taxonomy-based examples)
+
+**Hardware considerations**:
+
+- **Minimum**: 8GB RAM, modern multi-core CPU
+- **Recommended**: 16GB+ RAM for better performance
+- **GPU**: Optional but provides 10-50x speed improvement
+
 ## Alternative Models
 
 ### Micro Models (Minimal Schema)

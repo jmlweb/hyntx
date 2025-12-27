@@ -53,10 +53,41 @@ Prompts → Analyze Individual → Save to Files → Post-Process → Group by C
 **Key Characteristics**:
 
 - 1 prompt = 1 API call
-- Simple categorization: `correct` | `problems` (with category)
+- Simple categorization: `correct` | `problems` (with categories array)
 - Results saved to individual files: `~/.hyntx/individual-results/<date>/<hash>.json`
+- Manifest file per analysis: `~/.hyntx/individual-results/<date>/manifest.json`
 - Post-processing groups problems by category
 - Final report generated from grouped results
+
+**Manifest File Structure**:
+
+```json
+{
+  "timestamp": "2025-01-20T10:30:00Z",
+  "totalPrompts": 50,
+  "analyzed": 48,
+  "cached": 2,
+  "results": [
+    { "hash": "abc123", "status": "problems", "categories": ["vague-request"] },
+    { "hash": "def456", "status": "correct", "categories": [] }
+  ],
+  "summary": {
+    "vague-request": 15,
+    "missing-context": 8,
+    "too-broad": 5,
+    "unclear-goal": 3,
+    "other": 2,
+    "correct": 17
+  }
+}
+```
+
+The manifest file enables:
+
+- Quick lookup of previous analyses
+- Resume interrupted analyses
+- Fast summary generation without reading all files
+- Cleanup of old results (identify which files to delete)
 
 **Response Schema**:
 
@@ -64,11 +95,21 @@ Prompts → Analyze Individual → Save to Files → Post-Process → Group by C
 {
   "status": "correct" | "problems",
   "problems": ["issue 1", "issue 2"],
-  "category": "vague-request" | "missing-context" | "too-broad" | "unclear-goal" | "other",
+  "categories": ["vague-request", "missing-context"],
   "example": "the original prompt text",
   "suggestion": "how to improve this prompt"
 }
 ```
+
+**Available Categories**:
+
+- `vague-request`: Prompt lacks specificity or clarity
+- `missing-context`: Insufficient information to complete the task
+- `too-broad`: Scope is too large or ambiguous
+- `unclear-goal`: Desired outcome is not well-defined
+- `other`: Issues that don't fit standard categories
+
+**Note**: The schema supports multiple categories per prompt since prompts can have overlapping issues. The `categories` field is an array to allow for future evolution and more nuanced classification.
 
 ## Technical Feasibility Analysis
 
@@ -147,18 +188,57 @@ Prompts → Analyze Individual → Save to Files → Post-Process → Group by C
 
 **Complexity Analysis**:
 
-- Load all result files
+- Load all result files (or read from manifest)
 - Group by category
 - Calculate frequencies
 - Generate patterns with examples
 - Create before/after pairs
 
+**Post-Processing Algorithm**:
+
+```typescript
+function generateReport(manifestPath: string): AnalysisReport {
+  // 1. Load manifest (fast path)
+  const manifest = loadManifest(manifestPath);
+
+  // 2. Group results by category
+  const grouped = new Map<Category, PromptResult[]>();
+  for (const entry of manifest.results) {
+    if (entry.status === 'problems') {
+      for (const category of entry.categories) {
+        if (!grouped.has(category)) grouped.set(category, []);
+        grouped.get(category).push(loadResult(entry.hash));
+      }
+    }
+  }
+
+  // 3. Generate patterns from grouped results
+  const patterns = [];
+  for (const [category, results] of grouped) {
+    patterns.push({
+      category,
+      frequency: results.length,
+      severity: inferSeverity(category),
+      examples: results.slice(0, 3).map((r) => r.example),
+      suggestions: deduplicateSuggestions(results.map((r) => r.suggestion)),
+    });
+  }
+
+  // 4. Sort by frequency (most common first)
+  patterns.sort((a, b) => b.frequency - a.frequency);
+
+  // 5. Generate final report
+  return { patterns, summary: manifest.summary, timestamp: manifest.timestamp };
+}
+```
+
 **Mitigation**:
 
 - Post-processing is pure computation (no API calls)
+- Manifest file provides fast access to summary data
 - Can reuse existing aggregation logic from `mergeBatchResults()`
 - File-based storage enables incremental processing
-- **Complexity**: Medium (similar to current merge logic)
+- **Complexity**: Medium (well-defined algorithm, ~100-150 LOC)
 
 **Verdict**: ✅ Manageable
 
@@ -189,15 +269,24 @@ Prompts → Analyze Individual → Save to Files → Post-Process → Group by C
 
 - Categories: `vague-request`, `missing-context`, `too-broad`, `unclear-goal`, `other`
 - Ollama can reliably categorize (tested with `llama3.2`)
+- Multiple categories per prompt supported (prompts can have overlapping issues)
 - Fallback to `other` for ambiguous cases
 - Post-processing can refine categories
+
+**Schema Evolution Strategy**:
+
+- **Phase 1**: Use predefined 5 categories
+- **Phase 2**: Analyze `other` category to identify new patterns
+- **Phase 3**: Add new categories based on data (e.g., `technical-jargon`, `unrealistic-expectations`)
+- **Future**: Consider category hierarchy or subcategories if needed
 
 **Mitigation**:
 
 - Start with simple categories
+- Support multiple categories per prompt from day 1
+- Track `other` category frequency to identify gaps
 - Iterate based on real-world data
-- Use `other` as safety net
-- **Accuracy**: Expected 80-90% correct categorization
+- **Accuracy**: Expected 80-90% correct categorization (validated via prototype)
 
 **Verdict**: ✅ Acceptable
 
@@ -240,12 +329,22 @@ Prompts → Analyze Individual → Save to Files → Post-Process → Group by C
 - Batches: 0 (individual analysis)
 - API Calls: 50
 - Time per call: ~1-2 seconds (smaller context)
-- Concurrent: 5-10 parallel
-- Total time: ~10-20 seconds (parallel)
+- Concurrent: 5-10 parallel (depends on model capacity)
+- Total time: ~10-30 seconds (parallel, best case ~10s, realistic ~20-30s)
 - Cache efficiency: High (individual prompts cached)
+- Post-processing: ~0.5-1 second
 ```
 
-**Result**: ✅ **2-6x faster** despite more calls
+**Performance Assumptions & Caveats**:
+
+- **Parallel capacity**: Assumes the model/server can handle 5-10 concurrent requests efficiently. This needs validation with actual Ollama instance.
+- **Network latency**: Local Ollama (localhost) has minimal latency. Remote models would be slower.
+- **Model speed**: Based on `llama3.2` and `mistral:7b` benchmarks. Larger models will be slower.
+- **Cache hit rate**: Assumes 50-80% cache hits for repeated analyses. First-time analysis will be slower.
+
+**Result**: ✅ **2-4x faster** (conservative estimate, could be up to 6x with optimal conditions)
+
+**Recommendation**: Run a prototype benchmark with 10-20 prompts to validate these assumptions before full implementation.
 
 ## Implementation Complexity
 
@@ -348,7 +447,48 @@ The challenges are manageable and have clear mitigation strategies. The implemen
 
 ---
 
-**Document Version**: 1.0  
-**Date**: 2025-01-20  
-**Author**: Technical Analysis  
-**Status**: Approved for Implementation
+## Next Steps
+
+### 1. **Prototype & Validation** (Recommended First Step)
+
+Before full implementation, create a small prototype to validate key assumptions:
+
+```bash
+# Prototype scope (4-6 hours)
+1. Create simple individual analysis function
+2. Test with 10-20 real prompts
+3. Measure:
+   - Actual time per call
+   - Parallel processing capacity (how many concurrent requests?)
+   - Category accuracy
+   - Post-processing performance
+4. Compare against current batch mode
+```
+
+**Success Criteria**:
+
+- Individual analysis is ≥1.5x faster than batch mode
+- Category accuracy ≥80%
+- Parallel processing handles ≥5 concurrent requests
+
+**If prototype succeeds** → Proceed with full implementation
+**If prototype fails** → Revisit architecture or adjust expectations
+
+### 2. **Full Implementation** (After Prototype Success)
+
+Follow vertical slicing approach (see project tasks) to implement end-to-end features incrementally.
+
+---
+
+**Document Version**: 1.1
+**Date**: 2025-01-20 (Updated: 2025-12-27)
+**Author**: Technical Analysis
+**Status**: Approved for Implementation (pending prototype validation)
+**Changes in v1.1**:
+
+- Added manifest file structure for better indexing
+- Changed schema to support multiple categories per prompt
+- Added detailed post-processing algorithm
+- Made performance estimates more conservative with caveats
+- Added category evolution strategy
+- Added prototype validation step before full implementation
