@@ -19,6 +19,15 @@ import {
   getManualInstructions,
   saveConfigToShell,
 } from '../utils/shell-config.js';
+import {
+  detectSystemInfo,
+  getAvailableOllamaModels,
+} from '../utils/system-detection.js';
+import {
+  displayInstallationSuggestion,
+  getInstallationSuggestion,
+  suggestBestModel,
+} from './model-suggester.js';
 
 /**
  * Provider selection options for prompts.
@@ -63,11 +72,31 @@ async function configureProvider(
   config: EnvConfig,
 ): Promise<EnvConfig> {
   if (provider === 'ollama') {
+    // Smart model detection
+    console.log(chalk.dim('\n🔍 Checking your system...'));
+
+    const systemInfo = detectSystemInfo();
+    const ollamaModels = await getAvailableOllamaModels(
+      ENV_DEFAULTS.ollama.host,
+    );
+
+    // Show installation suggestion if appropriate
+    const installSuggestion = getInstallationSuggestion(
+      systemInfo,
+      ollamaModels.models,
+    );
+    if (installSuggestion) {
+      displayInstallationSuggestion(installSuggestion);
+    }
+
+    // Get model recommendation
+    const recommendation = suggestBestModel(systemInfo, ollamaModels.models);
+
     const response = (await prompts({
       type: 'text',
       name: 'model',
       message: 'Ollama model to use:',
-      initial: ENV_DEFAULTS.ollama.model,
+      initial: recommendation.suggestedModel,
     })) as { model?: string };
 
     // Check if user cancelled (prompts returns empty object on cancel)

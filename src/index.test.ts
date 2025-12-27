@@ -162,6 +162,7 @@ describe('parseArguments', () => {
       noCache: false,
       mcpServer: false,
       listRules: false,
+      analysisMode: 'batch',
     });
   });
 
@@ -218,6 +219,7 @@ describe('parseArguments', () => {
       noCache: false,
       mcpServer: false,
       listRules: false,
+      analysisMode: 'batch',
     });
   });
 
@@ -919,6 +921,7 @@ describe('parseArguments - New Features', () => {
       noCache: false,
       mcpServer: false,
       listRules: false,
+      analysisMode: 'batch',
     });
   });
 });
