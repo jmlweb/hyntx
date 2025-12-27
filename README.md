@@ -104,6 +104,11 @@ hyntx --watch
 
 # Watch specific project only
 hyntx --watch --project my-app
+
+# Analysis modes - control speed vs accuracy trade-off
+hyntx --analysis-mode batch      # Fast (default): ~300-400ms/prompt
+hyntx --analysis-mode individual # Accurate: ~1000-1500ms/prompt
+hyntx -m individual              # Short form
 ```
 
 ### Combining Options
@@ -117,6 +122,45 @@ hyntx --date yesterday --output yesterday-analysis.md
 ```
 
 ## Configuration
+
+### Analysis Modes
+
+Hyntx offers two analysis modes to balance speed and accuracy based on your needs:
+
+#### Batch Mode (Default)
+
+- **Speed**: ~300-400ms per prompt
+- **Best for**: Daily analysis, quick feedback, large prompt batches
+- **Accuracy**: Good categorization for most use cases
+- **When to use**: Regular check-ins, monitoring prompt quality over time
+
+```bash
+hyntx                          # Uses batch mode by default
+hyntx --analysis-mode batch    # Explicit batch mode
+```
+
+#### Individual Mode
+
+- **Speed**: ~1000-1500ms per prompt
+- **Best for**: Deep analysis, quality-focused reviews, important prompts
+- **Accuracy**: Better categorization and more nuanced pattern detection
+- **When to use**: Learning sessions, preparing critical prompts, detailed audits
+
+```bash
+hyntx --analysis-mode individual  # Use individual mode
+hyntx -m individual               # Short form
+```
+
+#### Mode Comparison
+
+| Mode       | Speed/Prompt | Use Case       | Accuracy |
+| ---------- | ------------ | -------------- | -------- |
+| Batch      | ~300-400ms   | Daily analysis | Good     |
+| Individual | ~1-1.5s      | Deep analysis  | Better   |
+
+**Recommendation**: Use batch mode for daily analysis (faster feedback), switch to individual mode when you need maximum quality or are learning prompt engineering techniques.
+
+**Note**: Performance numbers are based on `llama3.2` running on CPU. Actual speed depends on your hardware and model choice.
 
 ### Rules Configuration
 

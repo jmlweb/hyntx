@@ -476,10 +476,10 @@ export function parseBatchIndividualResponse(
   prompts: readonly string[],
 ): AnalysisResult {
   logger.debug(
-    `Parsing batch-individual response (${prompts.length} prompts)`,
+    `Parsing batch-individual response (${String(prompts.length)} prompts)`,
     'parser',
   );
-  logger.debug(`Response length: ${response.length} chars`, 'parser');
+  logger.debug(`Response length: ${String(response.length)} chars`, 'parser');
 
   // Try to extract JSON from markdown code blocks
   const codeBlockRegex = /```(?:json)?\s*\n?([\s\S]*?)\n?```/;
@@ -503,6 +503,7 @@ export function parseBatchIndividualResponse(
 
   // Handle models that return a single object instead of an array
   // This is common with smaller models that struggle with complex output formats
+  let parsedArray: unknown[];
   if (!Array.isArray(parsed)) {
     // If it's a valid individual result, wrap it in an array
     if (
@@ -514,29 +515,31 @@ export function parseBatchIndividualResponse(
         'Model returned single object instead of array, wrapping it',
         'parser',
       );
-      parsed = [parsed];
+      parsedArray = [parsed];
     } else {
       throw new Error(
         'Batch-individual response must be an array of individual results',
       );
     }
+  } else {
+    parsedArray = parsed;
   }
 
   // Parse each individual result
   const individualResults: IndividualPromptResult[] = [];
-  for (let i = 0; i < parsed.length; i++) {
-    const item = parsed[i];
+  for (let i = 0; i < parsedArray.length; i++) {
+    const item = parsedArray[i];
     if (!isValidIndividualPromptResult(item)) {
       // Fallback for invalid result
       individualResults.push({
         status: 'problems',
         problems: ['Invalid response format'],
         categories: ['other'],
-        example: prompts[i] ?? `Prompt ${i + 1}`,
+        example: prompts[i] ?? `Prompt ${String(i + 1)}`,
         suggestion: 'Could not analyze this prompt',
       });
     } else {
-      individualResults.push(item as IndividualPromptResult);
+      individualResults.push(item);
     }
   }
 
@@ -594,13 +597,15 @@ function convertIndividualResultsToAnalysis(
             count: 0,
           });
         }
-        const group = categoryMap.get(category)!;
-        group.count++;
-        if (group.examples.length < 3) {
-          group.examples.push(result.example);
-        }
-        if (!group.suggestions.includes(result.suggestion)) {
-          group.suggestions.push(result.suggestion);
+        const group = categoryMap.get(category);
+        if (group) {
+          group.count++;
+          if (group.examples.length < 3) {
+            group.examples.push(result.example);
+          }
+          if (!group.suggestions.includes(result.suggestion)) {
+            group.suggestions.push(result.suggestion);
+          }
         }
       }
     }
