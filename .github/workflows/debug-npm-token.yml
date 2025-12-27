@@ -1,0 +1,17 @@
+name: Debug NPM Token
+on: workflow_dispatch
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test NPM Token Authentication
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+          echo "Testing npm whoami..."
+          npm whoami && echo "✅ Authentication successful!" || echo "❌ Authentication failed!"
+
+      - name: Test NPM Token Permissions
+        run: |
+          echo "Testing publish permissions to hyntx package..."
+          npm access list packages 2>&1 | grep -q "hyntx" && echo "✅ Has access to hyntx" || echo "⚠️ No access to hyntx package"
