@@ -4,6 +4,13 @@ const baseConfig = createCommitlintConfig({
   ignores: [
     (message) => {
       const firstLine = message.split('\n')[0]?.trim() ?? '';
+
+      // Ignore automated release commits
+      if (firstLine.includes('[skip ci]')) {
+        return true;
+      }
+
+      // Ignore specific legacy commits
       const ignoredSubjects = new Set([
         'Refactor: Ensure backlog and ideas directories persist',
         'Refactor docs and ideas structure',
