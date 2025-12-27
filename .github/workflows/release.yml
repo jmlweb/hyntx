@@ -62,6 +62,10 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Configure npm authentication
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+
       - name: Release
         if: success()
         run: pnpm release
