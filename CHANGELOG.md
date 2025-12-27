@@ -1,3 +1,9 @@
+## [2.5.3](https://github.com/jmlweb/hyntx/compare/v2.5.2...v2.5.3) (2025-12-27)
+
+### Bug Fixes
+
+- **release:** use exec plugin for npm publish with provenance ([ff2cc0e](https://github.com/jmlweb/hyntx/commit/ff2cc0ec2e9567218b9f9e3a5c0dc1717fbc9e36))
+
 ## [2.5.2](https://github.com/jmlweb/hyntx/compare/v2.5.1...v2.5.2) (2025-12-27)
 
 ### Bug Fixes
