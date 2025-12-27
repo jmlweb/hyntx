@@ -37,8 +37,9 @@ export type IssueTaxonomy = Record<string, IssueMetadata>;
  * - minimal: Lightweight schema for small models (issue IDs + score)
  * - simple: Medium schema with issue objects
  * - full: Complete schema with patterns and stats
+ * - individual: Hybrid approach - batch processing with individual result schema
  */
-export type SchemaType = 'minimal' | 'simple' | 'full';
+export type SchemaType = 'minimal' | 'simple' | 'full' | 'individual';
 
 // =============================================================================
 // Issue Taxonomy
@@ -295,6 +296,77 @@ IMPROVEMENT PRIORITIES:
 3. topSuggestion should address the most common high-severity issue
 
 Remember: The goal is actionable feedback. Focus on patterns that, when fixed, would meaningfully improve prompt effectiveness for AI code assistants.`;
+
+/**
+ * Batch-Individual hybrid system prompt.
+ * Uses batch processing for performance but returns individual results for accuracy.
+ * Optimized to ~800 tokens (between minimal ~500 and full ~2000).
+ */
+export const SYSTEM_PROMPT_BATCH_INDIVIDUAL = `You will analyze multiple coding prompts. You MUST return a JSON array with exactly one result object for each prompt.
+
+CRITICAL: Your response must be a JSON array starting with [ and ending with ]. Do not return a single object.
+
+Format (JSON array with one object per prompt):
+[
+  {
+    "status": "correct" | "problems",
+    "problems": ["issue1", "issue2"],
+    "categories": ["cat1", "cat2"],
+    "example": "original prompt",
+    "suggestion": "improvement"
+  },
+  {
+    "status": "correct" | "problems",
+    "problems": [],
+    "categories": [],
+    "example": "second prompt",
+    "suggestion": "another suggestion"
+  }
+]
+
+Categories (assign all that apply per prompt):
+- vague-request: Lacks specifics ("help", "fix", "improve")
+- missing-context: No file paths, function names, error messages
+- too-broad: Multiple unrelated tasks
+- unclear-goal: Desired outcome not stated
+- other: Other issues
+
+Rules:
+- One result per prompt in the same order
+- status="correct" if prompt is specific, contextual, and actionable
+- status="problems" if ANY issue exists
+- Multiple categories allowed per prompt
+- Be strict but fair
+- Include original prompt text in example field
+
+Quality Guidelines:
+- CORRECT: Has file path, function name, and specific issue
+- CORRECT: States clear goal with necessary context
+- PROBLEMS: Generic verbs without objects ("help", "fix")
+- PROBLEMS: References without context ("this", "it", "the bug")
+- PROBLEMS: Multiple unrelated tasks in one prompt
+
+Examples:
+
+Input: ["Help", "Fix bug in login.ts line 45 where users can't reset password"]
+Output: [
+  {
+    "status": "problems",
+    "problems": ["Too vague", "No context", "No goal"],
+    "categories": ["vague-request", "missing-context", "unclear-goal"],
+    "example": "Help",
+    "suggestion": "Describe what you need help with, provide context (files, functions, errors), and state your goal"
+  },
+  {
+    "status": "correct",
+    "problems": [],
+    "categories": [],
+    "example": "Fix bug in login.ts line 45 where users can't reset password",
+    "suggestion": "Well-formed: specific file, location, and issue"
+  }
+]
+
+Analyze the following prompts:`;
 
 // =============================================================================
 // Rules Configuration

@@ -19,8 +19,16 @@ import {
   type SchemaType,
 } from '../types/index.js';
 import { logger } from '../utils/logger-base.js';
-import { buildUserPrompt, parseResponse } from './base.js';
-import { SYSTEM_PROMPT_FULL, SYSTEM_PROMPT_MINIMAL } from './schemas.js';
+import {
+  buildUserPrompt,
+  parseBatchIndividualResponse,
+  parseResponse,
+} from './base.js';
+import {
+  SYSTEM_PROMPT_BATCH_INDIVIDUAL,
+  SYSTEM_PROMPT_FULL,
+  SYSTEM_PROMPT_MINIMAL,
+} from './schemas.js';
 
 /**
  * Maximum number of retry attempts for network errors.
@@ -124,27 +132,46 @@ export class OllamaProvider implements AnalysisProvider {
   }
 
   /**
-   * Selects the appropriate schema type based on model size.
-   * Micro and small models use minimal schema for better reliability.
+   * Selects the appropriate schema type based on model size and user override.
+   * Micro and small models use individual schema (hybrid approach) by default.
    * Standard models use full schema for detailed analysis.
+   * User can override via CLI --analysis-mode flag.
    *
    * @returns Schema type identifier
    */
   private selectSchemaType(): SchemaType {
-    // Micro and small models use minimal schema
-    return ['micro', 'small'].includes(this.batchStrategy) ? 'minimal' : 'full';
+    // Check for user override first
+    if (this.config.schemaOverride) {
+      return this.config.schemaOverride === 'individual'
+        ? 'individual'
+        : 'full';
+    }
+
+    // Auto-select based on model size
+    // Micro and small models use batch-individual hybrid for better accuracy
+    // This combines batching performance with individual result clarity
+    return ['micro', 'small'].includes(this.batchStrategy)
+      ? 'individual'
+      : 'full';
   }
 
   /**
    * Returns dynamic batch limits based on detected model strategy.
+   * When using individual schema, processes one prompt at a time for reliability.
    *
    * @returns Provider limits with model-specific constraints
    */
   public getBatchLimits(): ProviderLimits {
     const strategy = BATCH_STRATEGIES[this.batchStrategy];
+
+    // Individual schema processes one prompt at a time
+    // This is necessary because small models struggle to return arrays
+    const maxPromptsPerBatch =
+      this.schemaType === 'individual' ? 1 : strategy.maxPromptsPerBatch;
+
     return {
       maxTokensPerBatch: strategy.maxTokensPerBatch,
-      maxPromptsPerBatch: strategy.maxPromptsPerBatch,
+      maxPromptsPerBatch,
       prioritization: 'longest-first',
     };
   }
@@ -231,9 +258,11 @@ export class OllamaProvider implements AnalysisProvider {
 
     const userPrompt = buildUserPrompt(prompts, date, context);
     const systemPrompt =
-      this.schemaType === 'minimal'
-        ? SYSTEM_PROMPT_MINIMAL
-        : SYSTEM_PROMPT_FULL;
+      this.schemaType === 'individual'
+        ? SYSTEM_PROMPT_BATCH_INDIVIDUAL
+        : this.schemaType === 'minimal'
+          ? SYSTEM_PROMPT_MINIMAL
+          : SYSTEM_PROMPT_FULL;
 
     let lastError: Error | undefined;
 
@@ -277,7 +306,10 @@ export class OllamaProvider implements AnalysisProvider {
           throw new Error('Invalid response format from Ollama API');
         }
 
-        // Parse and validate the response
+        // Parse and validate the response based on schema type
+        if (this.schemaType === 'individual') {
+          return parseBatchIndividualResponse(data.response, date, prompts);
+        }
         return parseResponse(data.response, date, undefined, prompts);
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));

@@ -29,19 +29,24 @@ export type FallbackCallback = (from: string, to: string) => void;
  *
  * @param type - The provider type to create
  * @param config - Environment configuration with provider settings
+ * @param analysisMode - Optional analysis mode override ('batch' or 'individual')
  * @returns The created provider instance
  *
  * @example
  * const config = getEnvConfig();
- * const provider = createProvider('ollama', config);
+ * const provider = createProvider('ollama', config, 'individual');
  */
 export function createProvider(
   type: ProviderType,
   config: EnvConfig,
+  analysisMode?: 'batch' | 'individual',
 ): AnalysisProvider {
   switch (type) {
     case 'ollama':
-      return new OllamaProvider(config.ollama);
+      return new OllamaProvider({
+        ...config.ollama,
+        schemaOverride: analysisMode,
+      });
     case 'anthropic':
       return new AnthropicProvider(config.anthropic);
     case 'google':
@@ -56,6 +61,7 @@ export function createProvider(
  *
  * @param config - Environment configuration with services list and provider settings
  * @param onFallback - Optional callback called when falling back to a different provider
+ * @param analysisMode - Optional analysis mode override ('batch' or 'individual')
  * @returns Promise resolving to the first available provider
  * @throws Error if no providers are configured or none are available
  *
@@ -63,11 +69,12 @@ export function createProvider(
  * const config = getEnvConfig();
  * const provider = await getAvailableProvider(config, (from, to) => {
  *   console.log(`Falling back from ${from} to ${to}`);
- * });
+ * }, 'individual');
  */
 export async function getAvailableProvider(
   config: EnvConfig,
   onFallback?: FallbackCallback,
+  analysisMode?: 'batch' | 'individual',
 ): Promise<AnalysisProvider> {
   if (config.services.length === 0) {
     throw new Error(
@@ -83,7 +90,7 @@ export async function getAvailableProvider(
   let firstProvider: AnalysisProvider | undefined;
 
   for (const type of config.services) {
-    const provider = createProvider(type, config);
+    const provider = createProvider(type, config, analysisMode);
 
     // Track the first provider for fallback notification
     firstProvider ??= provider;
@@ -122,16 +129,18 @@ export async function getAvailableProvider(
  * Returns providers for all types listed in the services configuration.
  *
  * @param config - Environment configuration with services list and provider settings
+ * @param analysisMode - Optional analysis mode override ('batch' or 'individual')
  * @returns Array of provider instances
  * @throws Error if no providers are configured
  *
  * @example
  * const config = getEnvConfig();
- * const providers = getAllProviders(config);
+ * const providers = getAllProviders(config, 'individual');
  * // [OllamaProvider, AnthropicProvider, ...]
  */
 export function getAllProviders(
   config: EnvConfig,
+  analysisMode?: 'batch' | 'individual',
 ): readonly AnalysisProvider[] {
   if (config.services.length === 0) {
     throw new Error(
@@ -139,5 +148,7 @@ export function getAllProviders(
     );
   }
 
-  return config.services.map((type) => createProvider(type, config));
+  return config.services.map((type) =>
+    createProvider(type, config, analysisMode),
+  );
 }

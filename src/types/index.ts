@@ -99,6 +99,29 @@ export type BeforeAfter = {
 export type PatternSeverity = 'low' | 'medium' | 'high';
 
 /**
+ * Category for individual prompt analysis.
+ * Used in batch-individual hybrid mode.
+ */
+export type PromptCategory =
+  | 'vague-request'
+  | 'missing-context'
+  | 'too-broad'
+  | 'unclear-goal'
+  | 'other';
+
+/**
+ * Individual prompt analysis result.
+ * Used in batch-individual hybrid mode to return per-prompt results.
+ */
+export type IndividualPromptResult = {
+  readonly status: 'correct' | 'problems';
+  readonly problems: readonly string[];
+  readonly categories: readonly PromptCategory[];
+  readonly example: string;
+  readonly suggestion: string;
+};
+
+/**
  * Detected improvement pattern from analysis.
  * Each pattern includes concrete examples and actionable suggestions.
  */
@@ -257,6 +280,7 @@ export type AnalysisProvider = {
 export type OllamaConfig = {
   readonly model: string;
   readonly host: string;
+  readonly schemaOverride?: 'batch' | 'individual';
 };
 
 /**

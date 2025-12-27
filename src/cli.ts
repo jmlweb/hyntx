@@ -119,6 +119,7 @@ export type ParsedArgs = {
   readonly noCache: boolean;
   readonly mcpServer: boolean;
   readonly listRules: boolean;
+  readonly analysisMode: 'batch' | 'individual';
 };
 
 // =============================================================================
@@ -238,6 +239,11 @@ export function parseArguments(): ParsedArgs {
           type: 'boolean',
           default: false,
         },
+        'analysis-mode': {
+          type: 'string',
+          short: 'm',
+          default: 'batch',
+        },
         help: {
           type: 'boolean',
           short: 'h',
@@ -251,6 +257,14 @@ export function parseArguments(): ParsedArgs {
       strict: true,
       allowPositionals: false,
     });
+
+    // Validate analysis mode
+    const analysisMode = values['analysis-mode'] || 'batch';
+    if (analysisMode !== 'batch' && analysisMode !== 'individual') {
+      throw new Error(
+        `Invalid analysis mode: ${analysisMode}. Must be 'batch' or 'individual'.`,
+      );
+    }
 
     return {
       date: values.date || 'today',
@@ -278,6 +292,7 @@ export function parseArguments(): ParsedArgs {
       noCache: values['no-cache'] || false,
       mcpServer: values['mcp-server'] || false,
       listRules: values['list-rules'] || false,
+      analysisMode: analysisMode,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -701,6 +716,9 @@ ${chalk.bold('Options:')}
   --no-cache             Bypass cache for this run (force fresh analysis)
 
   ${chalk.bold('Configuration:')}
+  -m, --analysis-mode <mode>  Analysis mode: batch (fast) or individual (accurate) [default: batch]
+                              - batch: ~300-400ms/prompt, good categorization
+                              - individual: ~1000-1500ms/prompt, better categorization
   -v, --verbose        Enable debug output to stderr
   --check-config       Validate configuration and test provider connectivity
   --check-reminder     Show reminder status and exit
@@ -758,6 +776,11 @@ ${chalk.bold('Examples:')}
   ${chalk.bold('Cache:')}
   hyntx --clear-cache                 # Clear all cached results
   hyntx --no-cache                    # Force fresh analysis (bypass cache)
+
+  ${chalk.bold('Analysis modes:')}
+  hyntx                               # Use default batch mode (fast)
+  hyntx --analysis-mode individual    # Use individual mode (more accurate)
+  hyntx -m individual                 # Short form
 
   ${chalk.bold('Status checks:')}
   hyntx --check-config                # Validate configuration
@@ -936,10 +959,12 @@ export async function readLogsWithSpinner(
  * from the configured services list, with fallback support.
  *
  * @param isJsonMode - Whether JSON output mode is active
+ * @param analysisMode - Optional analysis mode override ('batch' or 'individual')
  * @returns Available provider instance
  */
 export async function connectProviderWithSpinner(
   isJsonMode: boolean,
+  analysisMode?: 'batch' | 'individual',
 ): Promise<AnalysisProvider> {
   const config = getEnvConfig();
 
@@ -963,18 +988,22 @@ export async function connectProviderWithSpinner(
   const spinner = isJsonMode ? null : ora('Connecting to provider...').start();
 
   try {
-    const provider = await getAvailableProvider(config, (from, to) => {
-      if (!isJsonMode && spinner) {
-        spinner.text = chalk.yellow(
-          `Primary provider ${from} unavailable, falling back to ${to}...`,
+    const provider = await getAvailableProvider(
+      config,
+      (from, to) => {
+        if (!isJsonMode && spinner) {
+          spinner.text = chalk.yellow(
+            `Primary provider ${from} unavailable, falling back to ${to}...`,
+          );
+        }
+        // Collect fallback as a warning for reporting
+        logger.collectWarning(
+          `Provider ${from} unavailable, fell back to ${to}`,
+          'provider',
         );
-      }
-      // Collect fallback as a warning for reporting
-      logger.collectWarning(
-        `Provider ${from} unavailable, fell back to ${to}`,
-        'provider',
-      );
-    });
+      },
+      analysisMode,
+    );
 
     if (!isJsonMode) {
       spinner?.succeed(chalk.green(`Connected to ${provider.name}`));
@@ -1593,7 +1622,10 @@ export async function cli(): Promise<void> {
 
     // 10. Handle watch mode (exit early - runs indefinitely)
     if (args.watch) {
-      const provider = await connectProviderWithSpinner(isJsonMode);
+      const provider = await connectProviderWithSpinner(
+        isJsonMode,
+        args.analysisMode,
+      );
       await runWatchMode(provider, args, config.context, config.rules);
       return;
     }
@@ -1612,7 +1644,10 @@ export async function cli(): Promise<void> {
     const groups = isMultiDay ? groupByDay(logResult.prompts) : [];
 
     // 14. Connect to provider
-    const provider = await connectProviderWithSpinner(isJsonMode);
+    const provider = await connectProviderWithSpinner(
+      isJsonMode,
+      args.analysisMode,
+    );
 
     // 15. Analyze (single-day or multi-day)
     if (isMultiDay && groups.length > 0) {
