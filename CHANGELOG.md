@@ -1,3 +1,9 @@
+## [2.5.1](https://github.com/jmlweb/hyntx/compare/v2.5.0...v2.5.1) (2025-12-27)
+
+### Bug Fixes
+
+- **ci:** restore NPM_TOKEN for authentication with trusted publishing ([4c03890](https://github.com/jmlweb/hyntx/commit/4c03890f80864756dd785296c27acf64ed2036b3))
+
 ## [2.5.0](https://github.com/jmlweb/hyntx/compare/v2.4.0...v2.5.0) (2025-12-27)
 
 ### Features
