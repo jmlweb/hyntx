@@ -1,3 +1,9 @@
+## [2.5.2](https://github.com/jmlweb/hyntx/compare/v2.5.1...v2.5.2) (2025-12-27)
+
+### Bug Fixes
+
+- **ci:** configure .npmrc before semantic-release ([411384a](https://github.com/jmlweb/hyntx/commit/411384a3299d940d577a1f1c8941e77107581620))
+
 ## [2.5.1](https://github.com/jmlweb/hyntx/compare/v2.5.0...v2.5.1) (2025-12-27)
 
 ### Bug Fixes
