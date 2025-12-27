@@ -1,3 +1,9 @@
+## [2.5.4](https://github.com/jmlweb/hyntx/compare/v2.5.3...v2.5.4) (2025-12-27)
+
+### Bug Fixes
+
+- **package:** add repository field for provenance verification ([557dec8](https://github.com/jmlweb/hyntx/commit/557dec8d64dccca02e8154553e7d58102b6e4e33))
+
 ## [2.5.3](https://github.com/jmlweb/hyntx/compare/v2.5.2...v2.5.3) (2025-12-27)
 
 ### Bug Fixes
