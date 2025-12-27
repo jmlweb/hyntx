@@ -10,6 +10,31 @@
 
 ### Bug Fixes
 
+- **ci:** configure npm authentication with granular token and provenance ([ee0f18c](https://github.com/jmlweb/hyntx/commit/ee0f18c55be45b937e886b459e352634333cfef6))
+- **ci:** remove NPM_TOKEN for OIDC authentication ([dd92cc7](https://github.com/jmlweb/hyntx/commit/dd92cc796f4d9b1e819af63569d18d3a6e4dab45))
+- **ci:** use NPM_TOKEN env var for semantic-release ([4f5a632](https://github.com/jmlweb/hyntx/commit/4f5a632f52ec009c83b99203f1d9515e2276e722))
+- **ci:** use NPM_TOKEN for npm authentication ([e109ae6](https://github.com/jmlweb/hyntx/commit/e109ae60b293dc8a9248fd8f38296fb68399c845))
+- **config:** ignore [skip ci] commits in commitlint ([901adc0](https://github.com/jmlweb/hyntx/commit/901adc0024c21eb3921590f83dcb1af5552dbcba))
+- **core:** ensure all patterns have examples for consistent formatting ([a52ac9e](https://github.com/jmlweb/hyntx/commit/a52ac9e983beff27d3c0ff4dcbedf0c2fe1c060c))
+- **release:** configure npm plugin with provenance support ([3d855d8](https://github.com/jmlweb/hyntx/commit/3d855d887326ad75861ce15f7924250b61c0b07c))
+
+### Documentation
+
+- add model requirements and validation tooling ([ef557ac](https://github.com/jmlweb/hyntx/commit/ef557ace43fdc978fb21068fc71078613c16dd67))
+- enhance analysis mode and model documentation ([5809f2b](https://github.com/jmlweb/hyntx/commit/5809f2b6b1c1e6291b4424484627609b15d2cd24))
+
+## [2.5.0](https://github.com/jmlweb/hyntx/compare/v2.4.0...v2.5.0) (2025-12-27)
+
+### Features
+
+- add NPM_TOKEN to release workflow ([c19e470](https://github.com/jmlweb/hyntx/commit/c19e4702eb1b1f800c5709ca1cbe306dbf185783))
+- **analysis:** add configurable analysis mode with batch/individual options ([3548c24](https://github.com/jmlweb/hyntx/commit/3548c240b11d0935805c3e10010ab93c230092a3)), closes [#59](https://github.com/jmlweb/hyntx/issues/59)
+- **cli:** add configurable analysis mode flag ([21e2033](https://github.com/jmlweb/hyntx/commit/21e2033c568e61414f78cc2d3bdceacc01cf1d6a)), closes [#59](https://github.com/jmlweb/hyntx/issues/59)
+- don't trunctate examples ([69ff5ca](https://github.com/jmlweb/hyntx/commit/69ff5ca5e33a1f8bb6ab460e328587b7adef13de))
+- **setup:** add smart model detection based on hardware and available models ([43a7083](https://github.com/jmlweb/hyntx/commit/43a70835906b77e0e3fa7d8ab1d1b4a7686a304d)), closes [#61](https://github.com/jmlweb/hyntx/issues/61)
+
+### Bug Fixes
+
 - **ci:** remove NPM_TOKEN for OIDC authentication ([dd92cc7](https://github.com/jmlweb/hyntx/commit/dd92cc796f4d9b1e819af63569d18d3a6e4dab45))
 - **ci:** use NPM_TOKEN env var for semantic-release ([4f5a632](https://github.com/jmlweb/hyntx/commit/4f5a632f52ec009c83b99203f1d9515e2276e722))
 - **ci:** use NPM_TOKEN for npm authentication ([e109ae6](https://github.com/jmlweb/hyntx/commit/e109ae60b293dc8a9248fd8f38296fb68399c845))
