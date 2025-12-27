@@ -579,3 +579,203 @@ export type PromptResult = {
   readonly result: AnalysisResult;
   readonly metadata: PromptResultMetadata;
 };
+
+// =============================================================================
+// Analytics and Data Science Types
+// =============================================================================
+
+/**
+ * Descriptive statistics for a dataset.
+ * Provides comprehensive statistical measures beyond simple averages.
+ */
+export type DescriptiveStats = {
+  readonly count: number;
+  readonly mean: number;
+  readonly median: number;
+  readonly stdDev: number;
+  readonly variance: number;
+  readonly min: number;
+  readonly max: number;
+  readonly range: number;
+  readonly percentiles: {
+    readonly p25: number;
+    readonly p50: number;
+    readonly p75: number;
+    readonly p90: number;
+    readonly p95: number;
+  };
+  readonly skewness: number;
+  readonly kurtosis: number;
+};
+
+/**
+ * Result of outlier detection analysis.
+ */
+export type OutlierResult = {
+  readonly outliers: readonly number[];
+  readonly outlierIndices: readonly number[];
+  readonly lowerBound: number;
+  readonly upperBound: number;
+  readonly method: 'iqr' | 'zscore';
+};
+
+/**
+ * Specificity score for a prompt.
+ * Measures how specific and detailed a prompt is.
+ */
+export type SpecificityScore = {
+  readonly overall: number;
+  readonly filePathCount: number;
+  readonly functionMentions: number;
+  readonly hasErrorMessage: boolean;
+  readonly hasCodeSnippet: boolean;
+  readonly actionVerbClarity: number;
+  readonly wordCount: number;
+  readonly characterCount: number;
+};
+
+/**
+ * Lexical complexity metrics for text analysis.
+ */
+export type LexicalMetrics = {
+  readonly uniqueWordRatio: number;
+  readonly averageWordLength: number;
+  readonly technicalTermDensity: number;
+  readonly sentenceCount: number;
+  readonly averageSentenceLength: number;
+};
+
+/**
+ * A single cluster from clustering analysis.
+ */
+export type Cluster = {
+  readonly id: number;
+  readonly indices: readonly number[];
+  readonly size: number;
+};
+
+/**
+ * A labeled cluster with interpretation.
+ */
+export type LabeledCluster = Cluster & {
+  readonly label: string;
+  readonly keywords: readonly string[];
+  readonly representativePrompt: string;
+  readonly dominantIssue?: string;
+};
+
+/**
+ * Result of clustering analysis.
+ */
+export type ClusterResult = {
+  readonly clusters: readonly Cluster[];
+  readonly centroids: readonly number[][];
+  readonly k: number;
+  readonly silhouetteScore: number;
+  readonly inertia: number;
+};
+
+/**
+ * Complete cluster analysis with labeled clusters.
+ */
+export type ClusterAnalysis = {
+  readonly clusters: readonly LabeledCluster[];
+  readonly metrics: {
+    readonly silhouetteScore: number;
+    readonly inertia: number;
+    readonly optimalK: number;
+  };
+  readonly summary: {
+    readonly totalPrompts: number;
+    readonly avgClusterSize: number;
+    readonly largestCluster: number;
+    readonly smallestCluster: number;
+  };
+};
+
+/**
+ * Data point for trend analysis.
+ */
+export type TrendDataPoint = {
+  readonly date: string;
+  readonly score: number;
+  readonly promptCount: number;
+  readonly issueCount: number;
+};
+
+/**
+ * Result of trend analysis using linear regression.
+ */
+export type TrendAnalysis = {
+  readonly slope: number;
+  readonly intercept: number;
+  readonly rSquared: number;
+  readonly direction: 'improving' | 'stable' | 'declining';
+  readonly confidence: 'high' | 'medium' | 'low';
+  readonly projectedScore: (days: number) => number;
+};
+
+/**
+ * Result of improvement detection analysis.
+ */
+export type ImprovementResult = {
+  readonly status: 'improving' | 'stable' | 'declining' | 'insufficient_data';
+  readonly recentAverage?: number;
+  readonly historicalAverage?: number;
+  readonly absoluteChange?: number;
+  readonly percentChange?: number;
+  readonly significantPatterns?: readonly PatternChange[];
+  readonly message?: string;
+};
+
+/**
+ * Forecast prediction with confidence intervals.
+ */
+export type ForecastPrediction = {
+  readonly date: string;
+  readonly predictedScore: number;
+  readonly confidenceInterval: {
+    readonly lower: number;
+    readonly upper: number;
+  };
+};
+
+/**
+ * Result of forecasting analysis.
+ */
+export type ForecastResult = {
+  readonly predictions: readonly ForecastPrediction[];
+  readonly trend: TrendAnalysis;
+};
+
+/**
+ * Enhanced statistics extending the basic AnalysisStats.
+ * Backward compatible - all enhanced fields are optional.
+ */
+export type EnhancedAnalysisStats = AnalysisStats & {
+  readonly descriptive?: DescriptiveStats;
+  readonly specificity?: {
+    readonly mean: number;
+    readonly distribution: readonly number[];
+  };
+  readonly lexical?: {
+    readonly avgComplexity: number;
+    readonly avgWordCount: number;
+  };
+  readonly timing?: {
+    readonly analysisStarted: number;
+    readonly analysisCompleted: number;
+    readonly durationMs: number;
+    readonly tokensProcessed: number;
+  };
+};
+
+/**
+ * Enhanced analysis result with optional data science features.
+ * Backward compatible - all enhanced fields are optional.
+ */
+export type EnhancedAnalysisResult = AnalysisResult & {
+  readonly enhancedStats?: EnhancedAnalysisStats;
+  readonly clusters?: ClusterAnalysis;
+  readonly trend?: TrendAnalysis;
+};

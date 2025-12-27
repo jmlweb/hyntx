@@ -18,6 +18,11 @@ import ora from 'ora';
 import { clearCache } from './cache/index.js';
 import { analyzePrompts, extractModelFromProvider } from './core/analyzer.js';
 import {
+  enrichWithStatistics,
+  enrichWithTrends,
+} from './core/enhanced-analyzer.js';
+import { printEnhancedReport } from './core/enhanced-reporter.js';
+import {
   compareResults,
   getDateOneMonthAgo,
   getDateOneWeekAgo,
@@ -65,6 +70,7 @@ import { ISSUE_TAXONOMY } from './providers/schemas.js';
 import type {
   AnalysisProvider,
   AnalysisResult,
+  EnhancedAnalysisResult,
   ExtractedPrompt,
   HistoryEntry,
   HistoryMetadata,
@@ -120,6 +126,10 @@ export type ParsedArgs = {
   readonly mcpServer: boolean;
   readonly listRules: boolean;
   readonly analysisMode: 'batch' | 'individual';
+  readonly detailedStats: boolean;
+  readonly showClusters: boolean;
+  readonly trendAnalysis: boolean;
+  readonly noEmbeddings: boolean;
 };
 
 // =============================================================================
@@ -244,6 +254,22 @@ export function parseArguments(): ParsedArgs {
           short: 'm',
           default: 'batch',
         },
+        'detailed-stats': {
+          type: 'boolean',
+          default: false,
+        },
+        'show-clusters': {
+          type: 'boolean',
+          default: false,
+        },
+        'trend-analysis': {
+          type: 'boolean',
+          default: false,
+        },
+        'no-embeddings': {
+          type: 'boolean',
+          default: false,
+        },
         help: {
           type: 'boolean',
           short: 'h',
@@ -293,6 +319,10 @@ export function parseArguments(): ParsedArgs {
       mcpServer: values['mcp-server'] || false,
       listRules: values['list-rules'] || false,
       analysisMode: analysisMode,
+      detailedStats: values['detailed-stats'] || false,
+      showClusters: values['show-clusters'] || false,
+      trendAnalysis: values['trend-analysis'] || false,
+      noEmbeddings: values['no-embeddings'] || false,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -724,6 +754,12 @@ ${chalk.bold('Options:')}
   --check-reminder     Show reminder status and exit
   --list-rules         List all available analysis rules and their status
 
+  ${chalk.bold('Enhanced Analytics:')}
+  --detailed-stats     Show detailed statistical analysis (mean, median, percentiles, etc.)
+  --show-clusters      Show clustering of similar prompts using embeddings (requires Ollama)
+  --trend-analysis     Show trend analysis over historical data (requires history entries)
+  --no-embeddings      Disable embeddings for clustering (faster for CI/testing)
+
   ${chalk.bold('Information:')}
   -h, --help           Show help
   --version            Show version
@@ -787,6 +823,13 @@ ${chalk.bold('Examples:')}
   hyntx --check-reminder              # Show reminder status
   hyntx --list-rules                  # List all analysis rules
   hyntx --list-rules --format json    # List rules as JSON
+
+  ${chalk.bold('Enhanced analytics:')}
+  hyntx --detailed-stats              # Show detailed statistics
+  hyntx --show-clusters               # Show prompt clustering
+  hyntx --trend-analysis              # Show trend analysis over time
+  hyntx --detailed-stats --show-clusters  # Combine multiple enhancements
+  hyntx --no-embeddings               # Disable embeddings (for CI/testing)
 `;
 
   console.log(helpText);
@@ -1439,20 +1482,56 @@ export async function runWatchMode(
 /**
  * Displays analysis results.
  *
- * @param result - Analysis result
+ * @param result - Analysis result (can be enhanced)
  * @param format - Output format
  * @param compact - Whether to use compact JSON (only relevant for JSON format)
+ * @param args - Parsed arguments to determine if enhanced features are enabled
  */
 export function displayResults(
-  result: AnalysisResult,
+  result: AnalysisResult | EnhancedAnalysisResult,
   format: 'terminal' | 'json',
   compact: boolean,
+  args?: ParsedArgs,
 ): void {
   if (format === 'json') {
     console.log(formatJson(result, compact));
   } else {
     console.log(''); // Blank line before report
-    printReport(result);
+
+    // Check if this is an enhanced result with any enhanced features
+    const isEnhanced =
+      args && (args.detailedStats || args.showClusters || args.trendAnalysis);
+    const enhancedResult = result as EnhancedAnalysisResult;
+
+    if (
+      isEnhanced &&
+      (enhancedResult.enhancedStats ||
+        enhancedResult.clusters ||
+        enhancedResult.trend)
+    ) {
+      // Use enhanced reporter
+      printReport(result); // Print base report first
+
+      // Extract historical scores for trend visualization if trend analysis was performed
+      let historicalScores: readonly number[] = [];
+      if (enhancedResult.trend && args.trendAnalysis) {
+        // Extract historical scores from metadata if available
+        const resultWithMeta = enhancedResult as {
+          _historicalScores?: number[];
+        };
+        historicalScores = resultWithMeta._historicalScores ?? [];
+      }
+
+      printEnhancedReport(enhancedResult, {
+        showStats: args.detailedStats,
+        showClusters: args.showClusters,
+        showTrends: args.trendAnalysis,
+        historicalScores,
+      });
+    } else {
+      // Use standard reporter
+      printReport(result);
+    }
   }
 }
 
@@ -1739,7 +1818,7 @@ export async function cli(): Promise<void> {
           for (const result of results) {
             console.log('');
             console.log(chalk.bold.cyan(`Results for ${result.date}`));
-            displayResults(result, 'terminal', false);
+            displayResults(result, 'terminal', false, args);
           }
         }
       }
@@ -1747,16 +1826,85 @@ export async function cli(): Promise<void> {
       // Single-day analysis
       const prompts = logResult.prompts.map((p) => p.content);
       const date = args.date;
-      const result = await analyzeWithProgress(
-        provider,
-        prompts,
-        date,
-        config.context,
-        config.rules,
-        isJsonMode,
-        args.noCache,
-        logResult.prompts,
-      );
+      let result: AnalysisResult | EnhancedAnalysisResult =
+        await analyzeWithProgress(
+          provider,
+          prompts,
+          date,
+          config.context,
+          config.rules,
+          isJsonMode,
+          args.noCache,
+          logResult.prompts,
+        );
+
+      // Enrich with enhanced analytics if requested
+      const needsEnhancement =
+        args.detailedStats || args.showClusters || args.trendAnalysis;
+
+      if (needsEnhancement) {
+        // Enrich with statistics and clustering
+        if (args.detailedStats || args.showClusters) {
+          const spinner = isJsonMode
+            ? null
+            : ora('Computing enhanced analytics...').start();
+          try {
+            result = await enrichWithStatistics(result, prompts, {
+              enableDetailedStats: args.detailedStats,
+              enableClustering: args.showClusters && !args.noEmbeddings,
+            });
+            spinner?.succeed(chalk.green('Enhanced analytics complete'));
+          } catch (error) {
+            const errorMessage =
+              error instanceof Error ? error.message : String(error);
+            spinner?.fail(
+              chalk.yellow(`Enhanced analytics failed: ${errorMessage}`),
+            );
+            logger.warn(`Enhanced analytics failed: ${errorMessage}`);
+            // Continue with basic result
+          }
+        }
+
+        // Enrich with trend analysis if requested
+        if (args.trendAnalysis) {
+          try {
+            const dates = await listAvailableDates();
+            const entries: HistoryEntry[] = [];
+
+            for (const histDate of dates) {
+              const entry = await loadAnalysisResult(histDate);
+              if (entry) {
+                entries.push(entry);
+              }
+            }
+
+            if (entries.length >= 2) {
+              result = enrichWithTrends(
+                result as EnhancedAnalysisResult,
+                entries,
+              );
+
+              // Store historical scores in result metadata for visualization
+              const historicalScores = entries.map(
+                (e) => e.result.stats.overallScore,
+              );
+              const resultWithMeta = result as EnhancedAnalysisResult & {
+                _historicalScores?: number[];
+              };
+              resultWithMeta._historicalScores = historicalScores;
+            } else if (!isJsonMode) {
+              logger.warn(
+                'Not enough historical data for trend analysis (need at least 2 entries)',
+              );
+            }
+          } catch (error) {
+            const errorMessage =
+              error instanceof Error ? error.message : String(error);
+            logger.warn(`Trend analysis failed: ${errorMessage}`);
+            // Continue without trends
+          }
+        }
+      }
 
       // Write output file if specified
       if (args.output) {
@@ -1772,7 +1920,7 @@ export async function cli(): Promise<void> {
 
       // Display results
       if (!args.output || !isJsonMode) {
-        displayResults(result, args.format, args.compact);
+        displayResults(result, args.format, args.compact, args);
       }
 
       // Save to history (unless disabled)
