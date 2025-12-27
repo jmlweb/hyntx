@@ -602,8 +602,36 @@ Hyntx takes your privacy seriously:
 ## Requirements
 
 - **Node.js**: 22.0.0 or higher
-- **Claude Code**: Must have Claude Code installed and used
-- **AI Provider**: Ollama (local) or Anthropic/Google API key
+- **Claude Code**: Must have Claude Code installed and at least one conversation
+- **AI Provider**: At least one of the following:
+  - **Ollama** (recommended for privacy and cost savings)
+  - **Anthropic Claude** API key
+  - **Google Gemini** API key
+
+### Ollama Model Requirements
+
+For local analysis with Ollama, you need to have a compatible model installed. See [docs/MINIMUM_VIABLE_MODEL.md](docs/MINIMUM_VIABLE_MODEL.md) for detailed recommendations and performance benchmarks.
+
+**Quick picks**:
+
+| Use Case            | Model         | Parameters | Disk Size | Speed (CPU)    | Quality   |
+| ------------------- | ------------- | ---------- | --------- | -------------- | --------- |
+| **Daily use**       | `llama3.2`    | 2-3B       | ~2GB      | ~2-5s/prompt   | Good      |
+| **Production**      | `mistral:7b`  | 7B         | ~4GB      | ~5-10s/prompt  | Better    |
+| **Maximum quality** | `qwen2.5:14b` | 14B        | ~9GB      | ~15-30s/prompt | Excellent |
+
+**Installation**:
+
+```bash
+# Install recommended model (llama3.2)
+ollama pull llama3.2
+
+# Or choose a different model
+ollama pull mistral:7b
+ollama pull qwen2.5:14b
+```
+
+For complete model comparison, compatibility info, and performance notes, see the [Model Requirements documentation](docs/MINIMUM_VIABLE_MODEL.md).
 
 ## Troubleshooting
 

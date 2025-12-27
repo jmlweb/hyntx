@@ -26,6 +26,7 @@
     "test:e2e:watch": "vitest --config vitest.config.e2e.ts",
     "test:all": "vitest run && vitest run --config vitest.config.e2e.ts",
     "check": "pnpm typecheck && pnpm lint && pnpm format:check",
+    "validate:models": "node scripts/validate-model-sync.mjs",
     "size": "npm pack --dry-run 2>&1 | tail -1",
     "prepare": "husky",
     "release": "semantic-release",
