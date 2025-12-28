@@ -1,3 +1,17 @@
+## [2.6.0](https://github.com/jmlweb/hyntx/compare/v2.5.4...v2.6.0) (2025-12-28)
+
+### Features
+
+- **analytics:** add data science enhancements with unit tests ([9b92ad5](https://github.com/jmlweb/hyntx/commit/9b92ad5c4cca0b9839a2714baf0f3e19dd11dd8e))
+
+### Bug Fixes
+
+- **test:** fix Ollama provider tests for individual schema mode ([ee9f67e](https://github.com/jmlweb/hyntx/commit/ee9f67efbf2edd36d20965fff13877357bc689e8))
+
+### Documentation
+
+- fix broken links and add language specifiers to code blocks ([4aa1c47](https://github.com/jmlweb/hyntx/commit/4aa1c47a5ca0cdd7e15c0135dfc0e35299f26a6a))
+
 ## [2.5.4](https://github.com/jmlweb/hyntx/compare/v2.5.3...v2.5.4) (2025-12-27)
 
 ### Bug Fixes
