@@ -119,6 +119,15 @@ hyntx --from 2025-01-15 --to 2025-01-22 --project backend-api
 
 # Generate markdown report for yesterday
 hyntx --date yesterday --output yesterday-analysis.md
+
+# Deep analysis with individual mode for critical project
+hyntx -m individual --project production-api --date today
+
+# Fast batch analysis across date range
+hyntx --from 2025-01-15 --to 2025-01-20 --analysis-mode batch -o report.md
+
+# Watch mode with individual analysis (slower but detailed)
+hyntx --watch -m individual --project critical-app
 ```
 
 ## Configuration
@@ -151,16 +160,25 @@ hyntx --analysis-mode individual  # Use individual mode
 hyntx -m individual               # Short form
 ```
 
-#### Mode Comparison
+#### Quick Mode Comparison
 
-| Mode       | Speed/Prompt | Use Case       | Accuracy |
-| ---------- | ------------ | -------------- | -------- |
-| Batch      | ~300-400ms   | Daily analysis | Good     |
-| Individual | ~1-1.5s      | Deep analysis  | Better   |
+| Mode       | Speed/Prompt | Use Case                   | Accuracy | When to Use                               |
+| ---------- | ------------ | -------------------------- | -------- | ----------------------------------------- |
+| Batch      | ~300-400ms   | Daily analysis, monitoring | Good     | Quick feedback, large datasets            |
+| Individual | ~1-1.5s      | Deep analysis, learning    | Better   | Quality-focused reviews, critical prompts |
 
-**Recommendation**: Use batch mode for daily analysis (faster feedback), switch to individual mode when you need maximum quality or are learning prompt engineering techniques.
+**Speedup**: Batch mode is 3-4x faster than individual mode.
 
-**Note**: Performance numbers are based on `llama3.2` running on CPU. Actual speed depends on your hardware and model choice.
+**Recommendation**: Use batch mode (default) for daily analysis to get fast feedback. Switch to individual mode when:
+
+- You need detailed, nuanced feedback on each prompt
+- You're learning prompt engineering patterns
+- Analyzing high-stakes or complex prompts
+- Conducting quality audits or teaching sessions
+
+**Performance Note**: Numbers based on `llama3.2` on CPU. Actual speed varies by hardware, model size, and prompt complexity.
+
+**Detailed Guide**: See [Analysis Modes Documentation](./docs/ANALYSIS_MODES.md) for comprehensive comparison, examples, and decision guidelines.
 
 ### Rules Configuration
 
