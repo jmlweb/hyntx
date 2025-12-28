@@ -17,6 +17,8 @@ describe('OllamaProvider', () => {
   const mockConfig: OllamaConfig = {
     model: 'llama3.2',
     host: 'http://localhost:11434',
+    // Force full schema for tests to match expected response format
+    schemaOverride: 'full',
   };
 
   let provider: OllamaProvider;
@@ -240,8 +242,8 @@ describe('OllamaProvider', () => {
       expect(body.stream).toBe(false);
       expect(body.options.temperature).toBe(0.3);
       expect(body.prompt).toContain('Test prompt');
-      // llama3.2 is a micro model, so it should use minimal schema
-      expect(body.system).toContain('You analyze prompts for quality issues');
+      // With schemaOverride: 'full', it should use the full system prompt
+      expect(body.system).toContain('You are an expert prompt quality analyst');
     });
 
     it('should handle markdown-wrapped JSON response', async () => {
@@ -599,6 +601,9 @@ describe('OllamaProvider', () => {
       const provider = new OllamaProvider({
         model: 'llama3.2',
         host: 'http://localhost:11434',
+        // Without override, llama3.2 uses individual schema (maxPromptsPerBatch = 1)
+        // With full override, it uses the strategy's actual limits
+        schemaOverride: 'full',
       });
 
       const limits = provider.getBatchLimits();
@@ -612,6 +617,8 @@ describe('OllamaProvider', () => {
       const provider = new OllamaProvider({
         model: 'mistral:7b',
         host: 'http://localhost:11434',
+        // Without override, mistral:7b uses individual schema (maxPromptsPerBatch = 1)
+        schemaOverride: 'full',
       });
 
       const limits = provider.getBatchLimits();
@@ -638,6 +645,8 @@ describe('OllamaProvider', () => {
       const provider = new OllamaProvider({
         model: 'unknown-model',
         host: 'http://localhost:11434',
+        // Unknown models default to micro strategy with individual schema
+        schemaOverride: 'full',
       });
 
       const limits = provider.getBatchLimits();
