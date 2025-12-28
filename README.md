@@ -428,11 +428,18 @@ Hyntx can run as a [Model Context Protocol (MCP)](https://modelcontextprotocol.i
 
 ### Quick Setup
 
-Add hyntx to your Claude Code MCP configuration:
+Add hyntx to your Claude Code MCP configuration. You have two options:
 
-**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
-**Linux:** `~/.config/Claude/claude_desktop_config.json`
+#### Option 1: User-scoped (Recommended)
+
+Configuration visible only to you, stored in `~/.claude.json`:
+
+```bash
+# Add using Claude Code CLI
+claude mcp add hyntx
+
+# Or manually edit ~/.claude.json
+```
 
 ```json
 {
@@ -445,7 +452,22 @@ Add hyntx to your Claude Code MCP configuration:
 }
 ```
 
-After editing, restart Claude Code. The hyntx tools will be available in your conversations.
+#### Option 2: Project-scoped
+
+Configuration shared with your team via Git, stored in `.mcp.json` at your project root:
+
+```json
+{
+  "mcpServers": {
+    "hyntx": {
+      "command": "hyntx",
+      "args": ["--mcp-server"]
+    }
+  }
+}
+```
+
+After adding the configuration, restart your Claude Code session. The hyntx tools will be available in your conversations.
 
 ### Prerequisites
 
@@ -621,12 +643,20 @@ Use check-context to verify: "Update the component to handle errors"
 #### "Tools not appearing in Claude Code"
 
 1. Restart Claude Code completely after config changes
-2. Verify the config file path is correct for your OS
+2. Verify the config file exists and is in the correct location:
+   - User-scoped: `~/.claude.json`
+   - Project-scoped: `.mcp.json` (in project root)
 3. Check JSON syntax in the config file:
 
    ```bash
-   # macOS
-   cat ~/Library/Application\ Support/Claude/claude_desktop_config.json | jq .
+   # Verify user-scoped config
+   cat ~/.claude.json | jq .
+
+   # Or verify project-scoped config
+   cat .mcp.json | jq .
+
+   # Or use Claude Code CLI to list MCP servers
+   claude mcp list
    ```
 
 #### "Slow responses"
