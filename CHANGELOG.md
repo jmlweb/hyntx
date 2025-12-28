@@ -1,3 +1,9 @@
+## [2.7.0](https://github.com/jmlweb/hyntx/compare/v2.6.0...v2.7.0) (2025-12-28)
+
+### Features
+
+- **docs:** add batch vs individual analysis mode comparison script and documentation ([2cf5436](https://github.com/jmlweb/hyntx/commit/2cf5436b95766200a7603e9244e6b26965f2d2e4)), closes [#60](https://github.com/jmlweb/hyntx/issues/60)
+
 ## [2.6.0](https://github.com/jmlweb/hyntx/compare/v2.5.4...v2.6.0) (2025-12-28)
 
 ### Features
