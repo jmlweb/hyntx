@@ -972,7 +972,7 @@ Contributions are welcome! Please:
 
 ## Roadmap
 
-For detailed development roadmap, planned features, and implementation status, see [docs/ROADMAP.md](docs/ROADMAP.md).
+For detailed development roadmap, planned features, and implementation status, see [GitHub Issues](https://github.com/jmlweb/hyntx/issues) and [GitHub Projects](https://github.com/jmlweb/hyntx/projects).
 
 ## License
 

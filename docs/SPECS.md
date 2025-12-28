@@ -519,8 +519,8 @@ For post-v1.0 ideas and long-term plans, see [FUTURE_PLANS.md](FUTURE_PLANS.md).
 
 **Note**: Some features originally planned for v1.1+ were implemented in v1.0:
 
-- **Project-Specific Configuration**: See [IDEA-007](../ideas/completed/IDEA-007-project-specific-configuration-file.md)
-- **JSON Output Format**: See [IDEA-001](../ideas/completed/IDEA-001-add-json-output-format.md)
+- **Project-Specific Configuration**: Implemented via `.hyntxrc.json` support (see CLI.md for configuration details)
+- **JSON Output Format**: Implemented via `--output` flag with JSON support
 
 ---
 

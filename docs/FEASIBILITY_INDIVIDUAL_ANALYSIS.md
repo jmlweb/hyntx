@@ -19,7 +19,7 @@ This document analyzes the feasibility of refactoring Hyntx's analysis system to
 
 **Current Flow**:
 
-```
+```text
 Prompts → Sanitize → Batch (by token limits) → Analyze Batch → Merge Results → Report
 ```
 
@@ -46,7 +46,7 @@ Prompts → Sanitize → Batch (by token limits) → Analyze Batch → Merge Res
 
 **Proposed Flow**:
 
-```
+```text
 Prompts → Analyze Individual → Save to Files → Post-Process → Group by Category → Generate Report
 ```
 
@@ -315,7 +315,7 @@ function generateReport(manifestPath: string): AnalysisReport {
 
 #### Current Approach (Batch)
 
-```
+```text
 - Batches: 25 (2 prompts per batch, 1k tokens each)
 - API Calls: 25
 - Time per call: ~3-5 seconds (larger context)
@@ -325,7 +325,7 @@ function generateReport(manifestPath: string): AnalysisReport {
 
 #### Proposed Approach (Individual)
 
-```
+```text
 - Batches: 0 (individual analysis)
 - API Calls: 50
 - Time per call: ~1-2 seconds (smaller context)

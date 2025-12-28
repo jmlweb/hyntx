@@ -322,7 +322,7 @@ Based on testing with llama3.2 on localhost:
 
 ### Hybrid Implementation Test
 
-```
+```text
 ================================================================================
 HYBRID BATCH-INDIVIDUAL IMPLEMENTATION TEST
 ================================================================================

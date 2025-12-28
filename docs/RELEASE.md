@@ -28,7 +28,7 @@ GitHub Actions workflows will automate:
 
 ### Workflow Structure
 
-```
+```text
 .github/
 └── workflows/
     ├── ci.yml          # Continuous Integration (test, lint, build)
@@ -354,7 +354,7 @@ The goal is **minimal cognitive overhead** with **maximum automation**. You shou
 
 #### Version Format: `MAJOR.MINOR.PATCH`
 
-```
+```text
 1.2.3
 │ │ │
 │ │ └─ Patch: Bug fixes, patches (backward compatible)
@@ -364,7 +364,7 @@ The goal is **minimal cognitive overhead** with **maximum automation**. You shou
 
 #### Decision Tree
 
-```
+```text
 Is it a breaking change?
 ├─ YES → Bump MAJOR (1.0.0 → 2.0.0)
 └─ NO
@@ -417,7 +417,7 @@ Is it a breaking change?
 
 **Conventional Commits** format your commit messages to enable automatic version detection:
 
-```
+```text
 <type>(<scope>): <description>
 
 [optional body]
@@ -445,7 +445,7 @@ Two ways to indicate breaking changes:
 
 **Option 1: Footer**
 
-```
+```text
 feat(api): add new endpoint
 
 BREAKING CHANGE: Removes deprecated /v1 endpoint
@@ -453,7 +453,7 @@ BREAKING CHANGE: Removes deprecated /v1 endpoint
 
 **Option 2: Exclamation mark**
 
-```
+```text
 feat(api)!: remove deprecated endpoint
 ```
 
@@ -610,7 +610,7 @@ For alpha, beta, and release candidates:
 
 #### Pre-Release Format
 
-```
+```text
 1.0.0-alpha.1
 1.0.0-beta.2
 1.0.0-rc.3
@@ -650,7 +650,7 @@ npm install hyntx@beta
 
 #### Pre-Release Workflow
 
-```
+```text
 main branch
   ↓
 beta branch (1.0.0-beta.1, 1.0.0-beta.2, ...)
@@ -946,7 +946,7 @@ git push origin main --tags
 
 When in doubt, use this decision tree:
 
-```
+```text
 1. Did you remove or change existing functionality?
    YES → MAJOR
    NO → Continue
@@ -968,7 +968,7 @@ When in doubt, use this decision tree:
 
 Here's how a real project might evolve:
 
-```
+```text
 0.0.1  Initial release (basic functionality)
 0.0.2  Fix: Handle empty logs
 0.0.3  Fix: Date parsing bug
@@ -1040,7 +1040,7 @@ Create `.npmignore` to explicitly exclude files from npm package:
 
 **File**: `.npmignore`
 
-```
+```text
 # Source files (not needed in package)
 src/
 *.ts
@@ -1224,7 +1224,7 @@ chmod +x dist/index.js
 
 **File**: `.gitattributes`
 
-```
+```text
 * text=auto eol=lf
 *.js text eol=lf
 *.ts text eol=lf
