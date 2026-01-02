@@ -18,7 +18,7 @@ describe('OllamaProvider', () => {
     model: 'llama3.2',
     host: 'http://localhost:11434',
     // Force full schema for tests to match expected response format
-    schemaOverride: 'full',
+    schemaOverride: 'batch',
   };
 
   let provider: OllamaProvider;
@@ -602,8 +602,8 @@ describe('OllamaProvider', () => {
         model: 'llama3.2',
         host: 'http://localhost:11434',
         // Without override, llama3.2 uses individual schema (maxPromptsPerBatch = 1)
-        // With full override, it uses the strategy's actual limits
-        schemaOverride: 'full',
+        // With batch override, it uses the strategy's actual limits
+        schemaOverride: 'batch',
       });
 
       const limits = provider.getBatchLimits();
@@ -618,7 +618,7 @@ describe('OllamaProvider', () => {
         model: 'mistral:7b',
         host: 'http://localhost:11434',
         // Without override, mistral:7b uses individual schema (maxPromptsPerBatch = 1)
-        schemaOverride: 'full',
+        schemaOverride: 'batch',
       });
 
       const limits = provider.getBatchLimits();
@@ -646,7 +646,7 @@ describe('OllamaProvider', () => {
         model: 'unknown-model',
         host: 'http://localhost:11434',
         // Unknown models default to micro strategy with individual schema
-        schemaOverride: 'full',
+        schemaOverride: 'batch',
       });
 
       const limits = provider.getBatchLimits();

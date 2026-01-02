@@ -126,7 +126,7 @@ describe('trends', () => {
       const result = detectImprovement(data);
 
       expect(result.status).toBe('improving');
-      expect(result.recentAverage).toBeGreaterThan(result.historicalAverage);
+      expect(result.recentAverage).toBeGreaterThan(result.historicalAverage!);
       expect(result.absoluteChange).toBeGreaterThan(0);
       expect(result.percentChange).toBeGreaterThan(0);
     });
@@ -144,7 +144,7 @@ describe('trends', () => {
       const result = detectImprovement(data);
 
       expect(result.status).toBe('declining');
-      expect(result.recentAverage).toBeLessThan(result.historicalAverage);
+      expect(result.recentAverage).toBeLessThan(result.historicalAverage!);
       expect(result.absoluteChange).toBeLessThan(0);
     });
 
@@ -160,7 +160,7 @@ describe('trends', () => {
       const result = detectImprovement(data);
 
       expect(result.status).toBe('stable');
-      expect(Math.abs(result.absoluteChange)).toBeLessThan(0.5);
+      expect(Math.abs(result.absoluteChange!)).toBeLessThan(0.5);
     });
 
     it('should handle insufficient data', () => {

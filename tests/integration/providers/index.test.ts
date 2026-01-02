@@ -183,8 +183,8 @@ describe('Provider Integration - Ollama Provider', () => {
     const config = {
       model: 'llama3.2',
       host: 'http://localhost:11434',
-      // Force full schema to match the mock response format
-      schemaOverride: 'full' as const,
+      // Force batch schema to match the mock response format
+      schemaOverride: 'batch' as const,
     };
 
     const mockAnalysis = createMockAnalysis();

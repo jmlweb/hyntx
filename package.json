@@ -46,17 +46,17 @@
     "url": "https://github.com/jmlweb/hyntx"
   },
   "devDependencies": {
-    "@commitlint/cli": "^20.2.0",
-    "@commitlint/config-conventional": "^20.2.0",
-    "@eslint/js": "^9.17.0",
-    "@jmlweb/commitlint-config": "^2.0.0",
-    "@jmlweb/eslint-config-base": "^2.0.1",
-    "@jmlweb/prettier-config-base": "^1.0.0",
-    "@jmlweb/tsconfig-base": "^1.0.0",
-    "@jmlweb/tsup-config-base": "^1.1.0",
-    "@jmlweb/vitest-config": "^1.0.0",
+    "@commitlint/cli": "^20.3.0",
+    "@commitlint/config-conventional": "^20.3.0",
+    "@eslint/js": "^9.39.2",
+    "@jmlweb/commitlint-config": "^2.0.3",
+    "@jmlweb/eslint-config-base": "^2.0.6",
+    "@jmlweb/prettier-config-base": "^1.0.6",
+    "@jmlweb/tsconfig-base": "^1.0.5",
+    "@jmlweb/tsup-config-base": "^1.1.4",
+    "@jmlweb/vitest-config": "^1.0.7",
     "@semantic-release/changelog": "^6.0.3",
-    "@semantic-release/exec": "^6.0.3",
+    "@semantic-release/exec": "^7.1.0",
     "@semantic-release/git": "^10.0.1",
     "@types/asciichart": "^1.5.8",
     "@types/figlet": "^1.7.0",
@@ -64,16 +64,16 @@
     "@types/prompts": "^2.4.9",
     "@vitest/coverage-v8": "^4.0.16",
     "conventional-changelog-conventionalcommits": "^9.1.0",
-    "eslint": "^9.17.0",
-    "eslint-config-prettier": "^9.1.0",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-simple-import-sort": "^12.1.1",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
-    "prettier": "^3.4.2",
+    "prettier": "^3.7.4",
     "semantic-release": "^25.0.2",
-    "tsup": "^8.3.5",
-    "typescript": "^5.7.2",
-    "typescript-eslint": "^8.19.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.51.0",
     "vitest": "^4.0.16"
   },
   "bin": {
@@ -97,6 +97,11 @@
     "dist/**/*.js",
     "dist/**/*.d.ts"
   ],
+  "pnpm": {
+    "overrides": {
+      "chalk": "^5.6.2"
+    }
+  },
   "sideEffects": false,
   "lint-staged": {
     "*.ts": [
@@ -125,6 +130,6 @@
     "ora": "^9.0.0",
     "prompts": "^2.4.2",
     "simple-statistics": "^7.8.8",
-    "zod": "^4.2.1"
+    "zod": "^4.3.4"
   }
 }
