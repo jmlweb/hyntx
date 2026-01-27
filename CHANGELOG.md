@@ -1,3 +1,18 @@
+## [3.0.0](https://github.com/jmlweb/hyntx/compare/v2.7.1...v3.0.0) (2026-01-27)
+
+### ⚠ BREAKING CHANGES
+
+- Default HYNTX_OLLAMA_MODEL changed from llama3.2 to gemma3:4b
+
+### Features
+
+- change default Ollama model to gemma3:4b ([0e03ad7](https://github.com/jmlweb/hyntx/commit/0e03ad7eb8d93e4a864cf4a3c403ec0168aa1820))
+
+### Bug Fixes
+
+- update remaining tests for gemma3:4b default ([4dbbae6](https://github.com/jmlweb/hyntx/commit/4dbbae621b5c9d96a74447a453ce7ee682cb7903))
+- update setup test mocks to use gemma3:4b ([5a8cd18](https://github.com/jmlweb/hyntx/commit/5a8cd18f0271c7ea54f1e336c163c4d7642b2c6d))
+
 ## [2.7.1](https://github.com/jmlweb/hyntx/compare/v2.7.0...v2.7.1) (2026-01-27)
 
 ### Bug Fixes
