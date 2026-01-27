@@ -1,0 +1,81 @@
+{
+  "date": "2026-01-02",
+  "patterns": [
+    {
+      "id": "vague-request",
+      "name": "Vague Request",
+      "frequency": 1,
+      "severity": "high",
+      "examples": [
+        "Please provide your analysis as a JSON object following the specified schema.",
+        "2"
+      ],
+      "suggestion": "Make requests more specific by including function names or error messages when applicable.",
+      "beforeAfter": {
+        "before": "Please provide your analysis as a JSON object following the specified schema.",
+        "after": "Analyze the prompt 'Please provide your analysis as a JSON object following the specified schema' and identify patterns that reduce its effectiveness."
+      }
+    },
+    {
+      "id": "missing-context",
+      "name": "Lack of Context",
+      "frequency": 1,
+      "severity": "high",
+      "examples": [
+        "<command-name>/clear</command-name>",
+        "<local-command-stdout></local-command-stdout>"
+      ],
+      "suggestion": "Provide the context or purpose of the command for better understanding.",
+      "beforeAfter": {
+        "before": "<command-name>/clear</command-name>",
+        "after": "<command-name>/clear <file-path> - Clears the specified file."
+      }
+    },
+    {
+      "id": "update-packages",
+      "name": "Lack of Specificity and Context",
+      "frequency": 1,
+      "severity": "high",
+      "examples": [
+        "How can I update all my packages to the latest published versions and update package.jsona accordingly?"
+      ],
+      "suggestion": "Provide specific package manager (e.g., npm, yarn), file paths, and desired outcome (e.g., 'Update all packages in the current directory to their latest versions and update the package.json file accordingly using npm')",
+      "beforeAfter": {
+        "before": "How can I update all my packages to the latest published versions and update package.jsona accordingly?",
+        "after": "Update all packages in the current directory to their latest versions using npm, and update the package.json file accordingly."
+      }
+    },
+    {
+      "id": "no-specificity",
+      "name": "Lack of Specificity",
+      "frequency": 1,
+      "severity": "high",
+      "examples": [
+        "Make sure that we are using the latest stable version of the packages"
+      ],
+      "suggestion": "Specify which packages and provide a clear action to check for updates",
+      "beforeAfter": {
+        "before": "Make sure that we are using the latest stable version of the packages",
+        "after": "Check and update the latest stable versions of 'package1', 'package2', and 'package3' in our project"
+      }
+    },
+    {
+      "id": "commit-package-updates",
+      "name": "Lack of Specificity and Context",
+      "frequency": 1,
+      "severity": "high",
+      "examples": ["commit the package updates"],
+      "suggestion": "Provide specific details about the packages to be updated, the current state, and the desired outcome (e.g., 'Update the dependencies of my project located in /path/to/project to their latest versions and commit the changes')",
+      "beforeAfter": {
+        "before": "commit the package updates",
+        "after": "Update the dependencies of my project located in /path/to/project to their latest versions and commit the changes"
+      }
+    }
+  ],
+  "stats": {
+    "totalPrompts": 9,
+    "promptsWithIssues": 9,
+    "overallScore": 4
+  },
+  "topSuggestion": "Make requests more specific by including function names or error messages when applicable."
+}

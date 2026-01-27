@@ -27,7 +27,7 @@ const PLACEHOLDER_PATTERNS = [
   'kebab-case-id',
   'Original problematic prompt',
   'Improved version addressing the issue',
-  'example prompt 1',
+  '<PLACEHOLDER_EXAMPLE>',
   'Human-Readable Issue Name',
 ] as const;
 

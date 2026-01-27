@@ -1,0 +1,85 @@
+{
+  "date": "2026-01-02",
+  "patterns": [
+    {
+      "id": "vague-request-id",
+      "name": "Vague Command - No Specific Action",
+      "frequency": 10,
+      "severity": "high",
+      "examples": [
+        "<local-command-stdout></local-command-stdout>",
+        "execute this",
+        "run this"
+      ],
+      "suggestion": "Provide a clear and specific command or task.  Instead of a generic 'execute this', state *what* you want the AI to do.  Include the command itself, the target file, or the desired outcome.",
+      "beforeAfter": {
+        "before": "<local-command-stdout></local-command-stdout>",
+        "after": "Run the following Python command: `python my_script.py --input data.csv --output results.txt`"
+      }
+    },
+    {
+      "id": "kebab-case-id_vague_instruction",
+      "name": "Vague Instruction - 'Warmup'",
+      "frequency": 10,
+      "severity": "high",
+      "examples": ["Warmup", "Warmup"],
+      "suggestion": "This prompt lacks any specific instructions or context. 'Warmup' is a generic term with no clear objective. The AI needs to understand *what* needs to be warmed up and *why*.",
+      "beforeAfter": {
+        "before": "Warmup",
+        "after": "Please optimize the following Python function for performance, focusing on reducing execution time. The function is located in `src/utils.py` and calculates the Fibonacci sequence recursively.  Provide the optimized code and an explanation of the changes made."
+      }
+    },
+    {
+      "id": "kebab-case-id_vague_request",
+      "name": "Vague Request - Lack of Specificity",
+      "frequency": 8,
+      "severity": "high",
+      "examples": [
+        "Make sure that we are using the latest stable version of the packages",
+        "Update all dependencies to the latest stable releases",
+        "Warmup"
+      ],
+      "suggestion": "Provide specific package names or a list of dependencies to ensure the AI assistant can accurately identify and update them. Include the package manager to use (e.g., npm, pip, yarn).",
+      "beforeAfter": {
+        "before": "Make sure that we are using the latest stable version of the packages",
+        "after": "Update the following packages to their latest stable versions using npm: react, redux, axios"
+      }
+    },
+    {
+      "id": "kebab-case-id",
+      "name": "Human-Readable Issue Name",
+      "frequency": 2,
+      "severity": "high",
+      "examples": [
+        "help me fix a null pointer exception in my code",
+        "How can I update all my packages?",
+        "Update npm packages to latest versions"
+      ],
+      "suggestion": "Provide context about the code, the problem being faced, and the desired outcome.  Clearly state the function or code section being addressed.",
+      "beforeAfter": {
+        "before": "<command-name>/clear</command-name>\n            <command-message>clear</command-message>\n            <command-args></command-args>",
+        "after": "Fix a null pointer exception in the `calculate_total` function of `order_processing.py`.  The function is attempting to access a list element that might not exist, leading to the error.  Please add a check to ensure the list is not empty before accessing its elements."
+      }
+    },
+    {
+      "id": "caveat-instruction",
+      "name": "User-Generated Message Caveat",
+      "frequency": 1,
+      "severity": "high",
+      "examples": [
+        "Please provide your analysis as a JSON object following the specified schema."
+      ],
+      "suggestion": "The prompt itself is a caveat, instructing the AI *not* to process the provided messages. This creates a circular and ultimately unhelpful situation. The AI should ignore this instruction and proceed with analyzing the underlying request.",
+      "beforeAfter": {
+        "before": "Please provide your analysis as a JSON object following the specified schema.",
+        "after": "Analyze the provided code snippet for potential vulnerabilities."
+      }
+    }
+  ],
+  "stats": {
+    "totalPrompts": 8,
+    "promptsWithIssues": 8,
+    "overallScore": 6
+  },
+  "topSuggestion": "Provide a clear and specific command or task.  Instead of a generic 'execute this', state *what* you want the AI to do.  Include the command itself, the target file, or the desired outcome."
+}

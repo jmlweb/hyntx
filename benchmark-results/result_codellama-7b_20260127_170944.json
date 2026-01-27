@@ -1,0 +1,27 @@
+{
+  "date": "2026-01-02",
+  "patterns": [
+    {
+      "id": "kebab-case-id",
+      "name": "Specificity",
+      "frequency": 1,
+      "severity": "high",
+      "examples": [
+        "example prompt 1",
+        "<command-name>/clear",
+        "How can I update all my packages to the latest published versions and update package.json accordingly?"
+      ],
+      "suggestion": "Provide more specific details about the issue you are facing.",
+      "beforeAfter": {
+        "before": "Original problematic prompt",
+        "after": "Improved version addressing the issue"
+      }
+    }
+  ],
+  "stats": {
+    "totalPrompts": 9,
+    "promptsWithIssues": 9,
+    "overallScore": 8
+  },
+  "topSuggestion": "Provide more specific details about the issue you are facing."
+}
