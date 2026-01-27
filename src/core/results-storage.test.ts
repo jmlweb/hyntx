@@ -184,7 +184,7 @@ describe('getPromptResultHash', () => {
     const hash2 = getPromptResultHash('test prompt', {
       date: '2025-12-26',
       project: 'project1',
-      model: 'gemma3:4b',
+      model: 'mistral:7b',
       schemaType: 'full',
     });
 

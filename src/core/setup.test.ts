@@ -83,10 +83,10 @@ describe('setup', () => {
       const config = await runSetup();
 
       expect(config.services).toEqual(['ollama']);
-      expect(config.ollama.model).toBe('llama3.2');
+      expect(config.ollama.model).toBe('gemma3:4b');
       expect(config.ollama.host).toBe('http://localhost:11434');
       expect(process.env['HYNTX_SERVICES']).toBe('ollama');
-      expect(process.env['HYNTX_OLLAMA_MODEL']).toBe('llama3.2');
+      expect(process.env['HYNTX_OLLAMA_MODEL']).toBe('gemma3:4b');
     });
 
     it('should complete successfully with anthropic provider selected', async () => {
@@ -150,7 +150,7 @@ describe('setup', () => {
       const config = await runSetup();
 
       expect(config.services).toEqual(['ollama', 'anthropic']);
-      expect(config.ollama.model).toBe('llama3.2');
+      expect(config.ollama.model).toBe('gemma3:4b');
       expect(config.anthropic.apiKey).toBe('sk-test-key');
       expect(process.env['HYNTX_SERVICES']).toBe('ollama,anthropic');
     });
@@ -220,7 +220,7 @@ describe('setup', () => {
 
       expect(process.env['HYNTX_SERVICES']).toBe('ollama');
       expect(process.env['HYNTX_REMINDER']).toBe('7d');
-      expect(process.env['HYNTX_OLLAMA_MODEL']).toBe('llama3.2');
+      expect(process.env['HYNTX_OLLAMA_MODEL']).toBe('gemma3:4b');
       expect(process.env['HYNTX_OLLAMA_HOST']).toBe('http://localhost:11434');
     });
 
@@ -321,7 +321,7 @@ describe('setup', () => {
       const config = await runSetup();
 
       // Should use ENV_DEFAULTS values
-      expect(config.ollama.model).toBe('llama3.2');
+      expect(config.ollama.model).toBe('gemma3:4b');
       expect(config.ollama.host).toBe('http://localhost:11434');
     });
 
