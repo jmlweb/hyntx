@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22.0.0-brightgreen.svg)](https://nodejs.org/)
 
-> 🚧 **NOT READY FOR USE**: This project is under active development. The published npm package does not produce output yet. Check back for updates.
+> 🧪 **BETA**: This project is functional but still evolving. Feedback and contributions welcome!
 
 ## What is Hyntx?
 
