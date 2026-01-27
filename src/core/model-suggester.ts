@@ -60,14 +60,14 @@ export function suggestBestModel(
 ): ModelRecommendation {
   // With low RAM, always suggest llama3.2 for reliability
   if (systemInfo.ramGB < HIGH_RAM_THRESHOLD) {
-    if (isModelAvailable('llama3.2', models)) {
+    if (isModelAvailable('gemma3:4b', models)) {
       return {
-        suggestedModel: 'llama3.2',
+        suggestedModel: 'gemma3:4b',
         reason: 'Fast and lightweight model, optimal for your system',
       };
     }
     return {
-      suggestedModel: 'llama3.2',
+      suggestedModel: 'gemma3:4b',
       reason: 'Recommended default model (needs installation)',
     };
   }
@@ -90,15 +90,15 @@ export function suggestBestModel(
   }
 
   // Fallback to llama3.2
-  if (isModelAvailable('llama3.2', models)) {
+  if (isModelAvailable('gemma3:4b', models)) {
     return {
-      suggestedModel: 'llama3.2',
+      suggestedModel: 'gemma3:4b',
       reason: 'Fast and reliable default model',
     };
   }
 
   return {
-    suggestedModel: 'llama3.2',
+    suggestedModel: 'gemma3:4b',
     reason: 'Recommended default model (needs installation)',
   };
 }
@@ -148,11 +148,11 @@ export function getInstallationSuggestion(
   }
 
   // Low RAM (4-7GB): suggest llama3.2 if not installed
-  const hasLlama = isModelAvailable('llama3.2', models);
+  const hasLlama = isModelAvailable('gemma3:4b', models);
 
   if (!hasLlama) {
     return {
-      suggestedModel: 'llama3.2',
+      suggestedModel: 'gemma3:4b',
       benefits: 'Fast and lightweight model for your system',
       installCommand: 'ollama pull llama3.2',
     };

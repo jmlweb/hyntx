@@ -316,7 +316,7 @@ export type EnvConfig = {
 export const ENV_DEFAULTS = {
   reminder: '7d',
   ollama: {
-    model: 'llama3.2',
+    model: 'gemma3:4b',
     host: 'http://localhost:11434',
   },
   anthropic: {

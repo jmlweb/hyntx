@@ -11,7 +11,7 @@ describe('model-suggester', () => {
     it('should suggest qwen2.5:14b when available with 8GB+ RAM', () => {
       const systemInfo: SystemInfo = { ramGB: 16 };
       const models: OllamaModelInfo[] = [
-        { name: 'llama3.2:latest', size: 2000000000 },
+        { name: 'gemma3:4b:latest', size: 2000000000 },
         { name: 'qwen2.5:14b', size: 9000000000 },
         { name: 'mistral:7b', size: 4000000000 },
       ];
@@ -25,7 +25,7 @@ describe('model-suggester', () => {
     it('should suggest mistral:7b when qwen not available but mistral is, with 8GB+ RAM', () => {
       const systemInfo: SystemInfo = { ramGB: 16 };
       const models: OllamaModelInfo[] = [
-        { name: 'llama3.2:latest', size: 2000000000 },
+        { name: 'gemma3:4b:latest', size: 2000000000 },
         { name: 'mistral:7b', size: 4000000000 },
       ];
 
@@ -35,30 +35,30 @@ describe('model-suggester', () => {
       expect(result.reason).toContain('Small Schema');
     });
 
-    it('should suggest llama3.2 when available with low RAM', () => {
+    it('should suggest gemma3:4b when available with low RAM', () => {
       const systemInfo: SystemInfo = { ramGB: 4 };
       const models: OllamaModelInfo[] = [
-        { name: 'llama3.2:latest', size: 2000000000 },
+        { name: 'gemma3:4b:latest', size: 2000000000 },
         { name: 'mistral:7b', size: 4000000000 },
       ];
 
       const result = suggestBestModel(systemInfo, models);
 
-      expect(result.suggestedModel).toBe('llama3.2');
+      expect(result.suggestedModel).toBe('gemma3:4b');
       expect(result.reason).toContain('lightweight');
     });
 
-    it('should fallback to llama3.2 when no models available', () => {
+    it('should fallback to gemma3:4b when no models available', () => {
       const systemInfo: SystemInfo = { ramGB: 16 };
       const models: OllamaModelInfo[] = [];
 
       const result = suggestBestModel(systemInfo, models);
 
-      expect(result.suggestedModel).toBe('llama3.2');
+      expect(result.suggestedModel).toBe('gemma3:4b');
       expect(result.reason).toContain('default');
     });
 
-    it('should fallback to llama3.2 when only unknown models available', () => {
+    it('should fallback to gemma3:4b when only unknown models available', () => {
       const systemInfo: SystemInfo = { ramGB: 16 };
       const models: OllamaModelInfo[] = [
         { name: 'unknown-model:latest', size: 5000000000 },
@@ -66,13 +66,13 @@ describe('model-suggester', () => {
 
       const result = suggestBestModel(systemInfo, models);
 
-      expect(result.suggestedModel).toBe('llama3.2');
+      expect(result.suggestedModel).toBe('gemma3:4b');
     });
 
     it('should prefer qwen2.5:14b over mistral:7b when both available with high RAM', () => {
       const systemInfo: SystemInfo = { ramGB: 32 };
       const models: OllamaModelInfo[] = [
-        { name: 'llama3.2:latest', size: 2000000000 },
+        { name: 'gemma3:4b:latest', size: 2000000000 },
         { name: 'mistral:7b', size: 4000000000 },
         { name: 'qwen2.5:14b', size: 9000000000 },
       ];
@@ -85,7 +85,7 @@ describe('model-suggester', () => {
     it('should handle models with tags (e.g., :latest)', () => {
       const systemInfo: SystemInfo = { ramGB: 16 };
       const models: OllamaModelInfo[] = [
-        { name: 'llama3.2:latest', size: 2000000000 },
+        { name: 'gemma3:4b:latest', size: 2000000000 },
         { name: 'mistral:7b-instruct', size: 4000000000 },
       ];
 
@@ -94,21 +94,21 @@ describe('model-suggester', () => {
       expect(result.suggestedModel).toContain('mistral');
     });
 
-    it('should suggest llama3.2 with exactly 8GB RAM when only llama3.2 available', () => {
+    it('should suggest gemma3:4b with exactly 8GB RAM when only gemma3:4b available', () => {
       const systemInfo: SystemInfo = { ramGB: 8 };
       const models: OllamaModelInfo[] = [
-        { name: 'llama3.2:latest', size: 2000000000 },
+        { name: 'gemma3:4b:latest', size: 2000000000 },
       ];
 
       const result = suggestBestModel(systemInfo, models);
 
-      expect(result.suggestedModel).toBe('llama3.2');
+      expect(result.suggestedModel).toBe('gemma3:4b');
     });
 
     it('should suggest mistral:7b with exactly 8GB RAM when available', () => {
       const systemInfo: SystemInfo = { ramGB: 8 };
       const models: OllamaModelInfo[] = [
-        { name: 'llama3.2:latest', size: 2000000000 },
+        { name: 'gemma3:4b:latest', size: 2000000000 },
         { name: 'mistral:7b', size: 4000000000 },
       ];
 
@@ -122,7 +122,7 @@ describe('model-suggester', () => {
     it('should suggest mistral:7b with 8GB+ RAM when not installed', () => {
       const systemInfo: SystemInfo = { ramGB: 16 };
       const models: OllamaModelInfo[] = [
-        { name: 'llama3.2:latest', size: 2000000000 },
+        { name: 'gemma3:4b:latest', size: 2000000000 },
       ];
 
       const result = getInstallationSuggestion(systemInfo, models);
@@ -132,21 +132,21 @@ describe('model-suggester', () => {
       expect(result?.benefits).toContain('Better analysis quality');
     });
 
-    it('should suggest llama3.2 with 4-7GB RAM when not installed', () => {
+    it('should suggest gemma3:4b with 4-7GB RAM when not installed', () => {
       const systemInfo: SystemInfo = { ramGB: 6 };
       const models: OllamaModelInfo[] = [];
 
       const result = getInstallationSuggestion(systemInfo, models);
 
       expect(result).not.toBeNull();
-      expect(result?.suggestedModel).toBe('llama3.2');
+      expect(result?.suggestedModel).toBe('gemma3:4b');
       expect(result?.benefits).toContain('Fast and lightweight');
     });
 
     it('should not suggest when mistral:7b already installed with 8GB+ RAM', () => {
       const systemInfo: SystemInfo = { ramGB: 16 };
       const models: OllamaModelInfo[] = [
-        { name: 'llama3.2:latest', size: 2000000000 },
+        { name: 'gemma3:4b:latest', size: 2000000000 },
         { name: 'mistral:7b', size: 4000000000 },
       ];
 
@@ -158,7 +158,7 @@ describe('model-suggester', () => {
     it('should not suggest when qwen2.5:14b already installed with 8GB+ RAM', () => {
       const systemInfo: SystemInfo = { ramGB: 16 };
       const models: OllamaModelInfo[] = [
-        { name: 'llama3.2:latest', size: 2000000000 },
+        { name: 'gemma3:4b:latest', size: 2000000000 },
         { name: 'qwen2.5:14b', size: 9000000000 },
       ];
 
@@ -167,10 +167,10 @@ describe('model-suggester', () => {
       expect(result).toBeNull();
     });
 
-    it('should not suggest when llama3.2 already installed with 4-7GB RAM', () => {
+    it('should not suggest when gemma3:4b already installed with 4-7GB RAM', () => {
       const systemInfo: SystemInfo = { ramGB: 6 };
       const models: OllamaModelInfo[] = [
-        { name: 'llama3.2:latest', size: 2000000000 },
+        { name: 'gemma3:4b:latest', size: 2000000000 },
       ];
 
       const result = getInstallationSuggestion(systemInfo, models);
@@ -201,7 +201,7 @@ describe('model-suggester', () => {
     it('should suggest with exactly 8GB RAM when mistral not installed', () => {
       const systemInfo: SystemInfo = { ramGB: 8 };
       const models: OllamaModelInfo[] = [
-        { name: 'llama3.2:latest', size: 2000000000 },
+        { name: 'gemma3:4b:latest', size: 2000000000 },
       ];
 
       const result = getInstallationSuggestion(systemInfo, models);
@@ -210,14 +210,14 @@ describe('model-suggester', () => {
       expect(result?.suggestedModel).toBe('mistral:7b');
     });
 
-    it('should suggest with exactly 4GB RAM when llama3.2 not installed', () => {
+    it('should suggest with exactly 4GB RAM when gemma3:4b not installed', () => {
       const systemInfo: SystemInfo = { ramGB: 4 };
       const models: OllamaModelInfo[] = [];
 
       const result = getInstallationSuggestion(systemInfo, models);
 
       expect(result).not.toBeNull();
-      expect(result?.suggestedModel).toBe('llama3.2');
+      expect(result?.suggestedModel).toBe('gemma3:4b');
     });
   });
 
@@ -227,7 +227,7 @@ describe('model-suggester', () => {
       const models: OllamaModelInfo[] = [];
 
       const modelSuggestion = suggestBestModel(systemInfo, models);
-      expect(modelSuggestion.suggestedModel).toBe('llama3.2');
+      expect(modelSuggestion.suggestedModel).toBe('gemma3:4b');
 
       const installSuggestion = getInstallationSuggestion(systemInfo, models);
       expect(installSuggestion).not.toBeNull();
@@ -247,11 +247,11 @@ describe('model-suggester', () => {
     it('should handle very low RAM values', () => {
       const systemInfo: SystemInfo = { ramGB: 1 };
       const models: OllamaModelInfo[] = [
-        { name: 'llama3.2:latest', size: 2000000000 },
+        { name: 'gemma3:4b:latest', size: 2000000000 },
       ];
 
       const modelSuggestion = suggestBestModel(systemInfo, models);
-      expect(modelSuggestion.suggestedModel).toBe('llama3.2');
+      expect(modelSuggestion.suggestedModel).toBe('gemma3:4b');
 
       const installSuggestion = getInstallationSuggestion(systemInfo, models);
       expect(installSuggestion).toBeNull(); // Too little RAM

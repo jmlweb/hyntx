@@ -2,13 +2,13 @@
 
 ## Executive Summary
 
-**Minimum viable model: `llama3.2` (2-3B parameters, ~2GB disk, ~2-5s/prompt CPU)**
+**Minimum viable model: `gemma3:4b` (2-3B parameters, ~2GB disk, ~2-5s/prompt CPU)**
 
 This document documents the findings from the analysis to determine the minimum viable Ollama model that can generate valid and useful results with Hyntx.
 
 **Quick recommendations**:
 
-- **Minimal viable**: `llama3.2` (2B) - Fast, lightweight, good for daily use
+- **Minimal viable**: `gemma3:4b` (2B) - Fast, lightweight, good for daily use
 - **Production quality**: `mistral:7b` (7B) - Better analysis, moderate resources
 - **Maximum quality**: `qwen2.5:14b` or `llama3:70b` - Full schema, requires GPU for 70B
 
@@ -35,14 +35,14 @@ Hyntx uses an adaptive system that adjusts the analysis schema based on model si
 
 | Model       | Parameters | Disk Size | Schema  | Result   | Quality   | Speed (CPU)  |
 | ----------- | ---------- | --------- | ------- | -------- | --------- | ------------ |
-| `llama3.2`  | 2-3B       | ~2GB      | Minimal | ✅ Works | Excellent | ~2-5s/prompt |
+| `gemma3:4b` | 2-3B       | ~2GB      | Minimal | ✅ Works | Excellent | ~2-5s/prompt |
 | `gemma3:4b` | 4B         | ~3.3GB    | Minimal | ✅ Works | Excellent | ~3-6s/prompt |
 
 ### Quality Analysis
 
 **Test performed**: Analysis of 52 prompts from current day
 
-**Results with `llama3.2`**:
+**Results with `gemma3:4b`**:
 
 - ✅ Valid JSON generated correctly
 - ✅ Valid and consistent issue IDs (no-context, vague, too-broad, imperative)
@@ -53,7 +53,7 @@ Hyntx uses an adaptive system that adjusts the analysis schema based on model si
 
 **Results with `gemma3:4b`**:
 
-- ✅ Identical results to `llama3.2`
+- ✅ Identical results to `gemma3:4b`
 - ✅ Same quality and consistency
 - ✅ No notable differences
 
@@ -71,7 +71,7 @@ Models with fewer parameters or poor instruction-following capabilities will hav
 
 ## Recommended Minimum Model
 
-### `llama3.2` (default)
+### `gemma3:4b` (default)
 
 **Reasons**:
 
@@ -85,7 +85,7 @@ Models with fewer parameters or poor instruction-following capabilities will hav
 **Configuration**:
 
 ```bash
-export HYNTX_OLLAMA_MODEL=llama3.2
+export HYNTX_OLLAMA_MODEL=gemma3:4b
 export HYNTX_OLLAMA_HOST=http://localhost:11434
 ```
 
@@ -97,7 +97,7 @@ export HYNTX_OLLAMA_HOST=http://localhost:11434
 
 **Why it's the balanced choice**:
 
-- ✅ **Better quality**: Uses the "Small Schema" (more detailed than Minimal Schema used by `llama3.2`)
+- ✅ **Better quality**: Uses the "Small Schema" (more detailed than Minimal Schema used by `gemma3:4b`)
   - Better analysis quality with pattern detection and basic analysis
   - Some custom examples extracted from your prompts
   - Basic contextual information included
@@ -119,7 +119,7 @@ export HYNTX_OLLAMA_MODEL=mistral:7b
 
 **When to use `mistral:7b`**:
 
-- You want better analysis quality than `llama3.2` but don't need maximum quality
+- You want better analysis quality than `gemma3:4b` but don't need maximum quality
 - You have modern hardware (8GB+ RAM, modern CPU)
 - You're doing production analysis or code reviews
 - You want custom examples from your prompts (not just taxonomy-based examples)
@@ -136,7 +136,7 @@ export HYNTX_OLLAMA_MODEL=mistral:7b
 
 | Model       | Parameters | Disk Size | Speed (CPU)  | Status                   |
 | ----------- | ---------- | --------- | ------------ | ------------------------ |
-| `llama3.2`  | 2-3B       | ~2GB      | ~2-5s/prompt | ✅ Recommended (default) |
+| `gemma3:4b` | 2-3B       | ~2GB      | ~2-5s/prompt | ✅ Recommended (default) |
 | `gemma3:4b` | 4B         | ~3.3GB    | ~3-6s/prompt | ✅ Tested, works well    |
 | `phi3:mini` | 3.8B       | ~2.3GB    | ~3-5s/prompt | Expected to work         |
 | `gemma2:2b` | 2B         | ~1.6GB    | ~1-3s/prompt | Theoretically viable     |
@@ -204,7 +204,7 @@ For better quality, use models that support full schema (≥ 8B parameters).
 ### For Development/Testing (Minimal Schema)
 
 ```bash
-export HYNTX_OLLAMA_MODEL=llama3.2
+export HYNTX_OLLAMA_MODEL=gemma3:4b
 ```
 
 - **Parameters**: 2-3B
@@ -252,7 +252,7 @@ ollama list
 
 # Test with Hyntx
 export HYNTX_SERVICES=ollama
-export HYNTX_OLLAMA_MODEL=llama3.2
+export HYNTX_OLLAMA_MODEL=gemma3:4b
 hyntx --date today --output test.json
 
 # Verify valid JSON
@@ -278,7 +278,7 @@ If the command generates valid JSON with patterns, the model is viable.
 
 ## Conclusion
 
-**The confirmed minimum viable model is `llama3.2` (2-3B parameters, ~2GB disk)**.
+**The confirmed minimum viable model is `gemma3:4b` (2-3B parameters, ~2GB disk)**.
 
 This model:
 
@@ -290,12 +290,12 @@ This model:
 
 **Recommendations by use case**:
 
-- **Daily development**: `llama3.2` (2-3B) - Minimal schema
+- **Daily development**: `gemma3:4b` (2-3B) - Minimal schema
 - **Production analysis**: `mistral:7b` (7B) - Small schema
 - **Team retrospectives**: `qwen2.5:14b` (14B) - Full schema
 - **Maximum quality**: `llama3:70b` (70B) - Full schema (GPU needed)
 
-Most users will find `llama3.2` sufficient. For deeper analysis, use models ≥ 7B parameters that support small or full schemas.
+Most users will find `gemma3:4b` sufficient. For deeper analysis, use models ≥ 7B parameters that support small or full schemas.
 
 ## Benchmark Results (2026-01-27)
 
@@ -312,13 +312,13 @@ Most users will find `llama3.2` sufficient. For deeper analysis, use models ≥ 
 | gemma3:4b    | 44s ⚡ | 6/10  | 5        | ✅ **Best choice**        |
 | codellama:7b | 82s    | 8/10  | 1        | ❌ Returns placeholders   |
 | mistral:7b   | 89s    | 4/10  | 5        | ✅ Good                   |
-| llama3.2     | 207s   | 6/10  | 5        | ⚠️ Slow, had counting bug |
+| gemma3:4b    | 207s   | 6/10  | 5        | ⚠️ Slow, had counting bug |
 
 ### Key Findings
 
-1. **gemma3:4b is the recommended default** - 4x faster than llama3.2 with better results
+1. **gemma3:4b is the recommended default** - 4x faster than gemma3:4b with better results
 2. **codellama:7b is NOT recommended** - Returns placeholder text instead of real analysis
-3. **llama3.2 has bugs** - Reported 44 prompts when only 9 were analyzed (fixed in code)
+3. **gemma3:4b has bugs** - Reported 44 prompts when only 9 were analyzed (fixed in code)
 4. **mistral:7b is reliable** - Good quality but slower than gemma3:4b
 
 ### Recommendation Update
