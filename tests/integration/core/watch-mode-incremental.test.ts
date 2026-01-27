@@ -110,7 +110,7 @@ describe('Watch Mode - Incremental Analysis', () => {
         {
           date: '2025-01-20',
           provider: 'test-provider',
-          model: 'llama3.2',
+          model: 'gemma3:4b',
           schemaType: 'full',
         },
       );
@@ -118,7 +118,7 @@ describe('Watch Mode - Incremental Analysis', () => {
       // Verify result was saved
       const cached = await getPromptResult('Fix authentication bug', {
         date: '2025-01-20',
-        model: 'llama3.2',
+        model: 'gemma3:4b',
         schemaType: 'full',
       });
 
@@ -145,7 +145,7 @@ describe('Watch Mode - Incremental Analysis', () => {
 
       await populateResultsCache(resultsDir, cachedPrompts, {
         date: '2025-01-20',
-        model: 'llama3.2',
+        model: 'gemma3:4b',
         schemaType: 'full',
       });
 
@@ -163,7 +163,7 @@ describe('Watch Mode - Incremental Analysis', () => {
         // Check if prompt is cached
         const cached = await getPromptResult(event.prompt.content, {
           date: event.prompt.date,
-          model: 'llama3.2',
+          model: 'gemma3:4b',
           schemaType: 'full',
         });
 
@@ -222,7 +222,7 @@ describe('Watch Mode - Incremental Analysis', () => {
         [{ content: 'Add tests', result: cachedResult }],
         {
           date: '2025-01-20',
-          model: 'llama3.2',
+          model: 'gemma3:4b',
           schemaType: 'full',
         },
       );
@@ -246,7 +246,7 @@ describe('Watch Mode - Incremental Analysis', () => {
         const startTime = Date.now();
         const cached = await getPromptResult(event.prompt.content, {
           date: event.prompt.date,
-          model: 'llama3.2',
+          model: 'gemma3:4b',
           schemaType: 'full',
         });
         const retrievalTime = Date.now() - startTime;
@@ -293,7 +293,7 @@ describe('Watch Mode - Incremental Analysis', () => {
         {
           date: '2025-01-20',
           project: 'test-project',
-          model: 'llama3.2',
+          model: 'gemma3:4b',
           schemaType: 'full',
         },
       );
@@ -312,7 +312,7 @@ describe('Watch Mode - Incremental Analysis', () => {
         const cached = await getPromptResult(event.prompt.content, {
           date: event.prompt.date,
           project: event.prompt.project,
-          model: 'llama3.2',
+          model: 'gemma3:4b',
           schemaType: 'full',
         });
 
@@ -463,7 +463,7 @@ describe('Watch Mode - Incremental Analysis', () => {
         try {
           await getPromptResult(event.prompt.content, {
             date: event.prompt.date,
-            model: 'llama3.2',
+            model: 'gemma3:4b',
             schemaType: 'full',
           });
         } catch {
@@ -515,7 +515,7 @@ describe('Watch Mode - Incremental Analysis', () => {
         // Check cache
         const cached = await getPromptResult(event.prompt.content, {
           date: event.prompt.date,
-          model: 'llama3.2',
+          model: 'gemma3:4b',
           schemaType: 'full',
         });
 
@@ -535,7 +535,7 @@ describe('Watch Mode - Incremental Analysis', () => {
             {
               date: event.prompt.date,
               provider: 'test-provider',
-              model: 'llama3.2',
+              model: 'gemma3:4b',
               schemaType: 'full',
             },
           );

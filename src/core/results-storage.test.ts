@@ -73,7 +73,7 @@ const mockMetadata: Omit<PromptResultMetadata, 'promptHash' | 'analyzedAt'> = {
   date: '2025-12-26',
   project: 'test-project',
   provider: 'ollama',
-  model: 'llama3.2',
+  model: 'gemma3:4b',
   schemaType: 'full',
 };
 
@@ -104,14 +104,14 @@ describe('getPromptResultHash', () => {
     const hash1 = getPromptResultHash('test prompt', {
       date: '2025-12-26',
       project: 'project1',
-      model: 'llama3.2',
+      model: 'gemma3:4b',
       schemaType: 'full',
     });
 
     const hash2 = getPromptResultHash('test prompt', {
       date: '2025-12-26',
       project: 'project1',
-      model: 'llama3.2',
+      model: 'gemma3:4b',
       schemaType: 'full',
     });
 
@@ -123,14 +123,14 @@ describe('getPromptResultHash', () => {
     const hash1 = getPromptResultHash('prompt 1', {
       date: '2025-12-26',
       project: 'project1',
-      model: 'llama3.2',
+      model: 'gemma3:4b',
       schemaType: 'full',
     });
 
     const hash2 = getPromptResultHash('prompt 2', {
       date: '2025-12-26',
       project: 'project1',
-      model: 'llama3.2',
+      model: 'gemma3:4b',
       schemaType: 'full',
     });
 
@@ -141,14 +141,14 @@ describe('getPromptResultHash', () => {
     const hash1 = getPromptResultHash('test prompt', {
       date: '2025-12-26',
       project: 'project1',
-      model: 'llama3.2',
+      model: 'gemma3:4b',
       schemaType: 'full',
     });
 
     const hash2 = getPromptResultHash('test prompt', {
       date: '2025-12-27',
       project: 'project1',
-      model: 'llama3.2',
+      model: 'gemma3:4b',
       schemaType: 'full',
     });
 
@@ -159,14 +159,14 @@ describe('getPromptResultHash', () => {
     const hash1 = getPromptResultHash('test prompt', {
       date: '2025-12-26',
       project: 'project1',
-      model: 'llama3.2',
+      model: 'gemma3:4b',
       schemaType: 'full',
     });
 
     const hash2 = getPromptResultHash('test prompt', {
       date: '2025-12-26',
       project: 'project2',
-      model: 'llama3.2',
+      model: 'gemma3:4b',
       schemaType: 'full',
     });
 
@@ -177,7 +177,7 @@ describe('getPromptResultHash', () => {
     const hash1 = getPromptResultHash('test prompt', {
       date: '2025-12-26',
       project: 'project1',
-      model: 'llama3.2',
+      model: 'gemma3:4b',
       schemaType: 'full',
     });
 
@@ -195,14 +195,14 @@ describe('getPromptResultHash', () => {
     const hash1 = getPromptResultHash('test prompt', {
       date: '2025-12-26',
       project: 'project1',
-      model: 'llama3.2',
+      model: 'gemma3:4b',
       schemaType: 'full',
     });
 
     const hash2 = getPromptResultHash('test prompt', {
       date: '2025-12-26',
       project: 'project1',
-      model: 'llama3.2',
+      model: 'gemma3:4b',
       schemaType: 'minimal',
     });
 
@@ -213,14 +213,14 @@ describe('getPromptResultHash', () => {
     const hash1 = getPromptResultHash('test prompt', {
       date: '2025-12-26',
       project: undefined,
-      model: 'llama3.2',
+      model: 'gemma3:4b',
       schemaType: 'full',
     });
 
     const hash2 = getPromptResultHash('test prompt', {
       date: '2025-12-26',
       project: undefined,
-      model: 'llama3.2',
+      model: 'gemma3:4b',
       schemaType: 'full',
     });
 
@@ -235,7 +235,7 @@ describe('getPromptResultHash', () => {
     const hash1 = getPromptResultHash('test', {
       date: '2025-12-26',
       project: 'test',
-      model: 'llama3.2',
+      model: 'gemma3:4b',
       schemaType: 'full',
     });
 
