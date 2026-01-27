@@ -68,7 +68,7 @@ describe('setup', () => {
     it('should complete successfully with ollama provider selected', async () => {
       vi.mocked(prompts)
         .mockResolvedValueOnce({ providers: ['ollama'] }) // Provider selection
-        .mockResolvedValueOnce({ model: 'llama3.2' }) // Ollama model
+        .mockResolvedValueOnce({ model: 'gemma3:4b' }) // Ollama model
         .mockResolvedValueOnce({ host: 'http://localhost:11434' }) // Ollama host
         .mockResolvedValueOnce({ reminder: '7d' }) // Reminder
         .mockResolvedValueOnce({ saveToShell: true }); // Save to shell
@@ -140,7 +140,7 @@ describe('setup', () => {
     it('should handle multiple providers selected', async () => {
       vi.mocked(prompts)
         .mockResolvedValueOnce({ providers: ['ollama', 'anthropic'] })
-        .mockResolvedValueOnce({ model: 'llama3.2' }) // Ollama model
+        .mockResolvedValueOnce({ model: 'gemma3:4b' }) // Ollama model
         .mockResolvedValueOnce({ host: 'http://localhost:11434' }) // Ollama host
         .mockResolvedValueOnce({ model: 'claude-3-5-haiku-latest' }) // Anthropic model
         .mockResolvedValueOnce({ apiKey: 'sk-test-key' }) // Anthropic key
@@ -191,7 +191,7 @@ describe('setup', () => {
       const { EXIT_CODES } = await import('../types/index.js');
       vi.mocked(prompts)
         .mockResolvedValueOnce({ providers: ['ollama'] })
-        .mockResolvedValueOnce({ model: 'llama3.2' })
+        .mockResolvedValueOnce({ model: 'gemma3:4b' })
         .mockResolvedValueOnce({ host: 'http://localhost:11434' })
         .mockResolvedValueOnce({ reminder: '7d' })
         .mockResolvedValueOnce({}); // User cancelled - empty response
@@ -211,7 +211,7 @@ describe('setup', () => {
     it('should set environment variables for selected providers', async () => {
       vi.mocked(prompts)
         .mockResolvedValueOnce({ providers: ['ollama'] })
-        .mockResolvedValueOnce({ model: 'llama3.2' })
+        .mockResolvedValueOnce({ model: 'gemma3:4b' })
         .mockResolvedValueOnce({ host: 'http://localhost:11434' })
         .mockResolvedValueOnce({ reminder: '7d' })
         .mockResolvedValueOnce({ saveToShell: false });
@@ -227,7 +227,7 @@ describe('setup', () => {
     it('should not set anthropic env vars if provider not selected', async () => {
       vi.mocked(prompts)
         .mockResolvedValueOnce({ providers: ['ollama'] })
-        .mockResolvedValueOnce({ model: 'llama3.2' })
+        .mockResolvedValueOnce({ model: 'gemma3:4b' })
         .mockResolvedValueOnce({ host: 'http://localhost:11434' })
         .mockResolvedValueOnce({ reminder: 'never' })
         .mockResolvedValueOnce({ saveToShell: false });
@@ -241,7 +241,7 @@ describe('setup', () => {
     it('should call saveConfigToShell when user confirms', async () => {
       vi.mocked(prompts)
         .mockResolvedValueOnce({ providers: ['ollama'] })
-        .mockResolvedValueOnce({ model: 'llama3.2' })
+        .mockResolvedValueOnce({ model: 'gemma3:4b' })
         .mockResolvedValueOnce({ host: 'http://localhost:11434' })
         .mockResolvedValueOnce({ reminder: '7d' })
         .mockResolvedValueOnce({ saveToShell: true });
@@ -265,7 +265,7 @@ describe('setup', () => {
     it('should show manual instructions when saveConfigToShell fails', async () => {
       vi.mocked(prompts)
         .mockResolvedValueOnce({ providers: ['ollama'] })
-        .mockResolvedValueOnce({ model: 'llama3.2' })
+        .mockResolvedValueOnce({ model: 'gemma3:4b' })
         .mockResolvedValueOnce({ host: 'http://localhost:11434' })
         .mockResolvedValueOnce({ reminder: '7d' })
         .mockResolvedValueOnce({ saveToShell: true });
@@ -285,7 +285,7 @@ describe('setup', () => {
     it('should show manual instructions when user declines save', async () => {
       vi.mocked(prompts)
         .mockResolvedValueOnce({ providers: ['ollama'] })
-        .mockResolvedValueOnce({ model: 'llama3.2' })
+        .mockResolvedValueOnce({ model: 'gemma3:4b' })
         .mockResolvedValueOnce({ host: 'http://localhost:11434' })
         .mockResolvedValueOnce({ reminder: '7d' })
         .mockResolvedValueOnce({ saveToShell: false });
@@ -299,7 +299,7 @@ describe('setup', () => {
     it('should handle undefined saveToShell response (defaults to false)', async () => {
       vi.mocked(prompts)
         .mockResolvedValueOnce({ providers: ['ollama'] })
-        .mockResolvedValueOnce({ model: 'llama3.2' })
+        .mockResolvedValueOnce({ model: 'gemma3:4b' })
         .mockResolvedValueOnce({ host: 'http://localhost:11434' })
         .mockResolvedValueOnce({ reminder: '7d' })
         .mockResolvedValueOnce({ saveToShell: undefined });
@@ -328,7 +328,7 @@ describe('setup', () => {
     it('should handle reminder never option', async () => {
       vi.mocked(prompts)
         .mockResolvedValueOnce({ providers: ['ollama'] })
-        .mockResolvedValueOnce({ model: 'llama3.2' })
+        .mockResolvedValueOnce({ model: 'gemma3:4b' })
         .mockResolvedValueOnce({ host: 'http://localhost:11434' })
         .mockResolvedValueOnce({ reminder: 'never' })
         .mockResolvedValueOnce({ saveToShell: false });
@@ -343,7 +343,7 @@ describe('setup', () => {
     it('should update config when reminder is not never', async () => {
       vi.mocked(prompts)
         .mockResolvedValueOnce({ providers: ['ollama'] })
-        .mockResolvedValueOnce({ model: 'llama3.2' })
+        .mockResolvedValueOnce({ model: 'gemma3:4b' })
         .mockResolvedValueOnce({ host: 'http://localhost:11434' })
         .mockResolvedValueOnce({ reminder: '30d' })
         .mockResolvedValueOnce({ saveToShell: false });
@@ -386,7 +386,7 @@ describe('setup', () => {
       const config: EnvConfig = {
         services: ['ollama'],
         reminder: '7d',
-        ollama: { model: 'llama3.2', host: 'http://localhost:11434' },
+        ollama: { model: 'gemma3:4b', host: 'http://localhost:11434' },
         anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
         google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
       };
@@ -405,7 +405,7 @@ describe('setup', () => {
       const config: EnvConfig = {
         services: ['ollama'],
         reminder: 'never',
-        ollama: { model: 'llama3.2', host: 'http://localhost:11434' },
+        ollama: { model: 'gemma3:4b', host: 'http://localhost:11434' },
         anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
         google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
       };
