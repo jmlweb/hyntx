@@ -1,3 +1,13 @@
+## [3.0.1](https://github.com/jmlweb/hyntx/compare/v3.0.0...v3.0.1) (2026-01-27)
+
+### Bug Fixes
+
+- correct start script to use cli.js instead of index.js ([011670e](https://github.com/jmlweb/hyntx/commit/011670e4776a0c6327d3218a1f37ba49e7a563fa))
+
+### Documentation
+
+- update project status from NOT READY to BETA ([f6a6d8f](https://github.com/jmlweb/hyntx/commit/f6a6d8fa52fd2a76a17a085eee17339b17e00201))
+
 ## [3.0.0](https://github.com/jmlweb/hyntx/compare/v2.7.1...v3.0.0) (2026-01-27)
 
 ### ⚠ BREAKING CHANGES
