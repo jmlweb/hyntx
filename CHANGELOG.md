@@ -1,3 +1,13 @@
+## [2.7.1](https://github.com/jmlweb/hyntx/compare/v2.7.0...v2.7.1) (2026-01-27)
+
+### Bug Fixes
+
+- validate responses and fix totalPrompts count ([#63](https://github.com/jmlweb/hyntx/issues/63)) ([8fa5e0e](https://github.com/jmlweb/hyntx/commit/8fa5e0ec348841208f8ccd70a851fa18d9413480))
+
+### Documentation
+
+- **mcp:** fix Claude Code MCP configuration paths ([4c17842](https://github.com/jmlweb/hyntx/commit/4c17842ff616c997851637eb26b17363bbc787e4))
+
 ## [2.7.0](https://github.com/jmlweb/hyntx/compare/v2.6.0...v2.7.0) (2025-12-28)
 
 ### Features
