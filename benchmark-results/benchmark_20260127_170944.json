@@ -1,0 +1,56 @@
+{
+  "benchmark_timestamp": "2026-01-27T16:09:44Z",
+  "date_analyzed": "2026-01-02",
+  "project": "hyntx",
+  "system_info": {
+    "hostname": "MacBook Jose Manuel",
+    "os": "Darwin",
+    "arch": "arm64"
+  },
+  "results": [
+    {
+      "model": "llama3.2",
+      "status": "success",
+      "duration_seconds": 207.016034,
+      "metrics": {
+        "total_prompts": 44,
+        "overall_score": 6,
+        "patterns_detected": 5
+      },
+      "top_suggestion": "Provide more context or clarify the desired action, e.g., 'Please commit the latest package updates' or 'Can you review and commit the changes to the package?'"
+    },
+    {
+      "model": "mistral:7b",
+      "status": "success",
+      "duration_seconds": 89.514771,
+      "metrics": {
+        "total_prompts": 9,
+        "overall_score": 4,
+        "patterns_detected": 5
+      },
+      "top_suggestion": "Make requests more specific by including function names or error messages when applicable."
+    },
+    {
+      "model": "codellama:7b",
+      "status": "success",
+      "duration_seconds": 82.111057,
+      "metrics": {
+        "total_prompts": 9,
+        "overall_score": 8,
+        "patterns_detected": 1
+      },
+      "top_suggestion": "Provide more specific details about the issue you are facing."
+    },
+    {
+      "model": "gemma3:4b",
+      "status": "success",
+      "duration_seconds": 44.604466,
+      "metrics": {
+        "total_prompts": 8,
+        "overall_score": 6,
+        "patterns_detected": 5
+      },
+      "top_suggestion": "Provide a clear and specific command or task.  Instead of a generic 'execute this', state *what* you want the AI to do.  Include the command itself, the target file, or the desired outcome."
+    }
+  ]
+}

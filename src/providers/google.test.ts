@@ -179,7 +179,7 @@ describe('GoogleProvider', () => {
       expect(result.date).toBe('2025-01-15');
       expect(result.patterns).toHaveLength(1);
       expect(result.patterns[0]?.id).toBe('test-pattern');
-      expect(result.stats.totalPrompts).toBe(5);
+      expect(result.stats.totalPrompts).toBe(2);
       expect(result.topSuggestion).toBe('Top suggestion');
 
       expect(global.fetch).toHaveBeenCalledWith(

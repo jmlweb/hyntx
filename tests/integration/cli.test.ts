@@ -101,7 +101,7 @@ describe('CLI Integration - Full Workflow', () => {
 
     process.env['HYNTX_CLAUDE_PROJECTS_DIR'] = projectsDir;
     process.env['HYNTX_SERVICES'] = 'ollama';
-    process.env['HYNTX_OLLAMA_MODEL'] = 'llama3.2';
+    process.env['HYNTX_OLLAMA_MODEL'] = 'qwen2.5:14b';
     process.env['HYNTX_OLLAMA_HOST'] = 'http://localhost:11434';
 
     // Mock Ollama availability
@@ -132,7 +132,7 @@ describe('CLI Integration - Full Workflow', () => {
     vi.spyOn(global, 'fetch')
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ models: [{ name: 'llama3.2' }] }),
+        json: async () => ({ models: [{ name: 'qwen2.5:14b' }] }),
       } as Response)
       .mockResolvedValue(mockResponse);
 
@@ -264,14 +264,14 @@ describe('CLI Integration - Full Workflow', () => {
 
   it('should handle config health check flag', async () => {
     process.env['HYNTX_SERVICES'] = 'ollama,anthropic';
-    process.env['HYNTX_OLLAMA_MODEL'] = 'llama3.2';
+    process.env['HYNTX_OLLAMA_MODEL'] = 'qwen2.5:14b';
     process.env['HYNTX_ANTHROPIC_API_KEY'] = 'sk-ant-test';
 
     // Mock provider availability
     vi.spyOn(global, 'fetch')
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ models: [{ name: 'llama3.2' }] }),
+        json: async () => ({ models: [{ name: 'qwen2.5:14b' }] }),
       } as Response)
       .mockResolvedValueOnce({
         ok: true,

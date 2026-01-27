@@ -296,3 +296,35 @@ This model:
 - **Maximum quality**: `llama3:70b` (70B) - Full schema (GPU needed)
 
 Most users will find `llama3.2` sufficient. For deeper analysis, use models ≥ 7B parameters that support small or full schemas.
+
+## Benchmark Results (2026-01-27)
+
+### Test Configuration
+
+- **Prompts analyzed**: 9 prompts from hyntx project
+- **Hardware**: MacBook (Apple Silicon arm64)
+- **Date of logs**: 2026-01-02
+
+### Results by Model
+
+| Model        | Time   | Score | Patterns | Status                    |
+| ------------ | ------ | ----- | -------- | ------------------------- |
+| gemma3:4b    | 44s ⚡ | 6/10  | 5        | ✅ **Best choice**        |
+| codellama:7b | 82s    | 8/10  | 1        | ❌ Returns placeholders   |
+| mistral:7b   | 89s    | 4/10  | 5        | ✅ Good                   |
+| llama3.2     | 207s   | 6/10  | 5        | ⚠️ Slow, had counting bug |
+
+### Key Findings
+
+1. **gemma3:4b is the recommended default** - 4x faster than llama3.2 with better results
+2. **codellama:7b is NOT recommended** - Returns placeholder text instead of real analysis
+3. **llama3.2 has bugs** - Reported 44 prompts when only 9 were analyzed (fixed in code)
+4. **mistral:7b is reliable** - Good quality but slower than gemma3:4b
+
+### Recommendation Update
+
+Based on these benchmarks, the recommended models are:
+
+1. **Daily use**: `gemma3:4b` (fast, accurate)
+2. **Fallback**: `mistral:7b` (slower but reliable)
+3. **Avoid**: `codellama:7b` (returns placeholder text)

@@ -11,6 +11,7 @@ import {
   createMockAnalysis,
   createMockErrorResponse,
   createMockProviderResponse,
+  createMockBatchIndividualResponse,
 } from '../helpers/test-utils.js';
 
 import type { EnvConfig } from '../../src/types/index.js';
@@ -186,7 +187,7 @@ describe('Provider E2E - Ollama Provider', () => {
     };
 
     const mockAnalysis = createMockAnalysis();
-    const mockResponse = createMockProviderResponse(mockAnalysis);
+    const mockResponse = createMockBatchIndividualResponse(['test prompt']);
 
     vi.spyOn(global, 'fetch').mockResolvedValue(mockResponse);
 
