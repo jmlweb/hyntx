@@ -19,6 +19,26 @@ import {
   type ProjectContext,
 } from '../types/index.js';
 import { logger } from '../utils/logger-base.js';
+
+/**
+ * Placeholder patterns that indicate the model copied the schema instead of analyzing.
+ */
+const PLACEHOLDER_PATTERNS = [
+  'kebab-case-id',
+  'Original problematic prompt',
+  'Improved version addressing the issue',
+  'example prompt 1',
+  'Human-Readable Issue Name',
+] as const;
+
+/**
+ * Checks if response contains placeholder text from the schema.
+ */
+function containsPlaceholders(response: string): boolean {
+  const lower = response.toLowerCase();
+  return PLACEHOLDER_PATTERNS.some((p) => lower.includes(p.toLowerCase()));
+}
+
 import {
   ISSUE_TAXONOMY,
   type IssueTaxonomy,
@@ -256,6 +276,13 @@ export function parseResponse(
     }
   }
 
+  // Reject responses that contain placeholder text from schema
+  if (containsPlaceholders(response)) {
+    throw new Error(
+      'Response contains placeholder text - model did not provide real analysis',
+    );
+  }
+
   // Try schemas in order: minimal → simple → full
 
   // 1. Try minimal schema (for small models)
@@ -298,6 +325,8 @@ export function parseResponse(
       patterns: normalizedPatterns,
       stats: {
         ...parsed.stats,
+        // Override totalPrompts with actual count if prompts provided
+        totalPrompts: prompts?.length ?? parsed.stats.totalPrompts,
         overallScore: normalizeScore(parsed.stats.overallScore),
       },
       topSuggestion: parsed.topSuggestion,
