@@ -403,3 +403,46 @@ export const generatePerformanceTestData = (
 
   return results;
 };
+
+/**
+ * Individual prompt result for batch-individual mode.
+ * Used by Ollama and other providers that analyze prompts individually.
+ */
+export type MockIndividualPromptResult = {
+  status: 'correct' | 'problems';
+  problems: string[];
+  categories: string[];
+  example: string;
+  suggestion: string;
+};
+
+/**
+ * Creates a mock batch-individual response for Ollama provider.
+ * This format is used when analyzing prompts individually (micro/small models).
+ *
+ * @param prompts - Array of prompt strings to analyze
+ * @param hasProblems - Whether to mark prompts as having problems (default: true)
+ * @returns A mock Response object with batch-individual format
+ */
+export const createMockBatchIndividualResponse = (
+  prompts: string[],
+  hasProblems = true,
+): Response => {
+  const results: MockIndividualPromptResult[] = prompts.map((prompt) => ({
+    status: hasProblems ? 'problems' : 'correct',
+    problems: hasProblems ? ['Missing context', 'Too vague'] : [],
+    categories: hasProblems ? ['missing_context', 'vague'] : [],
+    example: prompt,
+    suggestion: hasProblems
+      ? `Add more context: "${prompt}" -> "${prompt} in the authentication module"`
+      : 'Good prompt!',
+  }));
+
+  return {
+    ok: true,
+    status: 200,
+    statusText: 'OK',
+    json: async () => ({ response: JSON.stringify(results) }),
+    text: async () => JSON.stringify({ response: JSON.stringify(results) }),
+  } as Response;
+};
