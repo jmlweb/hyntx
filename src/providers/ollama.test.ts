@@ -375,7 +375,7 @@ describe('OllamaProvider', () => {
         'Failed to parse response as JSON',
       );
 
-      expect(global.fetch).toHaveBeenCalledTimes(1); // No retries for parse errors
+      expect(global.fetch).toHaveBeenCalledTimes(3); // Tries all 3 temperature levels before failing
     });
 
     it('should not retry on schema validation errors', async () => {
@@ -390,7 +390,7 @@ describe('OllamaProvider', () => {
         'Response does not match expected schema',
       );
 
-      expect(global.fetch).toHaveBeenCalledTimes(1); // No retries for schema errors
+      expect(global.fetch).toHaveBeenCalledTimes(3); // Tries all 3 temperature levels before failing
     });
 
     it('should use exponential backoff for retries', async () => {
