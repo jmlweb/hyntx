@@ -133,32 +133,48 @@ export const ISSUE_TAXONOMY: IssueTaxonomy = {
  * Minimal system prompt for small models.
  * Returns only issue IDs and score - no examples or detailed metadata.
  */
-export const SYSTEM_PROMPT_MINIMAL = `You analyze prompts for quality issues.
+export const SYSTEM_PROMPT_MINIMAL = `You analyze coding prompts for quality issues.
 Respond with JSON only: {"issues": ["issue-id", ...], "score": 0-100}
 
 Valid issue IDs: vague, no-context, too-broad, no-goal, imperative, missing-technical-details, unclear-priorities, insufficient-constraints
 
 Issue definitions:
-- vague: Generic requests without specifics ("help", "fix", "improve")
-- no-context: Missing background info (uses "this", "it", "the bug" without context)
-- too-broad: Requests covering multiple unrelated topics
-- no-goal: Ambiguous success criteria or desired outcome
-- imperative: Commands without explanation or reasoning
-- missing-technical-details: No file paths, function names, or error messages
-- unclear-priorities: Multiple requests without ordering
-- insufficient-constraints: No requirements or edge cases mentioned
+- vague: Generic verbs without objects ("help", "fix", "improve" alone)
+- no-context: References without context ("this", "it", "the bug")
+- too-broad: Multiple unrelated tasks in one request
+- no-goal: No clear desired outcome or success criteria
+- imperative: Commands without explanation ("Add button")
+- missing-technical-details: No file paths, function names, errors
+- unclear-priorities: Multiple tasks without ordering
+- insufficient-constraints: No requirements or edge cases
 
-Scoring: 0-100 (100=perfect, 90+=excellent, 70-89=good, 50-69=fair, <50=poor)
+Scoring guide:
+- 90-100: Specific file/function, clear goal, actionable
+- 70-89: Good intent but missing some details
+- 50-69: Vague or missing context
+- 25-49: Multiple major issues
+- 0-24: Unusable (single words, no meaning)
 
-Examples:
-Input: "Help me with code"
-Output: {"issues": ["vague", "no-context"], "score": 35}
+Examples (study the contrast):
 
-Input: "Debug this TypeScript function that returns undefined"
-Output: {"issues": ["missing-technical-details"], "score": 70}
+POOR (score 10-25):
+Input: "Help" -> {"issues": ["vague", "no-context", "no-goal"], "score": 10}
+Input: "Fix it" -> {"issues": ["vague", "no-context", "no-goal"], "score": 15}
+Input: "Debug" -> {"issues": ["vague", "no-context", "no-goal"], "score": 12}
 
-Input: "Debug calculateTotal() in utils.ts that returns undefined when called with empty array"
-Output: {"issues": [], "score": 90}`;
+FAIR (score 45-60):
+Input: "Fix the login bug" -> {"issues": ["no-context", "missing-technical-details"], "score": 55}
+Input: "Add error handling" -> {"issues": ["no-context", "missing-technical-details"], "score": 52}
+Input: "Make it faster" -> {"issues": ["vague", "no-context"], "score": 48}
+
+GOOD (score 70-84):
+Input: "Fix the login bug where users cannot reset password" -> {"issues": ["missing-technical-details"], "score": 72}
+Input: "Add validation to signup form for email and password" -> {"issues": ["missing-technical-details"], "score": 78}
+
+EXCELLENT (score 85-100):
+Input: "Fix null pointer in auth.ts line 45 when user.email is undefined" -> {"issues": [], "score": 95}
+Input: "Add rate limiting to /api/login: 5 attempts per IP per minute" -> {"issues": [], "score": 93}
+Input: "Refactor calculateTotal() to use reduce, keep return type number" -> {"issues": [], "score": 88}`;
 
 /**
  * Simple system prompt for medium models.
