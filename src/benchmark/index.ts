@@ -2,15 +2,15 @@
  * Benchmark module exports.
  */
 export {
-  type GoldStandardPrompt,
-  type ScoreTier,
-  getScoreTier,
-  scoresMatch,
   calculateCorrelation,
-  getExpectedScoreRange,
-  GOLD_STANDARD_PROMPTS,
   EXCELLENT_PROMPTS,
-  GOOD_PROMPTS,
   FAIR_PROMPTS,
+  getExpectedScoreRange,
+  getScoreTier,
+  GOLD_STANDARD_PROMPTS,
+  type GoldStandardPrompt,
+  GOOD_PROMPTS,
   POOR_PROMPTS,
+  scoresMatch,
+  type ScoreTier,
 } from './gold-standard.js';

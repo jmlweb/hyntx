@@ -275,7 +275,7 @@ describe('OllamaProvider', () => {
       });
 
       await expect(provider.analyze(['Test'], '2025-01-15')).rejects.toThrow(
-        'Ollama API request failed: 500 Internal Server Error',
+        'Ollama API failed: 500 Internal Server Error',
       );
     });
 

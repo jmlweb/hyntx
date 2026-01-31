@@ -3,6 +3,10 @@
  */
 
 import {
+  autoCorrectResult,
+  validateSemantics,
+} from '../core/semantic-validator.js';
+import {
   type AnalysisProvider,
   type AnalysisResult,
   BATCH_STRATEGIES,
@@ -13,10 +17,6 @@ import {
   type SchemaType,
 } from '../types/index.js';
 import { logger } from '../utils/logger-base.js';
-import {
-  validateSemantics,
-  autoCorrectResult,
-} from '../core/semantic-validator.js';
 import {
   buildUserPrompt,
   parseBatchIndividualResponse,
@@ -98,17 +98,16 @@ export class OllamaProvider implements AnalysisProvider {
     logger.debug(`Connecting to Ollama at ${this.config.host}`, 'ollama');
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(
-        () => controller.abort(),
-        AVAILABILITY_TIMEOUT_MS,
-      );
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, AVAILABILITY_TIMEOUT_MS);
       const response = await fetch(`${this.config.host}/api/tags`, {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
       if (!response.ok) {
         logger.debug(
-          `Ollama API returned ${String(response.status)}`,
+          `Ollama API returned ${response.status.toString()}`,
           'ollama',
         );
         return false;
@@ -163,10 +162,9 @@ export class OllamaProvider implements AnalysisProvider {
       for (const temperature of TEMPERATURE_LEVELS) {
         try {
           const controller = new AbortController();
-          const timeoutId = setTimeout(
-            () => controller.abort(),
-            ANALYSIS_TIMEOUT_MS,
-          );
+          const timeoutId = setTimeout(() => {
+            controller.abort();
+          }, ANALYSIS_TIMEOUT_MS);
 
           const response = await fetch(`${this.config.host}/api/generate`, {
             method: 'POST',
@@ -186,7 +184,7 @@ export class OllamaProvider implements AnalysisProvider {
 
           if (!response.ok) {
             throw new Error(
-              `Ollama API failed: ${response.status} ${response.statusText}`,
+              `Ollama API failed: ${response.status.toString()} ${response.statusText}`,
             );
           }
 
@@ -221,7 +219,7 @@ export class OllamaProvider implements AnalysisProvider {
           if (err.message.includes('parse') || err.message.includes('schema')) {
             lastParseError = err;
             logger.debug(
-              `Parse failed at temp ${temperature}, trying lower`,
+              `Parse failed at temp ${temperature.toString()}, trying lower`,
               'ollama',
             );
             continue; // Try next temperature
@@ -244,14 +242,14 @@ export class OllamaProvider implements AnalysisProvider {
       // Exponential backoff for network errors
       const delay = BASE_RETRY_DELAY_MS * Math.pow(2, attempt);
       logger.debug(
-        `Retry ${attempt + 1}/${MAX_RETRIES}, waiting ${delay}ms`,
+        `Retry ${String(attempt + 1)}/${String(MAX_RETRIES)}, waiting ${String(delay)}ms`,
         'ollama',
       );
       await sleep(delay);
     }
 
     throw new Error(
-      `Ollama analysis failed after ${MAX_RETRIES + 1} attempts: ${lastError?.message ?? lastParseError?.message ?? 'Unknown error'}`,
+      `Ollama analysis failed after ${String(MAX_RETRIES + 1)} attempts: ${lastError?.message ?? lastParseError?.message ?? 'Unknown error'}`,
     );
   }
 }
