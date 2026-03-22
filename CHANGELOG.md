@@ -1,3 +1,14 @@
+## [3.0.2](https://github.com/jmlweb/hyntx/compare/v3.0.1...v3.0.2) (2026-03-22)
+
+### Bug Fixes
+
+- **security:** remove ajv override that broke ESLint (ajv v6/v8 incompatibility) ([88aac5c](https://github.com/jmlweb/hyntx/commit/88aac5cce1820ec62c1c1ec0f90c45e3b4004767))
+- update dependency overrides to resolve security vulnerabilities ([685befa](https://github.com/jmlweb/hyntx/commit/685befaffa058c5e6b45fd57432c73b0664aad29))
+
+### Documentation
+
+- add quality assessment report ([722de83](https://github.com/jmlweb/hyntx/commit/722de83b18ee4f332d79c02fe69b7cf03960038d))
+
 ## [3.0.1](https://github.com/jmlweb/hyntx/compare/v3.0.0...v3.0.1) (2026-01-27)
 
 ### Bug Fixes
