@@ -259,12 +259,8 @@ export function autoCorrectResult(
       const mappedPatterns = adjusted.patterns.map((pattern) => {
         if (validIds.includes(pattern.id)) return pattern;
         const matchedId = findClosestTaxonomyId(pattern.id, validIds);
-        if (matchedId) {
-          const metadata = ISSUE_TAXONOMY[matchedId] as {
-            name: string;
-            severity: string;
-            suggestion: string;
-          };
+        const metadata = matchedId ? ISSUE_TAXONOMY[matchedId] : undefined;
+        if (matchedId && metadata) {
           return {
             ...pattern,
             id: matchedId,
