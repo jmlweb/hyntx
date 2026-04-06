@@ -6,9 +6,9 @@
  */
 
 import { getExpectedScoreRange } from '../benchmark/gold-standard.js';
+import { ISSUE_TAXONOMY } from '../providers/schemas.js';
 import type { AnalysisResult } from '../types/index.js';
 import { logger } from '../utils/logger-base.js';
-import { ISSUE_TAXONOMY } from '../providers/schemas.js';
 
 export type ValidationIssue = {
   readonly type:
@@ -100,22 +100,20 @@ export function validateSemantics(
   if (result.stats.promptsWithIssues > result.stats.totalPrompts) {
     issues.push({
       type: 'stats-inconsistent',
-      message: `promptsWithIssues (${result.stats.promptsWithIssues}) exceeds totalPrompts (${result.stats.totalPrompts})`,
+      message: `promptsWithIssues (${String(result.stats.promptsWithIssues)}) exceeds totalPrompts (${String(result.stats.totalPrompts)})`,
       severity: 'error',
     });
   }
 
   // 6. Check for unknown pattern IDs not in taxonomy
   const validIds = Object.keys(ISSUE_TAXONOMY);
-  if (result.patterns) {
-    for (const pattern of result.patterns) {
-      if (!validIds.includes(pattern.id)) {
-        issues.push({
-          type: 'unknown-pattern-id',
-          message: `Unknown pattern ID: "${pattern.id}" (valid: ${validIds.join(', ')})`,
-          severity: 'warning',
-        });
-      }
+  for (const pattern of result.patterns) {
+    if (!validIds.includes(pattern.id)) {
+      issues.push({
+        type: 'unknown-pattern-id',
+        message: `Unknown pattern ID: "${pattern.id}" (valid: ${validIds.join(', ')})`,
+        severity: 'warning',
+      });
     }
   }
 
@@ -127,16 +125,14 @@ export function validateSemantics(
     'original prompt',
     'improved prompt',
   ];
-  if (result.patterns) {
-    for (const pattern of result.patterns) {
-      for (const example of pattern.examples ?? []) {
-        if (PLACEHOLDER_TEXTS.some((p) => example.toLowerCase().includes(p))) {
-          issues.push({
-            type: 'placeholder-example',
-            message: `Placeholder example detected: "${example.slice(0, 40)}"`,
-            severity: 'warning',
-          });
-        }
+  for (const pattern of result.patterns) {
+    for (const example of pattern.examples) {
+      if (PLACEHOLDER_TEXTS.some((p) => example.toLowerCase().includes(p))) {
+        issues.push({
+          type: 'placeholder-example',
+          message: `Placeholder example detected: "${example.slice(0, 40)}"`,
+          severity: 'warning',
+        });
       }
     }
   }
@@ -258,13 +254,17 @@ export function autoCorrectResult(
       };
     }
 
-    if (issue.type === 'unknown-pattern-id' && adjusted.patterns) {
+    if (issue.type === 'unknown-pattern-id') {
       const validIds = Object.keys(ISSUE_TAXONOMY);
       const mappedPatterns = adjusted.patterns.map((pattern) => {
         if (validIds.includes(pattern.id)) return pattern;
         const matchedId = findClosestTaxonomyId(pattern.id, validIds);
         if (matchedId) {
-          const metadata = ISSUE_TAXONOMY[matchedId];
+          const metadata = ISSUE_TAXONOMY[matchedId] as {
+            name: string;
+            severity: string;
+            suggestion: string;
+          };
           return {
             ...pattern,
             id: matchedId,
@@ -287,7 +287,7 @@ export function autoCorrectResult(
       };
     }
 
-    if (issue.type === 'placeholder-example' && adjusted.patterns) {
+    if (issue.type === 'placeholder-example') {
       const PLACEHOLDER_TEXTS = [
         'example prompt 1',
         'example prompt 2',
