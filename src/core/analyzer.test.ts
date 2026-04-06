@@ -461,7 +461,7 @@ describe('mergeBatchResults', () => {
     });
 
     const pattern = merged.patterns.find((p) => p.id === 'p1');
-    expect(pattern?.frequency).toBe(5); // (4 + 6) / 2 = 5
+    expect(pattern?.frequency).toBe(10); // 4 + 6 = 10 (sum across batches)
   });
 
   it('should take max severity for duplicate patterns', () => {
