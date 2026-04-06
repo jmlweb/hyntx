@@ -73,10 +73,10 @@ export class OllamaProvider implements AnalysisProvider {
   }
 
   private selectSchemaType(): SchemaType {
-    if (this.config.schemaOverride) {
-      return this.config.schemaOverride === 'individual'
-        ? 'individual'
-        : 'full';
+    // Only override auto-detection when explicitly requesting 'individual'
+    // 'batch' mode should respect the model's strategy-based schema selection
+    if (this.config.schemaOverride === 'individual') {
+      return 'individual';
     }
     return ['micro', 'small'].includes(this.batchStrategy)
       ? 'individual'
@@ -195,6 +195,10 @@ export class OllamaProvider implements AnalysisProvider {
 
           // Parse response
           let result: AnalysisResult;
+          logger.debug(
+            `Schema type: ${this.schemaType}, response length: ${String(data.response.length)}`,
+            'ollama',
+          );
           if (this.schemaType === 'individual') {
             result = parseBatchIndividualResponse(data.response, date, prompts);
           } else {

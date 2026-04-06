@@ -15,10 +15,9 @@ import { detectBatchStrategy, OllamaProvider } from './ollama.js';
 
 describe('OllamaProvider', () => {
   const mockConfig: OllamaConfig = {
-    model: 'llama3.2',
+    model: 'llama3:70b',
     host: 'http://localhost:11434',
-    // Force full schema for tests to match expected response format
-    schemaOverride: 'batch',
+    // Use standard-strategy model so auto-detection selects 'full' schema
   };
 
   let provider: OllamaProvider;
@@ -54,7 +53,7 @@ describe('OllamaProvider', () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
-          models: [{ name: 'llama3.2' }, { name: 'other-model' }],
+          models: [{ name: 'llama3:70b' }, { name: 'other-model' }],
         }),
       });
 
@@ -72,7 +71,7 @@ describe('OllamaProvider', () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
-          models: [{ name: 'llama3.2:latest' }, { name: 'other-model' }],
+          models: [{ name: 'llama3:70b-instruct' }, { name: 'other-model' }],
         }),
       });
 
@@ -238,7 +237,7 @@ describe('OllamaProvider', () => {
       if (!callArgs) throw new Error('Expected fetch to be called');
       const body = JSON.parse(callArgs[1].body);
 
-      expect(body.model).toBe('llama3.2');
+      expect(body.model).toBe('llama3:70b');
       expect(body.stream).toBe(false);
       expect(body.options.temperature).toBe(0.3);
       expect(body.prompt).toContain('Test prompt');
@@ -597,34 +596,31 @@ describe('OllamaProvider', () => {
   });
 
   describe('getBatchLimits', () => {
-    it('should return micro strategy limits for llama3.2', () => {
+    it('should return micro strategy limits for llama3.2 (individual mode)', () => {
       const provider = new OllamaProvider({
         model: 'llama3.2',
         host: 'http://localhost:11434',
-        // Without override, llama3.2 uses individual schema (maxPromptsPerBatch = 1)
-        // With batch override, it uses the strategy's actual limits
-        schemaOverride: 'batch',
       });
 
       const limits = provider.getBatchLimits();
 
       expect(limits.maxTokensPerBatch).toBe(500);
-      expect(limits.maxPromptsPerBatch).toBe(3);
+      // Micro models use individual schema → 1 prompt per batch
+      expect(limits.maxPromptsPerBatch).toBe(1);
       expect(limits.prioritization).toBe('longest-first');
     });
 
-    it('should return small strategy limits for mistral:7b', () => {
+    it('should return small strategy limits for mistral:7b (individual mode)', () => {
       const provider = new OllamaProvider({
         model: 'mistral:7b',
         host: 'http://localhost:11434',
-        // Without override, mistral:7b uses individual schema (maxPromptsPerBatch = 1)
-        schemaOverride: 'batch',
       });
 
       const limits = provider.getBatchLimits();
 
       expect(limits.maxTokensPerBatch).toBe(1500);
-      expect(limits.maxPromptsPerBatch).toBe(10);
+      // Small models use individual schema → 1 prompt per batch
+      expect(limits.maxPromptsPerBatch).toBe(1);
       expect(limits.prioritization).toBe('longest-first');
     });
 
@@ -641,18 +637,17 @@ describe('OllamaProvider', () => {
       expect(limits.prioritization).toBe('longest-first');
     });
 
-    it('should return micro strategy limits for unknown models', () => {
+    it('should return micro strategy limits for unknown models (individual mode)', () => {
       const provider = new OllamaProvider({
         model: 'unknown-model',
         host: 'http://localhost:11434',
-        // Unknown models default to micro strategy with individual schema
-        schemaOverride: 'batch',
       });
 
       const limits = provider.getBatchLimits();
 
       expect(limits.maxTokensPerBatch).toBe(500);
-      expect(limits.maxPromptsPerBatch).toBe(3);
+      // Unknown models default to micro → individual schema → 1 prompt per batch
+      expect(limits.maxPromptsPerBatch).toBe(1);
       expect(limits.prioritization).toBe('longest-first');
     });
   });
