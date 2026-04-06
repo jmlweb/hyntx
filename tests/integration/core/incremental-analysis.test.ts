@@ -188,7 +188,7 @@ describe('Incremental Analysis Integration', () => {
       // Check with different model
       const cacheCheck = await getPromptsWithCache(
         logResult.prompts,
-        'gemma3:4b', // Different model
+        'gemma4:e4b', // Different model
         'full',
       );
 

@@ -176,7 +176,7 @@ hyntx -m individual               # Short form
 - Analyzing high-stakes or complex prompts
 - Conducting quality audits or teaching sessions
 
-**Performance Note**: Numbers based on `gemma3:4b` on CPU. Actual speed varies by hardware, model size, and prompt complexity.
+**Performance Note**: Numbers based on `gemma4:e4b` on CPU. Actual speed varies by hardware, model size, and prompt complexity.
 
 **Detailed Guide**: See [Analysis Modes Documentation](./docs/ANALYSIS_MODES.md) for comprehensive comparison, examples, and decision guidelines.
 
@@ -255,17 +255,17 @@ Configure one or more providers in priority order. Hyntx will try each provider 
 ```bash
 # Single provider (Ollama only)
 export HYNTX_SERVICES=ollama
-export HYNTX_OLLAMA_MODEL=gemma3:4b
+export HYNTX_OLLAMA_MODEL=gemma4:e4b
 
 # Multi-provider with fallback (tries Ollama first, then Anthropic)
 export HYNTX_SERVICES=ollama,anthropic
-export HYNTX_OLLAMA_MODEL=gemma3:4b
+export HYNTX_OLLAMA_MODEL=gemma4:e4b
 export HYNTX_ANTHROPIC_KEY=sk-ant-your-key-here
 
 # Cloud-first with local fallback
 export HYNTX_SERVICES=anthropic,ollama
 export HYNTX_ANTHROPIC_KEY=sk-ant-your-key-here
-export HYNTX_OLLAMA_MODEL=gemma3:4b
+export HYNTX_OLLAMA_MODEL=gemma4:e4b
 ```
 
 #### Provider-Specific Variables
@@ -274,7 +274,7 @@ export HYNTX_OLLAMA_MODEL=gemma3:4b
 
 | Variable             | Default                  | Description       |
 | -------------------- | ------------------------ | ----------------- |
-| `HYNTX_OLLAMA_MODEL` | `gemma3:4b`              | Model to use      |
+| `HYNTX_OLLAMA_MODEL` | `gemma4:e4b`             | Model to use      |
 | `HYNTX_OLLAMA_HOST`  | `http://localhost:11434` | Ollama server URL |
 
 **Anthropic:**
@@ -303,7 +303,7 @@ export HYNTX_REMINDER=7d
 ```bash
 # Add to ~/.zshrc or ~/.bashrc (or let Hyntx auto-save it)
 export HYNTX_SERVICES=ollama,anthropic
-export HYNTX_OLLAMA_MODEL=gemma3:4b
+export HYNTX_OLLAMA_MODEL=gemma4:e4b
 export HYNTX_ANTHROPIC_KEY=sk-ant-your-key-here
 export HYNTX_REMINDER=14d
 
@@ -327,7 +327,7 @@ Ollama runs AI models locally for **privacy and cost savings**.
 2. Pull a model:
 
    ```bash
-   ollama pull gemma3:4b
+   ollama pull gemma4:e4b
    ```
 
 3. Verify it's running:
@@ -369,7 +369,7 @@ Configure multiple providers for automatic fallback:
 ```bash
 # If Ollama is down, automatically try Anthropic
 export HYNTX_SERVICES=ollama,anthropic
-export HYNTX_OLLAMA_MODEL=gemma3:4b
+export HYNTX_OLLAMA_MODEL=gemma4:e4b
 export HYNTX_ANTHROPIC_KEY=sk-ant-your-key-here
 ```
 
@@ -481,11 +481,11 @@ If using Ollama (recommended for privacy):
 ollama serve
 
 # Pull a model if needed
-ollama pull gemma3:4b
+ollama pull gemma4:e4b
 
 # Set environment variables (add to ~/.zshrc or ~/.bashrc)
 export HYNTX_SERVICES=ollama
-export HYNTX_OLLAMA_MODEL=gemma3:4b
+export HYNTX_OLLAMA_MODEL=gemma4:e4b
 ```
 
 ### Available MCP Tools
@@ -662,7 +662,7 @@ Use check-context to verify: "Update the component to handle errors"
 #### "Slow responses"
 
 - Local Ollama models are fastest but require GPU for best performance
-- Consider using a faster model: `export HYNTX_OLLAMA_MODEL=gemma3:4b:1b`
+- Consider using a faster model: `export HYNTX_OLLAMA_MODEL=gemma4:e2b`
 - Cloud providers (Anthropic, Google) offer faster responses but require API keys
 
 ## Privacy & Security
@@ -708,15 +708,15 @@ For local analysis with Ollama, you need to have a compatible model installed. S
 
 | Use Case            | Model         | Parameters | Disk Size | Speed (CPU)    | Quality   |
 | ------------------- | ------------- | ---------- | --------- | -------------- | --------- |
-| **Daily use**       | `gemma3:4b`   | 2-3B       | ~2GB      | ~2-5s/prompt   | Good      |
+| **Daily use**       | `gemma4:e4b`  | ~5GB Q4    | ~5GB      | ~3-7s/prompt   | Good      |
 | **Production**      | `mistral:7b`  | 7B         | ~4GB      | ~5-10s/prompt  | Better    |
 | **Maximum quality** | `qwen2.5:14b` | 14B        | ~9GB      | ~15-30s/prompt | Excellent |
 
 **Installation**:
 
 ```bash
-# Install recommended model (gemma3:4b)
-ollama pull gemma3:4b
+# Install recommended model (gemma4:e4b)
+ollama pull gemma4:e4b
 
 # Or choose a different model
 ollama pull mistral:7b

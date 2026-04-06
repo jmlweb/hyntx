@@ -38,9 +38,9 @@ const LOW_RAM_THRESHOLD = 4;
  * Priority order (with 8GB+ RAM):
  * 1. qwen2.5:14b if available
  * 2. mistral:7b if available
- * 3. llama3.2 (default fallback)
+ * 3. gemma4:e4b (default fallback)
  *
- * With less than 8GB RAM, always suggests llama3.2 for reliability.
+ * With less than 8GB RAM, always suggests gemma4:e4b for reliability.
  *
  * @param systemInfo - System hardware information
  * @param models - List of available Ollama models
@@ -58,22 +58,22 @@ export function suggestBestModel(
   systemInfo: SystemInfo,
   models: OllamaModelInfo[],
 ): ModelRecommendation {
-  // With low RAM, always suggest llama3.2 for reliability
+  // With low RAM, suggest gemma4:e4b for reliability
   if (systemInfo.ramGB < HIGH_RAM_THRESHOLD) {
-    if (isModelAvailable('gemma3:4b', models)) {
+    if (isModelAvailable('gemma4:e4b', models)) {
       return {
-        suggestedModel: 'gemma3:4b',
-        reason: 'Fast and lightweight model, optimal for your system',
+        suggestedModel: 'gemma4:e4b',
+        reason: 'Fast model with 128K context and native function calling',
       };
     }
     return {
-      suggestedModel: 'gemma3:4b',
+      suggestedModel: 'gemma4:e4b',
       reason: 'Recommended default model (needs installation)',
     };
   }
 
   // With 8GB+ RAM, suggest better models if available
-  // Priority: qwen2.5:14b > mistral:7b > llama3.2
+  // Priority: qwen2.5:14b > mistral:7b > gemma4:e4b
 
   if (isModelAvailable('qwen2.5:14b', models)) {
     return {
@@ -85,20 +85,20 @@ export function suggestBestModel(
   if (isModelAvailable('mistral:7b', models)) {
     return {
       suggestedModel: 'mistral:7b',
-      reason: 'Better analysis quality with Small Schema',
+      reason: 'Good analysis quality with Full Schema',
     };
   }
 
-  // Fallback to llama3.2
-  if (isModelAvailable('gemma3:4b', models)) {
+  // Fallback to gemma4:e4b
+  if (isModelAvailable('gemma4:e4b', models)) {
     return {
-      suggestedModel: 'gemma3:4b',
-      reason: 'Fast and reliable default model',
+      suggestedModel: 'gemma4:e4b',
+      reason: 'Fast and reliable default model with 128K context',
     };
   }
 
   return {
-    suggestedModel: 'gemma3:4b',
+    suggestedModel: 'gemma4:e4b',
     reason: 'Recommended default model (needs installation)',
   };
 }
@@ -107,7 +107,7 @@ export function suggestBestModel(
  * Determines if we should suggest installing a better model.
  * Logic:
  * - 8GB+ RAM: suggest mistral:7b if not installed (and qwen2.5:14b not installed)
- * - 4-7GB RAM: suggest llama3.2 if not installed
+ * - 4-7GB RAM: suggest gemma4:e4b if not installed
  * - < 4GB RAM: no suggestion (insufficient resources)
  *
  * @param systemInfo - System hardware information
@@ -139,7 +139,7 @@ export function getInstallationSuggestion(
     if (!hasMistral && !hasQwen) {
       return {
         suggestedModel: 'mistral:7b',
-        benefits: 'Better analysis quality with Small Schema',
+        benefits: 'Better analysis quality with Full Schema',
         installCommand: 'ollama pull mistral:7b',
       };
     }
@@ -147,14 +147,14 @@ export function getInstallationSuggestion(
     return null; // Already has optimal model
   }
 
-  // Low RAM (4-7GB): suggest llama3.2 if not installed
-  const hasLlama = isModelAvailable('gemma3:4b', models);
+  // Low RAM (4-7GB): suggest gemma4:e4b if not installed
+  const hasDefault = isModelAvailable('gemma4:e4b', models);
 
-  if (!hasLlama) {
+  if (!hasDefault) {
     return {
-      suggestedModel: 'gemma3:4b',
-      benefits: 'Fast and lightweight model for your system',
-      installCommand: 'ollama pull llama3.2',
+      suggestedModel: 'gemma4:e4b',
+      benefits: '128K context and native function calling',
+      installCommand: 'ollama pull gemma4:e4b',
     };
   }
 

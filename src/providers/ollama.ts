@@ -39,12 +39,15 @@ const MODEL_STRATEGY_MAP: Record<string, BatchStrategyType> = {
   'phi3:mini': 'micro',
   'gemma3:4b': 'micro',
   'gemma2:2b': 'micro',
+  'gemma4:e2b': 'micro',
   'mistral:7b': 'small',
   'llama3:8b': 'small',
   'codellama:7b': 'small',
+  'gemma4:e4b': 'small',
   'llama3:70b': 'standard',
   mixtral: 'standard',
   'qwen2.5:14b': 'standard',
+  'gemma4:31b': 'standard',
 };
 
 export function detectBatchStrategy(modelName: string): BatchStrategyType {
@@ -78,9 +81,7 @@ export class OllamaProvider implements AnalysisProvider {
     if (this.config.schemaOverride === 'individual') {
       return 'individual';
     }
-    return ['micro', 'small'].includes(this.batchStrategy)
-      ? 'individual'
-      : 'full';
+    return this.batchStrategy === 'micro' ? 'individual' : 'full';
   }
 
   public getBatchLimits(): ProviderLimits {

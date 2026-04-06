@@ -24,7 +24,7 @@ This report documents a comprehensive quality assessment of Hyntx's analysis out
 | Model          | Quality       | Speed | Recommendation                             |
 | -------------- | ------------- | ----- | ------------------------------------------ |
 | `mistral:7b`   | ✅ Good       | 89s   | **Recommended for production**             |
-| `gemma3:4b`    | ⚠️ Acceptable | 44s   | Good for quick analysis, some placeholders |
+| `gemma4:e4b`   | ⚠️ Acceptable | 44s   | Good for quick analysis, some placeholders |
 | `llama3.2`     | ⚠️ Acceptable | 207s  | Slow, functional                           |
 | `codellama:7b` | ❌ Unusable   | 82s   | Returns only placeholder text              |
 
@@ -53,7 +53,7 @@ This report documents a comprehensive quality assessment of Hyntx's analysis out
 }
 ```
 
-#### gemma3:4b (Default)
+#### gemma4:e4b (Default)
 
 **Strengths:**
 
@@ -150,7 +150,7 @@ Placeholder detection doesn't catch all cases:
 
 - **Date analyzed:** 2026-01-02
 - **Project:** hyntx
-- **Model:** gemma3:4b
+- **Model:** gemma4:e4b
 - **Prompts found:** 9
 - **Successfully analyzed:** 4 (44%)
 - **Skipped due to errors:** 5
@@ -202,7 +202,7 @@ However, users should be aware that:
 1. Output quality varies significantly by model
 2. Some bugs exist in stats calculation
 3. `codellama:7b` should be avoided entirely
-4. The default `gemma3:4b` is fast but may include some placeholder text
+4. The default `gemma4:e4b` is fast but may include some placeholder text
 
 The project status has been updated from "NOT READY FOR USE" to "BETA" to reflect its current functional state.
 

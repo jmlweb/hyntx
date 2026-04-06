@@ -188,23 +188,23 @@ export type BatchStrategy = {
  * Available batch strategies by model size.
  */
 export const BATCH_STRATEGIES: Record<BatchStrategyType, BatchStrategy> = {
-  // For models < 4GB
+  // Conservative: minimal schema, 1 prompt at a time
   micro: {
     maxTokensPerBatch: 500,
     maxPromptsPerBatch: 3,
-    description: 'For models < 4GB',
+    description: 'Conservative: individual schema, 1 prompt at a time',
   },
-  // For models 4-7GB
+  // Balanced: full schema, up to 10 prompts per batch
   small: {
     maxTokensPerBatch: 1_500,
     maxPromptsPerBatch: 10,
-    description: 'For models 4-7GB',
+    description: 'Balanced: full schema, up to 10 prompts per batch',
   },
-  // For models > 7GB
+  // Maximum: full schema, up to 50 prompts per batch
   standard: {
     maxTokensPerBatch: 3_000,
     maxPromptsPerBatch: 50,
-    description: 'For models > 7GB',
+    description: 'Maximum: full schema, up to 50 prompts per batch',
   },
 } as const;
 
@@ -316,7 +316,7 @@ export type EnvConfig = {
 export const ENV_DEFAULTS = {
   reminder: '7d',
   ollama: {
-    model: 'gemma3:4b',
+    model: 'gemma4:e4b',
     host: 'http://localhost:11434',
   },
   anthropic: {

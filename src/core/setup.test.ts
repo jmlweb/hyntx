@@ -68,7 +68,7 @@ describe('setup', () => {
     it('should complete successfully with ollama provider selected', async () => {
       vi.mocked(prompts)
         .mockResolvedValueOnce({ providers: ['ollama'] }) // Provider selection
-        .mockResolvedValueOnce({ model: 'gemma3:4b' }) // Ollama model
+        .mockResolvedValueOnce({ model: 'gemma4:e4b' }) // Ollama model
         .mockResolvedValueOnce({ host: 'http://localhost:11434' }) // Ollama host
         .mockResolvedValueOnce({ reminder: '7d' }) // Reminder
         .mockResolvedValueOnce({ saveToShell: true }); // Save to shell
@@ -83,10 +83,10 @@ describe('setup', () => {
       const config = await runSetup();
 
       expect(config.services).toEqual(['ollama']);
-      expect(config.ollama.model).toBe('gemma3:4b');
+      expect(config.ollama.model).toBe('gemma4:e4b');
       expect(config.ollama.host).toBe('http://localhost:11434');
       expect(process.env['HYNTX_SERVICES']).toBe('ollama');
-      expect(process.env['HYNTX_OLLAMA_MODEL']).toBe('gemma3:4b');
+      expect(process.env['HYNTX_OLLAMA_MODEL']).toBe('gemma4:e4b');
     });
 
     it('should complete successfully with anthropic provider selected', async () => {
@@ -140,7 +140,7 @@ describe('setup', () => {
     it('should handle multiple providers selected', async () => {
       vi.mocked(prompts)
         .mockResolvedValueOnce({ providers: ['ollama', 'anthropic'] })
-        .mockResolvedValueOnce({ model: 'gemma3:4b' }) // Ollama model
+        .mockResolvedValueOnce({ model: 'gemma4:e4b' }) // Ollama model
         .mockResolvedValueOnce({ host: 'http://localhost:11434' }) // Ollama host
         .mockResolvedValueOnce({ model: 'claude-3-5-haiku-latest' }) // Anthropic model
         .mockResolvedValueOnce({ apiKey: 'sk-test-key' }) // Anthropic key
@@ -150,7 +150,7 @@ describe('setup', () => {
       const config = await runSetup();
 
       expect(config.services).toEqual(['ollama', 'anthropic']);
-      expect(config.ollama.model).toBe('gemma3:4b');
+      expect(config.ollama.model).toBe('gemma4:e4b');
       expect(config.anthropic.apiKey).toBe('sk-test-key');
       expect(process.env['HYNTX_SERVICES']).toBe('ollama,anthropic');
     });
@@ -191,7 +191,7 @@ describe('setup', () => {
       const { EXIT_CODES } = await import('../types/index.js');
       vi.mocked(prompts)
         .mockResolvedValueOnce({ providers: ['ollama'] })
-        .mockResolvedValueOnce({ model: 'gemma3:4b' })
+        .mockResolvedValueOnce({ model: 'gemma4:e4b' })
         .mockResolvedValueOnce({ host: 'http://localhost:11434' })
         .mockResolvedValueOnce({ reminder: '7d' })
         .mockResolvedValueOnce({}); // User cancelled - empty response
@@ -211,7 +211,7 @@ describe('setup', () => {
     it('should set environment variables for selected providers', async () => {
       vi.mocked(prompts)
         .mockResolvedValueOnce({ providers: ['ollama'] })
-        .mockResolvedValueOnce({ model: 'gemma3:4b' })
+        .mockResolvedValueOnce({ model: 'gemma4:e4b' })
         .mockResolvedValueOnce({ host: 'http://localhost:11434' })
         .mockResolvedValueOnce({ reminder: '7d' })
         .mockResolvedValueOnce({ saveToShell: false });
@@ -220,14 +220,14 @@ describe('setup', () => {
 
       expect(process.env['HYNTX_SERVICES']).toBe('ollama');
       expect(process.env['HYNTX_REMINDER']).toBe('7d');
-      expect(process.env['HYNTX_OLLAMA_MODEL']).toBe('gemma3:4b');
+      expect(process.env['HYNTX_OLLAMA_MODEL']).toBe('gemma4:e4b');
       expect(process.env['HYNTX_OLLAMA_HOST']).toBe('http://localhost:11434');
     });
 
     it('should not set anthropic env vars if provider not selected', async () => {
       vi.mocked(prompts)
         .mockResolvedValueOnce({ providers: ['ollama'] })
-        .mockResolvedValueOnce({ model: 'gemma3:4b' })
+        .mockResolvedValueOnce({ model: 'gemma4:e4b' })
         .mockResolvedValueOnce({ host: 'http://localhost:11434' })
         .mockResolvedValueOnce({ reminder: 'never' })
         .mockResolvedValueOnce({ saveToShell: false });
@@ -241,7 +241,7 @@ describe('setup', () => {
     it('should call saveConfigToShell when user confirms', async () => {
       vi.mocked(prompts)
         .mockResolvedValueOnce({ providers: ['ollama'] })
-        .mockResolvedValueOnce({ model: 'gemma3:4b' })
+        .mockResolvedValueOnce({ model: 'gemma4:e4b' })
         .mockResolvedValueOnce({ host: 'http://localhost:11434' })
         .mockResolvedValueOnce({ reminder: '7d' })
         .mockResolvedValueOnce({ saveToShell: true });
@@ -265,7 +265,7 @@ describe('setup', () => {
     it('should show manual instructions when saveConfigToShell fails', async () => {
       vi.mocked(prompts)
         .mockResolvedValueOnce({ providers: ['ollama'] })
-        .mockResolvedValueOnce({ model: 'gemma3:4b' })
+        .mockResolvedValueOnce({ model: 'gemma4:e4b' })
         .mockResolvedValueOnce({ host: 'http://localhost:11434' })
         .mockResolvedValueOnce({ reminder: '7d' })
         .mockResolvedValueOnce({ saveToShell: true });
@@ -285,7 +285,7 @@ describe('setup', () => {
     it('should show manual instructions when user declines save', async () => {
       vi.mocked(prompts)
         .mockResolvedValueOnce({ providers: ['ollama'] })
-        .mockResolvedValueOnce({ model: 'gemma3:4b' })
+        .mockResolvedValueOnce({ model: 'gemma4:e4b' })
         .mockResolvedValueOnce({ host: 'http://localhost:11434' })
         .mockResolvedValueOnce({ reminder: '7d' })
         .mockResolvedValueOnce({ saveToShell: false });
@@ -299,7 +299,7 @@ describe('setup', () => {
     it('should handle undefined saveToShell response (defaults to false)', async () => {
       vi.mocked(prompts)
         .mockResolvedValueOnce({ providers: ['ollama'] })
-        .mockResolvedValueOnce({ model: 'gemma3:4b' })
+        .mockResolvedValueOnce({ model: 'gemma4:e4b' })
         .mockResolvedValueOnce({ host: 'http://localhost:11434' })
         .mockResolvedValueOnce({ reminder: '7d' })
         .mockResolvedValueOnce({ saveToShell: undefined });
@@ -321,14 +321,14 @@ describe('setup', () => {
       const config = await runSetup();
 
       // Should use ENV_DEFAULTS values
-      expect(config.ollama.model).toBe('gemma3:4b');
+      expect(config.ollama.model).toBe('gemma4:e4b');
       expect(config.ollama.host).toBe('http://localhost:11434');
     });
 
     it('should handle reminder never option', async () => {
       vi.mocked(prompts)
         .mockResolvedValueOnce({ providers: ['ollama'] })
-        .mockResolvedValueOnce({ model: 'gemma3:4b' })
+        .mockResolvedValueOnce({ model: 'gemma4:e4b' })
         .mockResolvedValueOnce({ host: 'http://localhost:11434' })
         .mockResolvedValueOnce({ reminder: 'never' })
         .mockResolvedValueOnce({ saveToShell: false });
@@ -343,7 +343,7 @@ describe('setup', () => {
     it('should update config when reminder is not never', async () => {
       vi.mocked(prompts)
         .mockResolvedValueOnce({ providers: ['ollama'] })
-        .mockResolvedValueOnce({ model: 'gemma3:4b' })
+        .mockResolvedValueOnce({ model: 'gemma4:e4b' })
         .mockResolvedValueOnce({ host: 'http://localhost:11434' })
         .mockResolvedValueOnce({ reminder: '30d' })
         .mockResolvedValueOnce({ saveToShell: false });
@@ -386,7 +386,7 @@ describe('setup', () => {
       const config: EnvConfig = {
         services: ['ollama'],
         reminder: '7d',
-        ollama: { model: 'gemma3:4b', host: 'http://localhost:11434' },
+        ollama: { model: 'gemma4:e4b', host: 'http://localhost:11434' },
         anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
         google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
       };
@@ -405,7 +405,7 @@ describe('setup', () => {
       const config: EnvConfig = {
         services: ['ollama'],
         reminder: 'never',
-        ollama: { model: 'gemma3:4b', host: 'http://localhost:11434' },
+        ollama: { model: 'gemma4:e4b', host: 'http://localhost:11434' },
         anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
         google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
       };

@@ -610,7 +610,7 @@ describe('OllamaProvider', () => {
       expect(limits.prioritization).toBe('longest-first');
     });
 
-    it('should return small strategy limits for mistral:7b (individual mode)', () => {
+    it('should return small strategy limits for mistral:7b (full schema mode)', () => {
       const provider = new OllamaProvider({
         model: 'mistral:7b',
         host: 'http://localhost:11434',
@@ -619,8 +619,22 @@ describe('OllamaProvider', () => {
       const limits = provider.getBatchLimits();
 
       expect(limits.maxTokensPerBatch).toBe(1500);
-      // Small models use individual schema → 1 prompt per batch
-      expect(limits.maxPromptsPerBatch).toBe(1);
+      // Small models use full schema → up to 10 prompts per batch
+      expect(limits.maxPromptsPerBatch).toBe(10);
+      expect(limits.prioritization).toBe('longest-first');
+    });
+
+    it('should return small strategy limits for gemma4:e4b (full schema mode)', () => {
+      const provider = new OllamaProvider({
+        model: 'gemma4:e4b',
+        host: 'http://localhost:11434',
+      });
+
+      const limits = provider.getBatchLimits();
+
+      expect(limits.maxTokensPerBatch).toBe(1500);
+      // gemma4:e4b maps to small strategy → full schema → up to 10 prompts per batch
+      expect(limits.maxPromptsPerBatch).toBe(10);
       expect(limits.prioritization).toBe('longest-first');
     });
 
@@ -694,6 +708,18 @@ describe('detectBatchStrategy', () => {
     it('should detect standard strategy for qwen2.5:14b', () => {
       expect(detectBatchStrategy('qwen2.5:14b')).toBe('standard');
     });
+
+    it('should detect micro strategy for gemma4:e2b', () => {
+      expect(detectBatchStrategy('gemma4:e2b')).toBe('micro');
+    });
+
+    it('should detect small strategy for gemma4:e4b', () => {
+      expect(detectBatchStrategy('gemma4:e4b')).toBe('small');
+    });
+
+    it('should detect standard strategy for gemma4:31b', () => {
+      expect(detectBatchStrategy('gemma4:31b')).toBe('standard');
+    });
   });
 
   describe('partial match', () => {
@@ -715,6 +741,10 @@ describe('detectBatchStrategy', () => {
 
     it('should detect standard strategy for mixtral-8x7b-instruct', () => {
       expect(detectBatchStrategy('mixtral-8x7b-instruct')).toBe('standard');
+    });
+
+    it('should detect small strategy for gemma4:e4b:latest', () => {
+      expect(detectBatchStrategy('gemma4:e4b:latest')).toBe('small');
     });
   });
 
@@ -741,21 +771,27 @@ describe('detectBatchStrategy', () => {
       const micro = BATCH_STRATEGIES.micro;
       expect(micro.maxTokensPerBatch).toBe(500);
       expect(micro.maxPromptsPerBatch).toBe(3);
-      expect(micro.description).toBe('For models < 4GB');
+      expect(micro.description).toBe(
+        'Conservative: individual schema, 1 prompt at a time',
+      );
     });
 
     it('should have correct small strategy configuration', () => {
       const small = BATCH_STRATEGIES.small;
       expect(small.maxTokensPerBatch).toBe(1500);
       expect(small.maxPromptsPerBatch).toBe(10);
-      expect(small.description).toBe('For models 4-7GB');
+      expect(small.description).toBe(
+        'Balanced: full schema, up to 10 prompts per batch',
+      );
     });
 
     it('should have correct standard strategy configuration', () => {
       const standard = BATCH_STRATEGIES.standard;
       expect(standard.maxTokensPerBatch).toBe(3000);
       expect(standard.maxPromptsPerBatch).toBe(50);
-      expect(standard.description).toBe('For models > 7GB');
+      expect(standard.description).toBe(
+        'Maximum: full schema, up to 50 prompts per batch',
+      );
     });
   });
 });
