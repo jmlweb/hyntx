@@ -61,6 +61,7 @@ export type ExtractedPrompt = {
   readonly sessionId: string;
   readonly project: string;
   readonly date: string;
+  readonly isConfirmation?: boolean;
 };
 
 /**
