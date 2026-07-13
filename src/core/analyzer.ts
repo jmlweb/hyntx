@@ -572,7 +572,7 @@ export function mergeBatchResults(
       const severities = group.map((p) => p.severity);
       const allExamples = group.flatMap((p) => Array.from(p.examples));
 
-      const mergedFrequency = Math.round(average(frequencies));
+      const mergedFrequency = sum(frequencies);
       const mergedSeverity = maxSeverity(severities);
       const mergedExamples = limitExamples(
         allExamples,

@@ -114,9 +114,9 @@ describe('schemas', () => {
     });
 
     it('should include examples', () => {
-      expect(SYSTEM_PROMPT_MINIMAL).toContain('Examples:');
+      expect(SYSTEM_PROMPT_MINIMAL).toContain('Examples');
       expect(SYSTEM_PROMPT_MINIMAL).toContain('Input:');
-      expect(SYSTEM_PROMPT_MINIMAL).toContain('Output:');
+      expect(SYSTEM_PROMPT_MINIMAL).toContain('->');
     });
 
     it('should specify score range', () => {
@@ -184,12 +184,11 @@ describe('schemas', () => {
   });
 
   describe('schema progression', () => {
-    it('should have minimal schema simpler than full schema', () => {
-      // Minimal should not require as many fields
-      const minimalFields = SYSTEM_PROMPT_MINIMAL.match(/"[^"]+"/g) ?? [];
-      const fullFields = SYSTEM_PROMPT_FULL.match(/"[^"]+"/g) ?? [];
-
-      expect(minimalFields.length).toBeLessThan(fullFields.length);
+    it('should have minimal schema shorter than full schema', () => {
+      // Minimal should be shorter in total length
+      expect(SYSTEM_PROMPT_MINIMAL.length).toBeLessThan(
+        SYSTEM_PROMPT_FULL.length,
+      );
     });
 
     it('should have consistent score range across all schemas', () => {

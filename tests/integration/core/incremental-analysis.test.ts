@@ -188,7 +188,7 @@ describe('Incremental Analysis Integration', () => {
       // Check with different model
       const cacheCheck = await getPromptsWithCache(
         logResult.prompts,
-        'gemma3:4b', // Different model
+        'gemma4:e4b', // Different model
         'full',
       );
 
@@ -394,8 +394,8 @@ describe('Incremental Analysis Integration', () => {
       // Note: The function uses simple average, not weighted by prompt count
       expect(merged.stats.overallScore).toBe(6);
 
-      // Pattern frequency: average of 0.5 and 1.0 = 0.75, rounded to 1
-      expect(merged.patterns[0]?.frequency).toBe(1);
+      // Pattern frequency: sum of 0.5 and 1.0 = 1.5
+      expect(merged.patterns[0]?.frequency).toBe(1.5);
       // Severity should be the highest
       expect(merged.patterns[0]?.severity).toBe('high');
     });

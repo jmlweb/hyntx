@@ -1734,7 +1734,8 @@ export async function cli(): Promise<void> {
       const results: AnalysisResult[] = [];
 
       for (const group of groups) {
-        const prompts = group.prompts.map((p) => p.content);
+        const filteredPrompts = group.prompts.filter((p) => !p.isConfirmation);
+        const prompts = filteredPrompts.map((p) => p.content);
         const result = await analyzeWithProgress(
           provider,
           prompts,
@@ -1743,7 +1744,7 @@ export async function cli(): Promise<void> {
           config.rules,
           isJsonMode,
           args.noCache,
-          group.prompts,
+          filteredPrompts,
         );
         results.push(result);
       }
@@ -1824,7 +1825,19 @@ export async function cli(): Promise<void> {
       }
     } else {
       // Single-day analysis
-      const prompts = logResult.prompts.map((p) => p.content);
+      const filteredPrompts = logResult.prompts.filter(
+        (p) => !p.isConfirmation,
+      );
+      const confirmationsExcluded =
+        logResult.prompts.length - filteredPrompts.length;
+      if (confirmationsExcluded > 0) {
+        console.log(
+          chalk.dim(
+            `  Excluded ${String(confirmationsExcluded)} confirmation(s) (short replies to assistant questions)`,
+          ),
+        );
+      }
+      const prompts = filteredPrompts.map((p) => p.content);
       const date = args.date;
       let result: AnalysisResult | EnhancedAnalysisResult =
         await analyzeWithProgress(
@@ -1835,7 +1848,7 @@ export async function cli(): Promise<void> {
           config.rules,
           isJsonMode,
           args.noCache,
-          logResult.prompts,
+          filteredPrompts,
         );
 
       // Enrich with enhanced analytics if requested

@@ -31,7 +31,7 @@ vi.mock('../utils/env.js', () => ({
   getEnvConfig: vi.fn(() => ({
     reminder: '7d',
     services: ['ollama'],
-    ollama: { model: 'gemma3:4b', host: 'http://localhost:11434' },
+    ollama: { model: 'gemma4:e4b', host: 'http://localhost:11434' },
     anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
     google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
   })),
@@ -264,7 +264,7 @@ describe('shouldShowReminder', () => {
     vi.mocked(getEnvConfig).mockReturnValue({
       reminder: 'never',
       services: ['ollama'],
-      ollama: { model: 'gemma3:4b', host: 'http://localhost:11434' },
+      ollama: { model: 'gemma4:e4b', host: 'http://localhost:11434' },
       anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
       google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
     });
@@ -279,7 +279,7 @@ describe('shouldShowReminder', () => {
     vi.mocked(getEnvConfig).mockReturnValue({
       reminder: '7d',
       services: ['ollama'],
-      ollama: { model: 'gemma3:4b', host: 'http://localhost:11434' },
+      ollama: { model: 'gemma4:e4b', host: 'http://localhost:11434' },
       anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
       google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
     });
@@ -299,7 +299,7 @@ describe('shouldShowReminder', () => {
     vi.mocked(getEnvConfig).mockReturnValue({
       reminder: '7d',
       services: ['ollama'],
-      ollama: { model: 'gemma3:4b', host: 'http://localhost:11434' },
+      ollama: { model: 'gemma4:e4b', host: 'http://localhost:11434' },
       anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
       google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
     });
@@ -319,7 +319,7 @@ describe('shouldShowReminder', () => {
     vi.mocked(getEnvConfig).mockReturnValue({
       reminder: '7d',
       services: ['ollama'],
-      ollama: { model: 'gemma3:4b', host: 'http://localhost:11434' },
+      ollama: { model: 'gemma4:e4b', host: 'http://localhost:11434' },
       anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
       google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
     });
@@ -339,7 +339,7 @@ describe('shouldShowReminder', () => {
     vi.mocked(getEnvConfig).mockReturnValue({
       reminder: '14d',
       services: ['ollama'],
-      ollama: { model: 'gemma3:4b', host: 'http://localhost:11434' },
+      ollama: { model: 'gemma4:e4b', host: 'http://localhost:11434' },
       anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
       google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
     });
@@ -359,7 +359,7 @@ describe('shouldShowReminder', () => {
     vi.mocked(getEnvConfig).mockReturnValue({
       reminder: '30d',
       services: ['ollama'],
-      ollama: { model: 'gemma3:4b', host: 'http://localhost:11434' },
+      ollama: { model: 'gemma4:e4b', host: 'http://localhost:11434' },
       anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
       google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
     });
@@ -379,7 +379,7 @@ describe('shouldShowReminder', () => {
     vi.mocked(getEnvConfig).mockReturnValue({
       reminder: 'unknown',
       services: ['ollama'],
-      ollama: { model: 'gemma3:4b', host: 'http://localhost:11434' },
+      ollama: { model: 'gemma4:e4b', host: 'http://localhost:11434' },
       anthropic: { model: 'claude-3-5-haiku-latest', apiKey: '' },
       google: { model: 'gemini-2.0-flash-exp', apiKey: '' },
     });

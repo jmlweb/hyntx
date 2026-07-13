@@ -2,13 +2,13 @@
 
 ## Executive Summary
 
-**Minimum viable model: `gemma3:4b` (2-3B parameters, ~2GB disk, ~2-5s/prompt CPU)**
+**Minimum viable model: `gemma4:e4b` (~5GB Q4, 128K context, native function calling, ~3-7s/prompt CPU)**
 
 This document documents the findings from the analysis to determine the minimum viable Ollama model that can generate valid and useful results with Hyntx.
 
 **Quick recommendations**:
 
-- **Minimal viable**: `gemma3:4b` (2B) - Fast, lightweight, good for daily use
+- **Minimal viable**: `gemma4:e4b` (~5GB Q4) - 128K context, native function calling, good for daily use
 - **Production quality**: `mistral:7b` (7B) - Better analysis, moderate resources
 - **Maximum quality**: `qwen2.5:14b` or `llama3:70b` - Full schema, requires GPU for 70B
 
@@ -33,16 +33,16 @@ Hyntx uses an adaptive system that adjusts the analysis schema based on model si
 
 ### Models Tested
 
-| Model       | Parameters | Disk Size | Schema  | Result   | Quality   | Speed (CPU)  |
-| ----------- | ---------- | --------- | ------- | -------- | --------- | ------------ |
-| `gemma3:4b` | 2-3B       | ~2GB      | Minimal | ✅ Works | Excellent | ~2-5s/prompt |
-| `gemma3:4b` | 4B         | ~3.3GB    | Minimal | ✅ Works | Excellent | ~3-6s/prompt |
+| Model        | Parameters | Disk Size | Schema  | Result   | Quality   | Speed (CPU)  |
+| ------------ | ---------- | --------- | ------- | -------- | --------- | ------------ |
+| `gemma4:e4b` | 2-3B       | ~2GB      | Minimal | ✅ Works | Excellent | ~2-5s/prompt |
+| `gemma4:e4b` | 4B         | ~3.3GB    | Minimal | ✅ Works | Excellent | ~3-6s/prompt |
 
 ### Quality Analysis
 
 **Test performed**: Analysis of 52 prompts from current day
 
-**Results with `gemma3:4b`**:
+**Results with `gemma4:e4b`**:
 
 - ✅ Valid JSON generated correctly
 - ✅ Valid and consistent issue IDs (no-context, vague, too-broad, imperative)
@@ -51,9 +51,9 @@ Hyntx uses an adaptive system that adjusts the analysis schema based on model si
 - ✅ Reasonable scores (0-100 scale)
 - ✅ No parsing errors
 
-**Results with `gemma3:4b`**:
+**Results with `gemma4:e4b`**:
 
-- ✅ Identical results to `gemma3:4b`
+- ✅ Identical results to `gemma4:e4b`
 - ✅ Same quality and consistency
 - ✅ No notable differences
 
@@ -71,21 +71,22 @@ Models with fewer parameters or poor instruction-following capabilities will hav
 
 ## Recommended Minimum Model
 
-### `gemma3:4b` (default)
+### `gemma4:e4b` (default)
 
 **Reasons**:
 
 - ✅ It's the system default model
-- ✅ Classified as "micro" (automatically uses minimal schema)
+- ✅ Uses `small` strategy which maps to **Full Schema** — complete analysis with patterns, examples, and before/after
 - ✅ Works perfectly in real tests
-- ✅ Reasonable balance between size and capability
-- ✅ Manageable size (~2GB on disk)
+- ✅ 128K context window handles large prompt batches without truncation
+- ✅ Native function calling enables more reliable structured output
+- ✅ ~5GB Q4 — good balance between size and capability
 - ✅ Acceptable speed on CPU/GPU
 
 **Configuration**:
 
 ```bash
-export HYNTX_OLLAMA_MODEL=gemma3:4b
+export HYNTX_OLLAMA_MODEL=gemma4:e4b
 export HYNTX_OLLAMA_HOST=http://localhost:11434
 ```
 
@@ -97,7 +98,7 @@ export HYNTX_OLLAMA_HOST=http://localhost:11434
 
 **Why it's the balanced choice**:
 
-- ✅ **Better quality**: Uses the "Small Schema" (more detailed than Minimal Schema used by `gemma3:4b`)
+- ✅ **Better quality**: Uses the "Small Schema" (comparable to the Full Schema used by `gemma4:e4b`)
   - Better analysis quality with pattern detection and basic analysis
   - Some custom examples extracted from your prompts
   - Basic contextual information included
@@ -119,7 +120,7 @@ export HYNTX_OLLAMA_MODEL=mistral:7b
 
 **When to use `mistral:7b`**:
 
-- You want better analysis quality than `gemma3:4b` but don't need maximum quality
+- You want a 7B model with comparable schema coverage to `gemma4:e4b` but prefer mistral's output style
 - You have modern hardware (8GB+ RAM, modern CPU)
 - You're doing production analysis or code reviews
 - You want custom examples from your prompts (not just taxonomy-based examples)
@@ -134,12 +135,12 @@ export HYNTX_OLLAMA_MODEL=mistral:7b
 
 ### Micro Models (Minimal Schema)
 
-| Model       | Parameters | Disk Size | Speed (CPU)  | Status                   |
-| ----------- | ---------- | --------- | ------------ | ------------------------ |
-| `gemma3:4b` | 2-3B       | ~2GB      | ~2-5s/prompt | ✅ Recommended (default) |
-| `gemma3:4b` | 4B         | ~3.3GB    | ~3-6s/prompt | ✅ Tested, works well    |
-| `phi3:mini` | 3.8B       | ~2.3GB    | ~3-5s/prompt | Expected to work         |
-| `gemma2:2b` | 2B         | ~1.6GB    | ~1-3s/prompt | Theoretically viable     |
+| Model        | Parameters | Disk Size | Speed (CPU)  | Status                   |
+| ------------ | ---------- | --------- | ------------ | ------------------------ |
+| `gemma4:e4b` | 2-3B       | ~2GB      | ~2-5s/prompt | ✅ Recommended (default) |
+| `gemma4:e4b` | 4B         | ~3.3GB    | ~3-6s/prompt | ✅ Tested, works well    |
+| `phi3:mini`  | 3.8B       | ~2.3GB    | ~3-5s/prompt | Expected to work         |
+| `gemma2:2b`  | 2B         | ~1.6GB    | ~1-3s/prompt | Theoretically viable     |
 
 ### Small Models (Small Schema - Better Quality)
 
@@ -201,17 +202,17 @@ For better quality, use models that support full schema (≥ 8B parameters).
 
 ## Usage Recommendations
 
-### For Development/Testing (Minimal Schema)
+### For Development/Testing (Full Schema)
 
 ```bash
-export HYNTX_OLLAMA_MODEL=gemma3:4b
+export HYNTX_OLLAMA_MODEL=gemma4:e4b
 ```
 
-- **Parameters**: 2-3B
-- **Speed**: ~2-5s/prompt (CPU)
+- **Size**: ~5GB Q4
+- **Speed**: ~3-7s/prompt (CPU)
 - **Use case**: Fast iteration, daily use
-- ✅ Valid and useful results
-- ✅ Lightweight and fast
+- ✅ Full schema — complete patterns, examples, before/after
+- ✅ 128K context, native function calling
 
 ### For Professional Analysis (Small Schema)
 
@@ -252,7 +253,7 @@ ollama list
 
 # Test with Hyntx
 export HYNTX_SERVICES=ollama
-export HYNTX_OLLAMA_MODEL=gemma3:4b
+export HYNTX_OLLAMA_MODEL=gemma4:e4b
 hyntx --date today --output test.json
 
 # Verify valid JSON
@@ -278,24 +279,24 @@ If the command generates valid JSON with patterns, the model is viable.
 
 ## Conclusion
 
-**The confirmed minimum viable model is `gemma3:4b` (2-3B parameters, ~2GB disk)**.
+**The confirmed minimum viable model is `gemma4:e4b` (~5GB Q4, 128K context, native function calling)**.
 
 This model:
 
-- ✅ Works correctly with the minimal schema
+- ✅ Works correctly with the full schema (`small` strategy → full schema)
 - ✅ Generates valid and useful results
 - ✅ Is the system default
 - ✅ Provides optimal balance between size, speed, and quality
-- ✅ Fast enough for daily use (~2-5s/prompt on CPU)
+- ✅ Fast enough for daily use (~3-7s/prompt on CPU)
 
 **Recommendations by use case**:
 
-- **Daily development**: `gemma3:4b` (2-3B) - Minimal schema
+- **Daily development**: `gemma4:e4b` (~5GB Q4) - Full schema (128K context, native function calling)
 - **Production analysis**: `mistral:7b` (7B) - Small schema
 - **Team retrospectives**: `qwen2.5:14b` (14B) - Full schema
 - **Maximum quality**: `llama3:70b` (70B) - Full schema (GPU needed)
 
-Most users will find `gemma3:4b` sufficient. For deeper analysis, use models ≥ 7B parameters that support small or full schemas.
+Most users will find `gemma4:e4b` sufficient — it uses the full schema with 128K context and native function calling. For even deeper analysis, use models ≥ 14B parameters.
 
 ## Benchmark Results (2026-01-27)
 
@@ -309,22 +310,22 @@ Most users will find `gemma3:4b` sufficient. For deeper analysis, use models ≥
 
 | Model        | Time   | Score | Patterns | Status                    |
 | ------------ | ------ | ----- | -------- | ------------------------- |
-| gemma3:4b    | 44s ⚡ | 6/10  | 5        | ✅ **Best choice**        |
+| gemma4:e4b   | 44s ⚡ | 6/10  | 5        | ✅ **Best choice**        |
 | codellama:7b | 82s    | 8/10  | 1        | ❌ Returns placeholders   |
 | mistral:7b   | 89s    | 4/10  | 5        | ✅ Good                   |
-| gemma3:4b    | 207s   | 6/10  | 5        | ⚠️ Slow, had counting bug |
+| gemma4:e4b   | 207s   | 6/10  | 5        | ⚠️ Slow, had counting bug |
 
 ### Key Findings
 
-1. **gemma3:4b is the recommended default** - 4x faster than gemma3:4b with better results
+1. **gemma4:e4b is the recommended default** - 4x faster than gemma4:e4b with better results
 2. **codellama:7b is NOT recommended** - Returns placeholder text instead of real analysis
-3. **gemma3:4b has bugs** - Reported 44 prompts when only 9 were analyzed (fixed in code)
-4. **mistral:7b is reliable** - Good quality but slower than gemma3:4b
+3. **gemma4:e4b has bugs** - Reported 44 prompts when only 9 were analyzed (fixed in code)
+4. **mistral:7b is reliable** - Good quality but slower than gemma4:e4b
 
 ### Recommendation Update
 
 Based on these benchmarks, the recommended models are:
 
-1. **Daily use**: `gemma3:4b` (fast, accurate)
+1. **Daily use**: `gemma4:e4b` (fast, accurate)
 2. **Fallback**: `mistral:7b` (slower but reliable)
 3. **Avoid**: `codellama:7b` (returns placeholder text)

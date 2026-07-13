@@ -15,10 +15,9 @@ import { detectBatchStrategy, OllamaProvider } from './ollama.js';
 
 describe('OllamaProvider', () => {
   const mockConfig: OllamaConfig = {
-    model: 'llama3.2',
+    model: 'llama3:70b',
     host: 'http://localhost:11434',
-    // Force full schema for tests to match expected response format
-    schemaOverride: 'batch',
+    // Use standard-strategy model so auto-detection selects 'full' schema
   };
 
   let provider: OllamaProvider;
@@ -54,7 +53,7 @@ describe('OllamaProvider', () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
-          models: [{ name: 'llama3.2' }, { name: 'other-model' }],
+          models: [{ name: 'llama3:70b' }, { name: 'other-model' }],
         }),
       });
 
@@ -72,7 +71,7 @@ describe('OllamaProvider', () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
-          models: [{ name: 'llama3.2:latest' }, { name: 'other-model' }],
+          models: [{ name: 'llama3:70b-instruct' }, { name: 'other-model' }],
         }),
       });
 
@@ -238,7 +237,7 @@ describe('OllamaProvider', () => {
       if (!callArgs) throw new Error('Expected fetch to be called');
       const body = JSON.parse(callArgs[1].body);
 
-      expect(body.model).toBe('llama3.2');
+      expect(body.model).toBe('llama3:70b');
       expect(body.stream).toBe(false);
       expect(body.options.temperature).toBe(0.3);
       expect(body.prompt).toContain('Test prompt');
@@ -275,7 +274,7 @@ describe('OllamaProvider', () => {
       });
 
       await expect(provider.analyze(['Test'], '2025-01-15')).rejects.toThrow(
-        'Ollama API request failed: 500 Internal Server Error',
+        'Ollama API failed: 500 Internal Server Error',
       );
     });
 
@@ -375,7 +374,7 @@ describe('OllamaProvider', () => {
         'Failed to parse response as JSON',
       );
 
-      expect(global.fetch).toHaveBeenCalledTimes(1); // No retries for parse errors
+      expect(global.fetch).toHaveBeenCalledTimes(3); // Tries all 3 temperature levels before failing
     });
 
     it('should not retry on schema validation errors', async () => {
@@ -390,7 +389,7 @@ describe('OllamaProvider', () => {
         'Response does not match expected schema',
       );
 
-      expect(global.fetch).toHaveBeenCalledTimes(1); // No retries for schema errors
+      expect(global.fetch).toHaveBeenCalledTimes(3); // Tries all 3 temperature levels before failing
     });
 
     it('should use exponential backoff for retries', async () => {
@@ -597,33 +596,44 @@ describe('OllamaProvider', () => {
   });
 
   describe('getBatchLimits', () => {
-    it('should return micro strategy limits for llama3.2', () => {
+    it('should return micro strategy limits for llama3.2 (individual mode)', () => {
       const provider = new OllamaProvider({
         model: 'llama3.2',
         host: 'http://localhost:11434',
-        // Without override, llama3.2 uses individual schema (maxPromptsPerBatch = 1)
-        // With batch override, it uses the strategy's actual limits
-        schemaOverride: 'batch',
       });
 
       const limits = provider.getBatchLimits();
 
       expect(limits.maxTokensPerBatch).toBe(500);
-      expect(limits.maxPromptsPerBatch).toBe(3);
+      // Micro models use individual schema → 1 prompt per batch
+      expect(limits.maxPromptsPerBatch).toBe(1);
       expect(limits.prioritization).toBe('longest-first');
     });
 
-    it('should return small strategy limits for mistral:7b', () => {
+    it('should return small strategy limits for mistral:7b (full schema mode)', () => {
       const provider = new OllamaProvider({
         model: 'mistral:7b',
         host: 'http://localhost:11434',
-        // Without override, mistral:7b uses individual schema (maxPromptsPerBatch = 1)
-        schemaOverride: 'batch',
       });
 
       const limits = provider.getBatchLimits();
 
       expect(limits.maxTokensPerBatch).toBe(1500);
+      // Small models use full schema → up to 10 prompts per batch
+      expect(limits.maxPromptsPerBatch).toBe(10);
+      expect(limits.prioritization).toBe('longest-first');
+    });
+
+    it('should return small strategy limits for gemma4:e4b (full schema mode)', () => {
+      const provider = new OllamaProvider({
+        model: 'gemma4:e4b',
+        host: 'http://localhost:11434',
+      });
+
+      const limits = provider.getBatchLimits();
+
+      expect(limits.maxTokensPerBatch).toBe(1500);
+      // gemma4:e4b maps to small strategy → full schema → up to 10 prompts per batch
       expect(limits.maxPromptsPerBatch).toBe(10);
       expect(limits.prioritization).toBe('longest-first');
     });
@@ -641,18 +651,17 @@ describe('OllamaProvider', () => {
       expect(limits.prioritization).toBe('longest-first');
     });
 
-    it('should return micro strategy limits for unknown models', () => {
+    it('should return micro strategy limits for unknown models (individual mode)', () => {
       const provider = new OllamaProvider({
         model: 'unknown-model',
         host: 'http://localhost:11434',
-        // Unknown models default to micro strategy with individual schema
-        schemaOverride: 'batch',
       });
 
       const limits = provider.getBatchLimits();
 
       expect(limits.maxTokensPerBatch).toBe(500);
-      expect(limits.maxPromptsPerBatch).toBe(3);
+      // Unknown models default to micro → individual schema → 1 prompt per batch
+      expect(limits.maxPromptsPerBatch).toBe(1);
       expect(limits.prioritization).toBe('longest-first');
     });
   });
@@ -699,6 +708,18 @@ describe('detectBatchStrategy', () => {
     it('should detect standard strategy for qwen2.5:14b', () => {
       expect(detectBatchStrategy('qwen2.5:14b')).toBe('standard');
     });
+
+    it('should detect micro strategy for gemma4:e2b', () => {
+      expect(detectBatchStrategy('gemma4:e2b')).toBe('micro');
+    });
+
+    it('should detect small strategy for gemma4:e4b', () => {
+      expect(detectBatchStrategy('gemma4:e4b')).toBe('small');
+    });
+
+    it('should detect standard strategy for gemma4:31b', () => {
+      expect(detectBatchStrategy('gemma4:31b')).toBe('standard');
+    });
   });
 
   describe('partial match', () => {
@@ -720,6 +741,10 @@ describe('detectBatchStrategy', () => {
 
     it('should detect standard strategy for mixtral-8x7b-instruct', () => {
       expect(detectBatchStrategy('mixtral-8x7b-instruct')).toBe('standard');
+    });
+
+    it('should detect small strategy for gemma4:e4b:latest', () => {
+      expect(detectBatchStrategy('gemma4:e4b:latest')).toBe('small');
     });
   });
 
@@ -746,21 +771,27 @@ describe('detectBatchStrategy', () => {
       const micro = BATCH_STRATEGIES.micro;
       expect(micro.maxTokensPerBatch).toBe(500);
       expect(micro.maxPromptsPerBatch).toBe(3);
-      expect(micro.description).toBe('For models < 4GB');
+      expect(micro.description).toBe(
+        'Conservative: individual schema, 1 prompt at a time',
+      );
     });
 
     it('should have correct small strategy configuration', () => {
       const small = BATCH_STRATEGIES.small;
       expect(small.maxTokensPerBatch).toBe(1500);
       expect(small.maxPromptsPerBatch).toBe(10);
-      expect(small.description).toBe('For models 4-7GB');
+      expect(small.description).toBe(
+        'Balanced: full schema, up to 10 prompts per batch',
+      );
     });
 
     it('should have correct standard strategy configuration', () => {
       const standard = BATCH_STRATEGIES.standard;
       expect(standard.maxTokensPerBatch).toBe(3000);
       expect(standard.maxPromptsPerBatch).toBe(50);
-      expect(standard.description).toBe('For models > 7GB');
+      expect(standard.description).toBe(
+        'Maximum: full schema, up to 50 prompts per batch',
+      );
     });
   });
 });

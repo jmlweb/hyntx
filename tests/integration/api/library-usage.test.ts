@@ -156,7 +156,7 @@ describe('Library API Usage', () => {
     it('should export ENV_DEFAULTS as constants', () => {
       expect(ENV_DEFAULTS).toBeDefined();
       expect(ENV_DEFAULTS.reminder).toBe('7d');
-      expect(ENV_DEFAULTS.ollama.model).toBe('gemma3:4b');
+      expect(ENV_DEFAULTS.ollama.model).toBe('gemma4:e4b');
       expect(ENV_DEFAULTS.ollama.host).toBe('http://localhost:11434');
       expect(ENV_DEFAULTS.anthropic.model).toBe('claude-3-5-haiku-latest');
       expect(ENV_DEFAULTS.google.model).toBe('gemini-2.0-flash-exp');

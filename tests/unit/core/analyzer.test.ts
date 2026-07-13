@@ -285,7 +285,7 @@ describe('mergeBatchResults', () => {
     expect(ids).toHaveLength(3); // No duplicates
   });
 
-  it('should average frequencies for duplicate patterns', () => {
+  it('should sum frequencies for duplicate patterns across batches', () => {
     const results = [
       createResult({
         patterns: [createPattern('p1', { frequency: 4 })],
@@ -301,7 +301,7 @@ describe('mergeBatchResults', () => {
     });
 
     const pattern = merged.patterns.find((p) => p.id === 'p1');
-    expect(pattern?.frequency).toBe(5); // (4 + 6) / 2 = 5
+    expect(pattern?.frequency).toBe(10); // 4 + 6 = 10 (sum across batches)
   });
 
   it('should take max severity for duplicate patterns', () => {

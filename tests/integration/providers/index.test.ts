@@ -181,10 +181,9 @@ describe('Provider Integration - Ollama Provider', () => {
 
   it('should analyze prompts successfully', async () => {
     const config = {
-      model: 'llama3.2',
+      // Use standard-strategy model so auto-detection selects 'full' schema
+      model: 'llama3:70b',
       host: 'http://localhost:11434',
-      // Force batch schema to match the mock response format
-      schemaOverride: 'batch' as const,
     };
 
     const mockAnalysis = createMockAnalysis();

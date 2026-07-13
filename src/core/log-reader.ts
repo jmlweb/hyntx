@@ -217,6 +217,95 @@ export function extractContent(message: ClaudeMessage): string {
   return message.message.content;
 }
 
+// =============================================================================
+// Confirmation Detection
+// =============================================================================
+
+const MAX_CONFIRMATION_LENGTH = 20;
+const MAX_CHAIN_HOPS = 5;
+
+type IndexEntry = {
+  readonly type: string;
+  readonly contentTail: string | null;
+  readonly parentUuid: string | null;
+};
+
+/**
+ * Lightweight parser that extracts minimal fields from any log entry type.
+ * Used to build the message index for confirmation detection.
+ * Separate from parseLine/isClaudeMessage to handle assistant array content.
+ */
+export function parseLogEntry(
+  line: string,
+): { uuid: string; entry: IndexEntry } | null {
+  if (!line.trim()) return null;
+
+  try {
+    const obj = JSON.parse(line) as Record<string, unknown>;
+    const uuid = obj['uuid'];
+    if (typeof uuid !== 'string') return null;
+
+    const type = typeof obj['type'] === 'string' ? obj['type'] : 'unknown';
+    const parentUuid =
+      typeof obj['parentUuid'] === 'string' ? obj['parentUuid'] : null;
+
+    let contentTail: string | null = null;
+    const message = obj['message'] as Record<string, unknown> | undefined;
+    if (message) {
+      const content = message['content'];
+      if (typeof content === 'string') {
+        contentTail = content.slice(-100);
+      } else if (Array.isArray(content)) {
+        const textBlock = content.find(
+          (block: unknown) =>
+            typeof block === 'object' &&
+            block !== null &&
+            (block as Record<string, unknown>)['type'] === 'text',
+        ) as Record<string, unknown> | undefined;
+        const text = textBlock?.['text'];
+        if (typeof text === 'string') {
+          contentTail = text.slice(-100);
+        }
+      }
+    }
+
+    return { uuid, entry: { type, contentTail, parentUuid } };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Detects if a short user message is a confirmation response to an assistant question.
+ * Walks the parentUuid chain backwards to find the nearest assistant message
+ * and checks if it ends with a question mark.
+ */
+export function isConfirmationMessage(
+  content: string,
+  parentUuid: string | null,
+  index: ReadonlyMap<string, IndexEntry>,
+): boolean {
+  if (content.trim().length > MAX_CONFIRMATION_LENGTH) return false;
+
+  let currentUuid = parentUuid;
+  for (let hop = 0; hop < MAX_CHAIN_HOPS; hop++) {
+    if (!currentUuid) return false;
+    const entry = index.get(currentUuid);
+    if (!entry) return false;
+
+    if (entry.type === 'assistant') {
+      return entry.contentTail?.trimEnd().endsWith('?') === true;
+    }
+    currentUuid = entry.parentUuid;
+  }
+
+  return false;
+}
+
+// =============================================================================
+// File Reading
+// =============================================================================
+
 /**
  * Reads and parses a single JSONL file.
  *
@@ -236,6 +325,16 @@ async function readJsonlFile(filePath: string): Promise<{
     const lines = content.split('\n');
     let skippedLines = 0;
 
+    // First pass: build message index for confirmation detection
+    const messageIndex = new Map<string, IndexEntry>();
+    for (const line of lines) {
+      const parsed = parseLogEntry(line);
+      if (parsed) {
+        messageIndex.set(parsed.uuid, parsed.entry);
+      }
+    }
+
+    // Second pass: extract user prompts with confirmation detection
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i] ?? '';
       const lineNumber = i + 1;
@@ -257,12 +356,21 @@ async function readJsonlFile(filePath: string): Promise<{
         continue;
       }
 
+      // Get parentUuid for this user message from the index
+      const logEntry = parseLogEntry(line);
+      const userParentUuid = logEntry?.entry.parentUuid ?? null;
+
       prompts.push({
         content: extractedContent,
         timestamp: message.timestamp,
         sessionId: message.sessionId,
         project: projectName,
         date: extractDate(message.timestamp),
+        isConfirmation: isConfirmationMessage(
+          extractedContent,
+          userParentUuid,
+          messageIndex,
+        ),
       });
     }
 

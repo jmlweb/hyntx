@@ -15,7 +15,9 @@ import {
   getProjects,
   groupByDay,
   isClaudeMessage,
+  isConfirmationMessage,
   parseDate,
+  parseLogEntry,
   readLogs,
 } from './log-reader.js';
 
@@ -148,13 +150,15 @@ describe('readLogs', () => {
     const result = await readLogs();
 
     expect(result.prompts).toHaveLength(1);
-    expect(result.prompts[0]).toEqual({
-      content: 'Test prompt',
-      timestamp: '2025-01-23T14:30:00.000Z',
-      sessionId: 'abc123',
-      project: 'my-project',
-      date: '2025-01-23',
-    });
+    expect(result.prompts[0]).toEqual(
+      expect.objectContaining({
+        content: 'Test prompt',
+        timestamp: '2025-01-23T14:30:00.000Z',
+        sessionId: 'abc123',
+        project: 'my-project',
+        date: '2025-01-23',
+      }),
+    );
   });
 
   it('handles malformed JSON lines gracefully', async () => {
@@ -905,5 +909,251 @@ describe('readLogs with filters', () => {
     const firstWarning = result.warnings[0];
     expect(firstWarning).toBeDefined();
     expect(firstWarning).toContain('Invalid date');
+  });
+});
+
+describe('parseLogEntry', () => {
+  it('should parse a user message with uuid and parentUuid', () => {
+    const line = JSON.stringify({
+      uuid: 'user-1',
+      parentUuid: 'system-1',
+      type: 'user',
+      message: { role: 'user', content: 'si' },
+      timestamp: '2026-04-07T10:00:00.000Z',
+      sessionId: 'sess-1',
+      cwd: '/test',
+    });
+
+    const result = parseLogEntry(line);
+    expect(result).not.toBeNull();
+    expect(result?.uuid).toBe('user-1');
+    expect(result?.entry.type).toBe('user');
+    expect(result?.entry.parentUuid).toBe('system-1');
+    expect(result?.entry.contentTail).toBe('si');
+  });
+
+  it('should extract text from assistant array content', () => {
+    const line = JSON.stringify({
+      uuid: 'asst-1',
+      type: 'assistant',
+      message: {
+        role: 'assistant',
+        content: [{ type: 'text', text: 'Should I proceed with the changes?' }],
+      },
+      timestamp: '2026-04-07T10:00:00.000Z',
+    });
+
+    const result = parseLogEntry(line);
+    expect(result?.entry.contentTail).toBe(
+      'Should I proceed with the changes?',
+    );
+  });
+
+  it('should return null for lines without uuid', () => {
+    const line = JSON.stringify({
+      type: 'system',
+      message: { content: 'test' },
+    });
+    expect(parseLogEntry(line)).toBeNull();
+  });
+
+  it('should return null for invalid JSON', () => {
+    expect(parseLogEntry('not json')).toBeNull();
+  });
+
+  it('should return null for empty lines', () => {
+    expect(parseLogEntry('')).toBeNull();
+    expect(parseLogEntry('  ')).toBeNull();
+  });
+});
+
+describe('isConfirmationMessage', () => {
+  function buildIndex(
+    entries: {
+      uuid: string;
+      type: string;
+      contentTail: string | null;
+      parentUuid: string | null;
+    }[],
+  ): Map<
+    string,
+    { type: string; contentTail: string | null; parentUuid: string | null }
+  > {
+    const index = new Map<
+      string,
+      { type: string; contentTail: string | null; parentUuid: string | null }
+    >();
+    for (const e of entries) {
+      index.set(e.uuid, {
+        type: e.type,
+        contentTail: e.contentTail,
+        parentUuid: e.parentUuid,
+      });
+    }
+    return index;
+  }
+
+  it('should detect confirmation via assistant→system→user chain', () => {
+    const index = buildIndex([
+      {
+        uuid: 'asst-1',
+        type: 'assistant',
+        contentTail: 'Should I proceed?',
+        parentUuid: null,
+      },
+      {
+        uuid: 'sys-1',
+        type: 'system',
+        contentTail: null,
+        parentUuid: 'asst-1',
+      },
+    ]);
+
+    expect(isConfirmationMessage('si', 'sys-1', index)).toBe(true);
+  });
+
+  it('should return false when assistant does not end with question mark', () => {
+    const index = buildIndex([
+      {
+        uuid: 'asst-1',
+        type: 'assistant',
+        contentTail: 'Done. Changes applied.',
+        parentUuid: null,
+      },
+      {
+        uuid: 'sys-1',
+        type: 'system',
+        contentTail: null,
+        parentUuid: 'asst-1',
+      },
+    ]);
+
+    expect(isConfirmationMessage('ok', 'sys-1', index)).toBe(false);
+  });
+
+  it('should return false for long messages even with question parent', () => {
+    const index = buildIndex([
+      {
+        uuid: 'asst-1',
+        type: 'assistant',
+        contentTail: 'Should I proceed?',
+        parentUuid: null,
+      },
+    ]);
+
+    expect(
+      isConfirmationMessage(
+        'si, hazme un refactor completo de auth',
+        'asst-1',
+        index,
+      ),
+    ).toBe(false);
+  });
+
+  it('should return false when there is no parentUuid', () => {
+    const index = buildIndex([]);
+    expect(isConfirmationMessage('si', null, index)).toBe(false);
+  });
+
+  it('should return false when chain exceeds max hops', () => {
+    const index = buildIndex([
+      { uuid: 's1', type: 'system', contentTail: null, parentUuid: 's2' },
+      { uuid: 's2', type: 'system', contentTail: null, parentUuid: 's3' },
+      { uuid: 's3', type: 'system', contentTail: null, parentUuid: 's4' },
+      { uuid: 's4', type: 'system', contentTail: null, parentUuid: 's5' },
+      { uuid: 's5', type: 'system', contentTail: null, parentUuid: 's6' },
+      {
+        uuid: 's6',
+        type: 'assistant',
+        contentTail: 'Question?',
+        parentUuid: null,
+      },
+    ]);
+
+    expect(isConfirmationMessage('si', 's1', index)).toBe(false);
+  });
+
+  it('should detect direct assistant→user confirmation', () => {
+    const index = buildIndex([
+      {
+        uuid: 'asst-1',
+        type: 'assistant',
+        contentTail: '¿Procedo con los cambios?',
+        parentUuid: null,
+      },
+    ]);
+
+    expect(isConfirmationMessage('si', 'asst-1', index)).toBe(true);
+  });
+
+  it('should return false when parentUuid is not in index', () => {
+    const index = buildIndex([]);
+    expect(isConfirmationMessage('si', 'unknown-uuid', index)).toBe(false);
+  });
+});
+
+describe('readJsonlFile confirmation integration', () => {
+  it('should mark short replies to assistant questions as confirmations', async () => {
+    mockExistsSync.mockReturnValue(true);
+    mockGlob.mockResolvedValue(['/mock/.claude/projects/my-project/log.jsonl']);
+
+    const lines = [
+      JSON.stringify({
+        uuid: 'asst-1',
+        parentUuid: null,
+        type: 'assistant',
+        message: {
+          role: 'assistant',
+          content: [
+            { type: 'text', text: '¿Quieres que proceda con los cambios?' },
+          ],
+        },
+        timestamp: '2026-04-07T10:00:00.000Z',
+        sessionId: 'sess-1',
+        cwd: '/test',
+      }),
+      JSON.stringify({
+        uuid: 'sys-1',
+        parentUuid: 'asst-1',
+        type: 'system',
+        message: { role: 'system', content: 'stop_hook_summary' },
+        timestamp: '2026-04-07T10:00:01.000Z',
+        sessionId: 'sess-1',
+        cwd: '/test',
+      }),
+      JSON.stringify({
+        uuid: 'user-1',
+        parentUuid: 'sys-1',
+        type: 'user',
+        message: { role: 'user', content: 'si' },
+        timestamp: '2026-04-07T10:00:02.000Z',
+        sessionId: 'sess-1',
+        cwd: '/test',
+      }),
+      JSON.stringify({
+        uuid: 'user-2',
+        parentUuid: 'user-1',
+        type: 'user',
+        message: {
+          role: 'user',
+          content: 'Refactoriza el módulo de autenticación',
+        },
+        timestamp: '2026-04-07T10:01:00.000Z',
+        sessionId: 'sess-1',
+        cwd: '/test',
+      }),
+    ].join('\n');
+
+    mockReadFile.mockResolvedValue(lines);
+
+    const result = await readLogs();
+
+    expect(result.prompts).toHaveLength(2);
+    expect(result.prompts[0]?.content).toBe('si');
+    expect(result.prompts[0]?.isConfirmation).toBe(true);
+    expect(result.prompts[1]?.content).toBe(
+      'Refactoriza el módulo de autenticación',
+    );
+    expect(result.prompts[1]?.isConfirmation).toBe(false);
   });
 });

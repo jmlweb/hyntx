@@ -29,6 +29,7 @@ const PLACEHOLDER_PATTERNS = [
   'Improved version addressing the issue',
   '<PLACEHOLDER_EXAMPLE>',
   'Human-Readable Issue Name',
+  'example prompt 1',
 ] as const;
 
 /**

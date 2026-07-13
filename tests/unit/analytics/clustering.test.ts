@@ -31,8 +31,10 @@ describe('clustering', () => {
 
     for (const center of clusterCenters) {
       for (let i = 0; i < pointsPerCluster; i++) {
-        // Add small random variation around center
-        const point = center.map((val) => val + (Math.random() - 0.5) * 0.1);
+        // Add small deterministic variation around center
+        const point = center.map(
+          (val, d) => val + Math.sin(i * 7 + d * 3) * 0.01,
+        );
         embeddings.push(point);
       }
     }
@@ -42,10 +44,10 @@ describe('clustering', () => {
 
   describe('clusterPrompts', () => {
     it('should cluster embeddings into groups', () => {
-      // Create 3 distinct clusters
-      const cluster1Center = Array(10).fill(0.2);
-      const cluster2Center = Array(10).fill(0.5);
-      const cluster3Center = Array(10).fill(0.8);
+      // Create 3 distinct clusters with different directions (for cosine distance)
+      const cluster1Center = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      const cluster2Center = [0, 0, 0, 1, 0, 0, 0, 0, 0, 0];
+      const cluster3Center = [0, 0, 0, 0, 0, 0, 0, 1, 0, 0];
 
       const embeddings = createClusterEmbeddings(
         [cluster1Center, cluster2Center, cluster3Center],

@@ -1,13 +1,11 @@
 /**
- * Ollama AI provider implementation.
- *
- * This module provides integration with local Ollama instances for prompt analysis.
- * Features include:
- * - Availability checking with timeout and model verification
- * - Retry logic with exponential backoff for network errors
- * - Support for both raw JSON and markdown-wrapped responses
+ * Ollama AI provider implementation with improved retry and validation.
  */
 
+import {
+  autoCorrectResult,
+  validateSemantics,
+} from '../core/semantic-validator.js';
 import {
   type AnalysisProvider,
   type AnalysisResult,
@@ -30,145 +28,66 @@ import {
   SYSTEM_PROMPT_MINIMAL,
 } from './schemas.js';
 
-/**
- * Maximum number of retry attempts for network errors.
- */
 const MAX_RETRIES = 2;
-
-/**
- * Timeout for availability check (3 seconds).
- */
+const TEMPERATURE_LEVELS = [0.3, 0.1, 0.0] as const;
 const AVAILABILITY_TIMEOUT_MS = 3000;
-
-/**
- * Timeout for analysis request (60 seconds).
- */
 const ANALYSIS_TIMEOUT_MS = 60000;
-
-/**
- * Base delay for exponential backoff (1 second).
- */
 const BASE_RETRY_DELAY_MS = 1000;
 
-/**
- * Model-to-strategy mapping for known Ollama models.
- * Maps model names to their optimal batch strategy.
- */
 const MODEL_STRATEGY_MAP: Record<string, BatchStrategyType> = {
-  // Micro (< 4GB)
   'llama3.2': 'micro',
   'phi3:mini': 'micro',
   'gemma3:4b': 'micro',
   'gemma2:2b': 'micro',
-
-  // Small (4-7GB)
+  'gemma4:e2b': 'micro',
   'mistral:7b': 'small',
   'llama3:8b': 'small',
   'codellama:7b': 'small',
-
-  // Standard (> 7GB)
+  'gemma4:e4b': 'small',
   'llama3:70b': 'standard',
   mixtral: 'standard',
   'qwen2.5:14b': 'standard',
+  'gemma4:31b': 'standard',
 };
 
-/**
- * Detects the optimal batch strategy for a given model.
- * Uses exact and partial matching against known model names.
- *
- * @param modelName - Name of the Ollama model
- * @returns Batch strategy type
- *
- * @example
- * ```typescript
- * detectBatchStrategy('llama3.2') // 'micro'
- * detectBatchStrategy('llama3.2:latest') // 'micro' (partial match)
- * detectBatchStrategy('unknown-model') // 'micro' (safe default)
- * ```
- */
 export function detectBatchStrategy(modelName: string): BatchStrategyType {
-  // Check exact match first
-  if (MODEL_STRATEGY_MAP[modelName]) {
-    return MODEL_STRATEGY_MAP[modelName];
-  }
-
-  // Check partial match (e.g., "llama3.2:latest" matches "llama3.2")
+  if (MODEL_STRATEGY_MAP[modelName]) return MODEL_STRATEGY_MAP[modelName];
   for (const [pattern, strategy] of Object.entries(MODEL_STRATEGY_MAP)) {
-    if (modelName.includes(pattern)) {
-      return strategy;
-    }
+    if (modelName.includes(pattern)) return strategy;
   }
-
-  // Default to micro for unknown models (safest)
   return 'micro';
 }
 
-/**
- * Ollama provider for local AI analysis.
- * Implements the AnalysisProvider interface for Ollama instances.
- */
 export class OllamaProvider implements AnalysisProvider {
   public readonly name = 'Ollama';
   private readonly config: OllamaConfig;
   private readonly batchStrategy: BatchStrategyType;
   private readonly schemaType: SchemaType;
 
-  /**
-   * Creates a new OllamaProvider instance.
-   * Automatically detects the optimal batch strategy and schema type based on model name.
-   *
-   * @param config - Ollama configuration with model and host
-   */
   constructor(config: OllamaConfig) {
     this.config = config;
     this.batchStrategy = detectBatchStrategy(config.model);
     this.schemaType = this.selectSchemaType();
-
     const strategy = BATCH_STRATEGIES[this.batchStrategy];
     logger.debug(
-      `Detected batch strategy: ${this.batchStrategy} (${strategy.description}), schema type: ${this.schemaType}`,
+      `Detected strategy: ${this.batchStrategy} (${strategy.description}), schema: ${this.schemaType}`,
       'ollama',
     );
   }
 
-  /**
-   * Selects the appropriate schema type based on model size and user override.
-   * Micro and small models use individual schema (hybrid approach) by default.
-   * Standard models use full schema for detailed analysis.
-   * User can override via CLI --analysis-mode flag.
-   *
-   * @returns Schema type identifier
-   */
   private selectSchemaType(): SchemaType {
-    // Check for user override first
-    if (this.config.schemaOverride) {
-      return this.config.schemaOverride === 'individual'
-        ? 'individual'
-        : 'full';
+    // Only override auto-detection when explicitly requesting 'individual'
+    // 'batch' mode should respect the model's strategy-based schema selection
+    if (this.config.schemaOverride === 'individual') {
+      return 'individual';
     }
-
-    // Auto-select based on model size
-    // Micro and small models use batch-individual hybrid for better accuracy
-    // This combines batching performance with individual result clarity
-    return ['micro', 'small'].includes(this.batchStrategy)
-      ? 'individual'
-      : 'full';
+    return this.batchStrategy === 'micro' ? 'individual' : 'full';
   }
 
-  /**
-   * Returns dynamic batch limits based on detected model strategy.
-   * When using individual schema, processes one prompt at a time for reliability.
-   *
-   * @returns Provider limits with model-specific constraints
-   */
   public getBatchLimits(): ProviderLimits {
     const strategy = BATCH_STRATEGIES[this.batchStrategy];
-
-    // Individual schema processes one prompt at a time
-    // This is necessary because small models struggle to return arrays
     const maxPromptsPerBatch =
       this.schemaType === 'individual' ? 1 : strategy.maxPromptsPerBatch;
-
     return {
       maxTokensPerBatch: strategy.maxTokensPerBatch,
       maxPromptsPerBatch,
@@ -176,76 +95,47 @@ export class OllamaProvider implements AnalysisProvider {
     };
   }
 
-  /**
-   * Checks if the Ollama service is available and has the required model.
-   * Uses a 3-second timeout to avoid hanging on unreachable services.
-   *
-   * @returns Promise that resolves to true if available, false otherwise
-   */
   public async isAvailable(): Promise<boolean> {
     logger.debug(`Connecting to Ollama at ${this.config.host}`, 'ollama');
-
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
         controller.abort();
       }, AVAILABILITY_TIMEOUT_MS);
-
       const response = await fetch(`${this.config.host}/api/tags`, {
         signal: controller.signal,
       });
-
       clearTimeout(timeoutId);
-
       if (!response.ok) {
         logger.debug(
-          `Ollama API returned ${String(response.status)}`,
+          `Ollama API returned ${response.status.toString()}`,
           'ollama',
         );
         return false;
       }
-
       const data = (await response.json()) as { models?: { name: string }[] };
-
       if (!data.models || !Array.isArray(data.models)) {
         logger.debug('Ollama returned invalid model list', 'ollama');
         return false;
       }
-
-      // Check if the configured model is available
-      const modelAvailable = data.models.some((model) =>
-        model.name.includes(this.config.model),
+      const modelAvailable = data.models.some((m) =>
+        m.name.includes(this.config.model),
       );
-
-      if (modelAvailable) {
-        logger.debug(
-          `Model ${this.config.model} available (${String(data.models.length)} models found)`,
-          'ollama',
-        );
-      } else {
-        logger.debug(
-          `Model ${this.config.model} not found in available models`,
-          'ollama',
-        );
-      }
-
+      logger.debug(
+        modelAvailable
+          ? `Model ${this.config.model} available`
+          : `Model ${this.config.model} not found`,
+        'ollama',
+      );
       return modelAvailable;
     } catch {
-      // Network errors, timeouts, or JSON parse errors all indicate unavailability
       logger.debug('Ollama connection failed', 'ollama');
       return false;
     }
   }
 
   /**
-   * Analyzes prompts using the Ollama service.
-   * Implements retry logic with exponential backoff for network errors.
-   *
-   * @param prompts - Array of prompt strings to analyze
-   * @param date - Date context for the analysis
-   * @param context - Optional project context for analysis
-   * @returns Promise resolving to AnalysisResult
-   * @throws Error if analysis fails after retries or if response is invalid
+   * Analyzes prompts with temperature fallback and semantic validation.
    */
   public async analyze(
     prompts: readonly string[],
@@ -265,91 +155,110 @@ export class OllamaProvider implements AnalysisProvider {
           : SYSTEM_PROMPT_FULL;
 
     let lastError: Error | undefined;
+    let lastParseError: Error | undefined;
 
+    // Outer loop: network retries
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => {
-          controller.abort();
-        }, ANALYSIS_TIMEOUT_MS);
+      // Inner loop: temperature fallback for parse errors
+      for (const temperature of TEMPERATURE_LEVELS) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => {
+            controller.abort();
+          }, ANALYSIS_TIMEOUT_MS);
 
-        const response = await fetch(`${this.config.host}/api/generate`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: this.config.model,
-            prompt: userPrompt,
-            system: systemPrompt,
-            stream: false,
-            format: 'json',
-            options: {
-              temperature: 0.3,
-            },
-          }),
-          signal: controller.signal,
-        });
+          const response = await fetch(`${this.config.host}/api/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: this.config.model,
+              prompt: userPrompt,
+              system: systemPrompt,
+              stream: false,
+              format: 'json',
+              options: { temperature },
+            }),
+            signal: controller.signal,
+          });
 
-        clearTimeout(timeoutId);
+          clearTimeout(timeoutId);
 
-        if (!response.ok) {
-          const status = String(response.status);
-          throw new Error(
-            `Ollama API request failed: ${status} ${response.statusText}`,
+          if (!response.ok) {
+            throw new Error(
+              `Ollama API failed: ${response.status.toString()} ${response.statusText}`,
+            );
+          }
+
+          const data = (await response.json()) as { response?: string };
+          if (typeof data.response !== 'string') {
+            throw new Error('Invalid response format from Ollama API');
+          }
+
+          // Parse response
+          let result: AnalysisResult;
+          logger.debug(
+            `Schema type: ${this.schemaType}, response length: ${String(data.response.length)}`,
+            'ollama',
           );
-        }
+          if (this.schemaType === 'individual') {
+            result = parseBatchIndividualResponse(data.response, date, prompts);
+          } else {
+            result = parseResponse(data.response, date, undefined, prompts);
+          }
 
-        const data = (await response.json()) as { response?: string };
+          // Semantic validation
+          const validation = validateSemantics(result, prompts);
+          if (!validation.valid) {
+            logger.debug(
+              'Semantic validation failed, attempting auto-correction',
+              'ollama',
+            );
+            result = autoCorrectResult(result, validation);
+          }
 
-        if (typeof data.response !== 'string') {
-          throw new Error('Invalid response format from Ollama API');
-        }
+          return result;
+        } catch (error) {
+          const err = error instanceof Error ? error : new Error(String(error));
 
-        // Parse and validate the response based on schema type
-        if (this.schemaType === 'individual') {
-          return parseBatchIndividualResponse(data.response, date, prompts);
-        }
-        return parseResponse(data.response, date, undefined, prompts);
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
+          // Parse errors: try lower temperature
+          if (err.message.includes('parse') || err.message.includes('schema')) {
+            lastParseError = err;
+            logger.debug(
+              `Parse failed at temp ${temperature.toString()}, trying lower`,
+              'ollama',
+            );
+            continue; // Try next temperature
+          }
 
-        // Don't retry parse errors - they won't succeed on retry
-        if (
-          lastError.message.includes('parse') ||
-          lastError.message.includes('schema')
-        ) {
-          throw lastError;
-        }
-
-        // If this was the last attempt, throw the error
-        if (attempt === MAX_RETRIES) {
+          // Network errors: break inner loop, retry outer
+          lastError = err;
           break;
         }
-
-        // Exponential backoff: 1s, 2s, 4s, ...
-        const delay = BASE_RETRY_DELAY_MS * Math.pow(2, attempt);
-        logger.debug(
-          `Retry attempt ${String(attempt + 1)}/${String(MAX_RETRIES)}, waiting ${String(delay)}ms`,
-          'ollama',
-        );
-        await sleep(delay);
       }
+
+      // If we exhausted temperatures due to parse errors, throw
+      if (lastParseError && !lastError) {
+        throw lastParseError;
+      }
+
+      // If this was the last network retry, break
+      if (attempt === MAX_RETRIES) break;
+
+      // Exponential backoff for network errors
+      const delay = BASE_RETRY_DELAY_MS * Math.pow(2, attempt);
+      logger.debug(
+        `Retry ${String(attempt + 1)}/${String(MAX_RETRIES)}, waiting ${String(delay)}ms`,
+        'ollama',
+      );
+      await sleep(delay);
     }
 
-    const attempts = String(MAX_RETRIES + 1);
     throw new Error(
-      `Ollama analysis failed after ${attempts} attempts: ${lastError?.message ?? 'Unknown error'}`,
+      `Ollama analysis failed after ${String(MAX_RETRIES + 1)} attempts: ${lastError?.message ?? lastParseError?.message ?? 'Unknown error'}`,
     );
   }
 }
 
-/**
- * Sleep utility for retry backoff.
- *
- * @param ms - Milliseconds to sleep
- * @returns Promise that resolves after the delay
- */
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

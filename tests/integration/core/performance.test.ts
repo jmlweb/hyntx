@@ -43,7 +43,7 @@ describe('Performance - Incremental Analysis', () => {
       await populateResultsCache(resultsDir, testData, {
         date: '2025-01-20',
         project: 'perf-test',
-        model: 'gemma3:4b',
+        model: 'gemma4:e4b',
         schemaType: 'full',
       });
 
@@ -65,7 +65,7 @@ describe('Performance - Incremental Analysis', () => {
       const startTime = Date.now();
       const cacheCheck = await getPromptsWithCache(
         prompts,
-        'gemma3:4b',
+        'gemma4:e4b',
         'full',
       );
       const loadTime = Date.now() - startTime;
@@ -87,7 +87,7 @@ describe('Performance - Incremental Analysis', () => {
       await populateResultsCache(resultsDir, testData, {
         date: '2025-01-20',
         project: 'perf-test',
-        model: 'gemma3:4b',
+        model: 'gemma4:e4b',
         schemaType: 'full',
       });
       const populateTime = Date.now() - populateStart;
@@ -114,7 +114,7 @@ describe('Performance - Incremental Analysis', () => {
         const startTime = Date.now();
         const cacheCheck = await getPromptsWithCache(
           prompts,
-          'gemma3:4b',
+          'gemma4:e4b',
           'full',
         );
         const loadTime = Date.now() - startTime;
@@ -141,7 +141,7 @@ describe('Performance - Incremental Analysis', () => {
       const cachedData = generatePerformanceTestData(500);
       await populateResultsCache(resultsDir, cachedData, {
         date: '2025-01-20',
-        model: 'gemma3:4b',
+        model: 'gemma4:e4b',
         schemaType: 'full',
       });
 
@@ -173,7 +173,7 @@ describe('Performance - Incremental Analysis', () => {
       const startTime = Date.now();
       const cacheCheck = await getPromptsWithCache(
         mixedPrompts,
-        'gemma3:4b',
+        'gemma4:e4b',
         'full',
       );
       const loadTime = Date.now() - startTime;
@@ -205,7 +205,7 @@ describe('Performance - Incremental Analysis', () => {
       await populateResultsCache(resultsDir, testData, {
         date: '2025-01-20',
         project: 'perf-test',
-        model: 'gemma3:4b',
+        model: 'gemma4:e4b',
         schemaType: 'full',
       });
 
@@ -225,7 +225,7 @@ describe('Performance - Incremental Analysis', () => {
       // Load all cached results
       const cacheCheck = await getPromptsWithCache(
         prompts,
-        'gemma3:4b',
+        'gemma4:e4b',
         'full',
       );
 
@@ -265,7 +265,7 @@ describe('Performance - Incremental Analysis', () => {
       await populateResultsCache(resultsDir, testData, {
         date: '2025-01-20',
         project: 'perf-test',
-        model: 'gemma3:4b',
+        model: 'gemma4:e4b',
         schemaType: 'full',
       });
 
@@ -292,7 +292,7 @@ describe('Performance - Incremental Analysis', () => {
 
       // Perform multiple cache lookups
       for (let i = 0; i < 10; i++) {
-        await getPromptsWithCache(prompts, 'gemma3:4b', 'full');
+        await getPromptsWithCache(prompts, 'gemma4:e4b', 'full');
       }
 
       // Force garbage collection again
@@ -321,7 +321,7 @@ describe('Performance - Incremental Analysis', () => {
       await populateResultsCache(resultsDir, testData, {
         date: '2025-01-20',
         project: 'perf-test',
-        model: 'gemma3:4b',
+        model: 'gemma4:e4b',
         schemaType: 'full',
       });
 
@@ -344,7 +344,9 @@ describe('Performance - Incremental Analysis', () => {
       // Read all batches concurrently
       const startTime = Date.now();
       const results = await Promise.all(
-        batches.map((batch) => getPromptsWithCache(batch, 'gemma3:4b', 'full')),
+        batches.map((batch) =>
+          getPromptsWithCache(batch, 'gemma4:e4b', 'full'),
+        ),
       );
       const totalTime = Date.now() - startTime;
 
@@ -388,7 +390,7 @@ describe('Performance - Incremental Analysis', () => {
               date: '2025-01-20',
               project: 'perf-test',
               provider: 'test-provider',
-              model: 'gemma3:4b',
+              model: 'gemma4:e4b',
               schemaType: 'full',
             },
           ),
@@ -414,7 +416,7 @@ describe('Performance - Incremental Analysis', () => {
 
       const cacheCheck = await getPromptsWithCache(
         promptsToCheck,
-        'gemma3:4b',
+        'gemma4:e4b',
         'full',
       );
 
@@ -431,7 +433,7 @@ describe('Performance - Incremental Analysis', () => {
         const testData = generatePerformanceTestData(100, date);
         await populateResultsCache(resultsDir, testData, {
           date,
-          model: 'gemma3:4b',
+          model: 'gemma4:e4b',
           schemaType: 'full',
         });
       }
@@ -454,7 +456,7 @@ describe('Performance - Incremental Analysis', () => {
       const startTime = Date.now();
       const cacheCheck = await getPromptsWithCache(
         prompts,
-        'gemma3:4b',
+        'gemma4:e4b',
         'full',
       );
       const loadTime = Date.now() - startTime;
@@ -479,7 +481,7 @@ describe('Performance - Incremental Analysis', () => {
         const testData = generatePerformanceTestData(50, date);
         await populateResultsCache(resultsDir, testData, {
           date,
-          model: 'gemma3:4b',
+          model: 'gemma4:e4b',
           schemaType: 'full',
         });
       }
