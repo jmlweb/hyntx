@@ -1012,7 +1012,29 @@ describe('isConfirmationMessage', () => {
     expect(isConfirmationMessage('si', 'sys-1', index)).toBe(true);
   });
 
-  it('should return false when assistant does not end with question mark', () => {
+  it('should detect lexicon confirmation when assistant has no question mark', () => {
+    const index = buildIndex([
+      {
+        uuid: 'asst-1',
+        type: 'assistant',
+        contentTail: 'Not pushed — say the word if you want a push.',
+        parentUuid: null,
+      },
+      {
+        uuid: 'sys-1',
+        type: 'system',
+        contentTail: null,
+        parentUuid: 'asst-1',
+      },
+    ]);
+
+    expect(isConfirmationMessage('ok', 'sys-1', index)).toBe(true);
+    expect(isConfirmationMessage('push it', 'sys-1', index)).toBe(true);
+    expect(isConfirmationMessage('proceed', 'sys-1', index)).toBe(true);
+    expect(isConfirmationMessage('3', 'sys-1', index)).toBe(true);
+  });
+
+  it('should return false for non-lexicon short prompt without question parent', () => {
     const index = buildIndex([
       {
         uuid: 'asst-1',
@@ -1028,7 +1050,21 @@ describe('isConfirmationMessage', () => {
       },
     ]);
 
-    expect(isConfirmationMessage('ok', 'sys-1', index)).toBe(false);
+    expect(isConfirmationMessage('fix the tests', 'sys-1', index)).toBe(false);
+  });
+
+  it('should detect confirmation when question mark is mid-tail', () => {
+    const index = buildIndex([
+      {
+        uuid: 'asst-1',
+        type: 'assistant',
+        contentTail:
+          'Want a private GitHub remote for backup? Say the word, I create + push.',
+        parentUuid: null,
+      },
+    ]);
+
+    expect(isConfirmationMessage('the second one', 'asst-1', index)).toBe(true);
   });
 
   it('should return false for long messages even with question parent', () => {

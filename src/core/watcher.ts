@@ -22,6 +22,7 @@ import { CLAUDE_PROJECTS_DIR } from '../utils/paths.js';
 import {
   extractContent,
   extractProjectName,
+  isConfirmationText,
   isUserMessage,
   parseLine,
 } from './log-reader.js';
@@ -81,6 +82,7 @@ function processLines(
       sessionId: message.sessionId,
       project: projectName,
       date: extractDate(message.timestamp),
+      isConfirmation: isConfirmationText(content),
     });
   }
 

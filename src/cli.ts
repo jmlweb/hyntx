@@ -1348,6 +1348,11 @@ export async function runWatchMode(
   });
 
   watcher.on('prompt', ({ prompt }) => {
+    // Skip confirmations (short replies like "yes"/"proceed") — not real prompts
+    if (prompt.isConfirmation) {
+      return;
+    }
+
     const promptKey = generatePromptKey(prompt);
 
     // Skip if already analyzed
@@ -1714,7 +1719,16 @@ export async function cli(): Promise<void> {
 
     // 12. Handle dry-run mode (exit early)
     if (args.dryRun) {
-      displayDryRunSummary(logResult.prompts, args);
+      const analyzable = logResult.prompts.filter((p) => !p.isConfirmation);
+      const excluded = logResult.prompts.length - analyzable.length;
+      if (excluded > 0) {
+        console.log(
+          chalk.dim(
+            `  Excluded ${String(excluded)} confirmation(s) (short replies to assistant questions)`,
+          ),
+        );
+      }
+      displayDryRunSummary(analyzable, args);
       process.exit(EXIT_CODES.SUCCESS);
     }
 

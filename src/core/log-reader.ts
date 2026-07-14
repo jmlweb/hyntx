@@ -224,6 +224,15 @@ export function extractContent(message: ClaudeMessage): string {
 const MAX_CONFIRMATION_LENGTH = 20;
 const MAX_CHAIN_HOPS = 5;
 
+/**
+ * Short replies that are confirmations even when the assistant message
+ * does not contain a question mark (e.g. "Not pushed — say the word.").
+ * Covers English and Spanish affirmations, action approvals, and
+ * numeric option picks.
+ */
+const CONFIRMATION_LEXICON =
+  /^(?:y|n|yes|no|yep|yeah|nope|ok|okay|k|sure|fine|si|sí|vale|dale|claro|adelante|hazlo|proceed|continue|go|go ahead|do it|push it|ship it|merge it|send it|apply|approve[d]?|confirm(?:ed)?|lgtm|sounds good|done|thanks|thank you|gracias|\d{1,2})[.!]?$/i;
+
 type IndexEntry = {
   readonly type: string;
   readonly contentTail: string | null;
@@ -276,16 +285,32 @@ export function parseLogEntry(
 }
 
 /**
- * Detects if a short user message is a confirmation response to an assistant question.
- * Walks the parentUuid chain backwards to find the nearest assistant message
- * and checks if it ends with a question mark.
+ * Detects confirmations from the text alone (no parent-chain context).
+ * Used by watch mode, which tails new lines and has no message index.
+ */
+export function isConfirmationText(content: string): boolean {
+  const trimmed = content.trim();
+  return (
+    trimmed.length <= MAX_CONFIRMATION_LENGTH &&
+    CONFIRMATION_LEXICON.test(trimmed)
+  );
+}
+
+/**
+ * Detects if a short user message is a confirmation response to an assistant message.
+ * Walks the parentUuid chain backwards to find the nearest assistant message.
+ * A short reply is a confirmation when the assistant message contains a
+ * question near its end, or when the reply itself is a known confirmation
+ * word (assistant messages often request approval without a question mark,
+ * e.g. "Not pushed — say the word if you want a push.").
  */
 export function isConfirmationMessage(
   content: string,
   parentUuid: string | null,
   index: ReadonlyMap<string, IndexEntry>,
 ): boolean {
-  if (content.trim().length > MAX_CONFIRMATION_LENGTH) return false;
+  const trimmed = content.trim();
+  if (trimmed.length > MAX_CONFIRMATION_LENGTH) return false;
 
   let currentUuid = parentUuid;
   for (let hop = 0; hop < MAX_CHAIN_HOPS; hop++) {
@@ -294,7 +319,8 @@ export function isConfirmationMessage(
     if (!entry) return false;
 
     if (entry.type === 'assistant') {
-      return entry.contentTail?.trimEnd().endsWith('?') === true;
+      if (entry.contentTail?.includes('?') === true) return true;
+      return isConfirmationText(trimmed);
     }
     currentUuid = entry.parentUuid;
   }
