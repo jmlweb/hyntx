@@ -4,17 +4,8 @@ import baseConfig from '@jmlweb/vitest-config';
 export default defineConfig({
   test: {
     ...baseConfig.test,
-    include: [
-      'tests/unit/**/*.test.ts',
-      'tests/integration/**/*.test.ts',
-      'src/**/*.test.ts',
-    ],
-    exclude: [
-      'node_modules/',
-      'dist/',
-      'tests/e2e/**/*.test.ts',
-      'tests/e2e/**',
-    ],
+    include: ['src/**/*.test.ts'],
+    exclude: ['node_modules/', 'dist/'],
     testTimeout: 30000,
     typecheck: {
       enabled: false,
@@ -24,13 +15,7 @@ export default defineConfig({
       ...baseConfig.test?.coverage,
       thresholds: undefined,
       reporter: ['text', 'html', 'lcov'],
-      exclude: [
-        'node_modules/',
-        'dist/',
-        '**/*.config.*',
-        'tests/e2e/**',
-        'tests/**/*.test.ts',
-      ],
+      exclude: ['node_modules/', 'dist/', '**/*.config.*', '**/*.test.ts'],
     },
     passWithNoTests: true,
   },

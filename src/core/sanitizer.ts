@@ -80,6 +80,43 @@ function redactBearerTokens(text: string): string {
 }
 
 /**
+ * Redacts well-known provider tokens (GitHub, Slack, Google, Stripe, JWT).
+ * Shell commands and error output shown in reports often carry these.
+ *
+ * @param text - Text to process
+ * @returns Text with provider tokens redacted
+ */
+function redactProviderTokens(text: string): string {
+  return text
+    .replace(/\bgh[pousr]_[A-Za-z0-9]{36,}\b/g, '[REDACTED_GITHUB_TOKEN]')
+    .replace(/\bgithub_pat_[A-Za-z0-9_]{22,}\b/g, '[REDACTED_GITHUB_TOKEN]')
+    .replace(/\bxox[abprs]-[A-Za-z0-9-]{10,}/g, '[REDACTED_SLACK_TOKEN]')
+    .replace(/\bAIza[0-9A-Za-z_-]{35}\b/g, '[REDACTED_GOOGLE_KEY]')
+    .replace(
+      /\b[sr]k_(?:live|test)_[A-Za-z0-9]{16,}\b/g,
+      '[REDACTED_STRIPE_KEY]',
+    )
+    .replace(
+      /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g,
+      '[REDACTED_JWT]',
+    );
+}
+
+/**
+ * Redacts values assigned to secret-looking names (TOKEN=..., "password": ...).
+ * Variable references such as $TOKEN are left alone.
+ *
+ * @param text - Text to process
+ * @returns Text with assigned secret values redacted
+ */
+function redactSecretAssignments(text: string): string {
+  return text.replace(
+    /\b([A-Za-z0-9_-]*(?:token|secret|password|passwd|api[_-]?key|apikey|access[_-]?key|private[_-]?key)[A-Za-z0-9_-]*["']?\s*[=:]\s*["']?)(?!\$|\[REDACTED)[^\s"'&,;)]{8,}/gi,
+    '$1[REDACTED_SECRET]',
+  );
+}
+
+/**
  * Redacts credentials in URLs (https://user:pass@example.com).
  *
  * @param text - Text to process
@@ -544,6 +581,8 @@ export function sanitize(text: string): SanitizeResult {
   sanitized = redactAnthropicKeys(sanitized);
   sanitized = redactAWSCredentials(sanitized);
   sanitized = redactBearerTokens(sanitized);
+  sanitized = redactProviderTokens(sanitized);
+  sanitized = redactSecretAssignments(sanitized);
   sanitized = redactURLCredentials(sanitized);
   sanitized = redactPEMKeys(sanitized);
   // PII redaction (specific patterns before broad numeric matchers)

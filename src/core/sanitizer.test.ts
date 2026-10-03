@@ -802,3 +802,33 @@ describe('sanitizePrompts', () => {
     expect(result.totalRedacted).toBe(1);
   });
 });
+
+describe('provider tokens and secret assignments', () => {
+  it('redacts GitHub, Slack, Google, Stripe and JWT tokens', () => {
+    const input = [
+      `ghp_${'a1B2c3'.repeat(6)}`,
+      'xoxb-1234567890-abcdefghij',
+      `AIza${'a1B2c3D4e5'.repeat(3)}Zx9Yw`,
+      `sk_live_${'abcd1234'.repeat(3)}`,
+      'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcDEF123456',
+    ].join(' ');
+    const { text } = sanitize(input);
+    expect(text).toContain('[REDACTED_GITHUB_TOKEN]');
+    expect(text).toContain('[REDACTED_SLACK_TOKEN]');
+    expect(text).toContain('[REDACTED_GOOGLE_KEY]');
+    expect(text).toContain('[REDACTED_STRIPE_KEY]');
+    expect(text).toContain('[REDACTED_JWT]');
+  });
+
+  it('redacts values assigned to secret-looking names but not variable references', () => {
+    expect(sanitize('API_KEY=abcdef123456789').text).toBe(
+      'API_KEY=[REDACTED_SECRET]',
+    );
+    expect(sanitize('{"password": "hunter2hunter2"}').text).toContain(
+      '[REDACTED_SECRET]',
+    );
+    expect(sanitize('curl -H "X-Token: $TOKEN"').text).toBe(
+      'curl -H "X-Token: $TOKEN"',
+    );
+  });
+});

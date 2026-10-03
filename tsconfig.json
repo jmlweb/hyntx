@@ -6,6 +6,6 @@
     "esModuleInterop": false,
     "exactOptionalPropertyTypes": false
   },
-  "include": ["src/**/*", "tests/**/*"],
-  "exclude": ["node_modules", "dist", "tests/e2e/**/*", "vitest.config.e2e.ts"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

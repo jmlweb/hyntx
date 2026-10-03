@@ -1,782 +1,550 @@
 /**
- * Hyntx - TypeScript Type Definitions
+ * Shared types for Hyntx v4.
  *
- * This module contains all shared type definitions for the Hyntx system.
- * All types are designed to be composable and type-safe.
+ * Two layers live here:
+ * 1. The raw session model (`Session`, `Turn`, `ToolCall`...) produced by the
+ *    session reader. It is in-memory only and may hold unsanitized text.
+ * 2. The serializable `Report` contract. Every string in a `Report` has been
+ *    sanitized; HTML report, plugin and LLM engines build on this layer.
  */
 
-// =============================================================================
-// Re-exports from other modules
-// =============================================================================
+// ---------------------------------------------------------------------------
+// Raw session model (in-memory, never serialized)
+// ---------------------------------------------------------------------------
 
-export type { MinimalResult } from '../core/aggregator.js';
-export type {
-  IssueMetadata,
-  IssueTaxonomy,
-  SchemaType,
-} from '../providers/schemas.js';
-
-// =============================================================================
-// Schema and Log Types
-// =============================================================================
-
-/**
- * Schema version for Claude Code JSONL logs.
- * Used for graceful degradation when log format changes.
- */
-export type SchemaVersion = {
-  readonly major: number;
-  readonly minor: number;
-  readonly detected: string;
+export type TokenUsage = {
+  readonly input: number;
+  readonly output: number;
+  readonly cacheRead: number;
+  readonly cacheCreation: number;
 };
 
-/**
- * Message structure in Claude Code JSONL logs.
- * Represents a single entry in the conversation log.
- */
-export type ClaudeMessage = {
-  readonly type: 'user' | 'assistant' | 'system';
-  readonly message: {
-    readonly role: 'user' | 'assistant' | 'system';
-    readonly content: string;
-  };
+export const DenialKind = {
+  /** The human rejected the tool call in the permission dialog. */
+  USER: 'user',
+  /** A settings permission rule denied the call. */
+  RULE: 'rule',
+  /** The auto-mode classifier blocked the call. */
+  CLASSIFIER: 'classifier',
+  /** A PreToolUse hook blocked the call. */
+  HOOK: 'hook',
+} as const;
+export type DenialKind = (typeof DenialKind)[keyof typeof DenialKind];
+
+export type ToolResult = {
   readonly timestamp: string;
-  readonly sessionId: string;
-  readonly cwd: string;
+  readonly isError: boolean;
+  readonly denial: DenialKind | null;
+  /** First characters of the result text; raw (unsanitized). */
+  readonly excerpt: string;
 };
 
-/**
- * Log entry type alias for JSONL files.
- * Used in test utilities and log parsing.
- */
-export type LogEntry = ClaudeMessage;
-
-/**
- * Data extracted from Claude Code messages.
- * Contains the sanitized prompt and metadata.
- */
-export type ExtractedPrompt = {
-  readonly content: string;
-  readonly timestamp: string;
-  readonly sessionId: string;
-  readonly project: string;
-  readonly date: string;
-  readonly isConfirmation?: boolean;
-};
-
-/**
- * Result of reading logs from the filesystem.
- */
-export type LogReadResult = {
-  readonly prompts: readonly ExtractedPrompt[];
-  readonly warnings: readonly string[];
-};
-
-/**
- * Grouping of prompts by day for analysis.
- */
-export type DayGroup = {
-  readonly date: string;
-  readonly prompts: readonly ExtractedPrompt[];
-  readonly projects: readonly string[];
-};
-
-// =============================================================================
-// Analysis Types
-// =============================================================================
-
-/**
- * Before/after rewrite example for a pattern.
- * Shows concrete improvement for a detected issue.
- */
-export type BeforeAfter = {
-  readonly before: string;
-  readonly after: string;
-};
-
-/**
- * Severity levels for detected patterns.
- */
-export type PatternSeverity = 'low' | 'medium' | 'high';
-
-/**
- * Category for individual prompt analysis.
- * Used in batch-individual hybrid mode.
- */
-export type PromptCategory =
-  | 'vague-request'
-  | 'missing-context'
-  | 'too-broad'
-  | 'unclear-goal'
-  | 'other';
-
-/**
- * Individual prompt analysis result.
- * Used in batch-individual hybrid mode to return per-prompt results.
- */
-export type IndividualPromptResult = {
-  readonly status: 'correct' | 'problems';
-  readonly problems: readonly string[];
-  readonly categories: readonly PromptCategory[];
-  readonly example: string;
-  readonly suggestion: string;
-};
-
-/**
- * Detected improvement pattern from analysis.
- * Each pattern includes concrete examples and actionable suggestions.
- */
-export type AnalysisPattern = {
+export type ToolCall = {
   readonly id: string;
   readonly name: string;
-  readonly frequency: number;
-  readonly severity: PatternSeverity;
-  readonly examples: readonly string[];
-  readonly suggestion: string;
-  readonly beforeAfter: BeforeAfter;
+  readonly timestamp: string;
+  readonly sidechain: boolean;
+  /** File path, URL, pattern or subagent type, depending on the tool. */
+  readonly target: string | null;
+  /** Bash command line (raw). */
+  readonly command: string | null;
+  readonly result: ToolResult | null;
 };
 
-/**
- * Statistics from the analysis.
- */
-export type AnalysisStats = {
-  readonly totalPrompts: number;
-  readonly promptsWithIssues: number;
-  readonly overallScore: number;
+export const PromptSource = {
+  TYPED: 'typed',
+  SUGGESTION: 'suggestion',
+  UNKNOWN: 'unknown',
+} as const;
+export type PromptSource = (typeof PromptSource)[keyof typeof PromptSource];
+
+export type Prompt = {
+  readonly uuid: string;
+  readonly timestamp: string;
+  /** Raw text (unsanitized, truncated). */
+  readonly text: string;
+  readonly source: PromptSource;
+  readonly permissionMode: string | null;
 };
 
-/**
- * Complete analysis result from a provider.
- * Contains patterns, statistics, and top suggestion.
- */
-export type AnalysisResult = {
+export type Interruption = {
+  readonly timestamp: string;
+  readonly duringToolUse: boolean;
+};
+
+export const TurnKind = {
+  /** Started by a human-typed prompt. */
+  TYPED: 'typed',
+  /** Started by a prompt-expanding slash command (skill/custom command). */
+  COMMAND: 'command',
+} as const;
+export type TurnKind = (typeof TurnKind)[keyof typeof TurnKind];
+
+export type Turn = {
+  readonly index: number;
+  readonly kind: TurnKind;
+  readonly command: string | null;
+  readonly prompt: Prompt;
+  readonly startedAt: string;
+  readonly endedAt: string;
+  readonly tokens: TokenUsage;
+  readonly assistantMessages: number;
+  readonly toolCalls: readonly ToolCall[];
+  readonly interruptions: readonly Interruption[];
+  readonly models: readonly string[];
+  /** Last assistant text of the turn (raw, truncated). */
+  readonly assistantExcerpt: string | null;
+};
+
+export type Compaction = {
+  readonly timestamp: string;
+  readonly trigger: string | null;
+  readonly preTokens: number | null;
+};
+
+export type ModelUsage = {
+  readonly messages: number;
+  readonly tokens: TokenUsage;
+};
+
+export type SlashCommandUse = {
+  readonly name: string;
+  readonly timestamp: string;
+};
+
+export type SubagentActivity = {
+  readonly agentIds: readonly string[];
+  /** Task/Agent tool calls issued by the main thread. */
+  readonly invocations: number;
+  readonly tokens: TokenUsage;
+  readonly toolCalls: number;
+};
+
+export type Session = {
+  readonly id: string;
+  readonly project: string;
+  readonly projectDir: string;
+  readonly cwd: string | null;
+  readonly gitBranch: string | null;
+  readonly entrypoint: string | null;
+  readonly versions: readonly string[];
+  readonly title: string | null;
+  readonly startedAt: string;
+  readonly endedAt: string;
+  readonly turns: readonly Turn[];
+  readonly toolCalls: readonly ToolCall[];
+  readonly tokens: TokenUsage;
+  readonly models: Readonly<Record<string, ModelUsage>>;
+  readonly assistantMessages: number;
+  readonly apiErrors: number;
+  readonly subagents: SubagentActivity;
+  /** Typed prompts per permission mode. */
+  readonly permissionModes: Readonly<Record<string, number>>;
+  readonly permissionModesSeen: readonly string[];
+  readonly planModeUsed: boolean;
+  readonly slashCommands: readonly SlashCommandUse[];
+  readonly compactions: readonly Compaction[];
+  readonly interruptionsOutsideTurns: number;
+  readonly sourceFiles: readonly string[];
+};
+
+export type ReadStats = {
+  readonly filesRead: number;
+  readonly subagentFilesRead: number;
+  readonly recordsRead: number;
+  /** Lines that were not valid JSON objects. */
+  readonly recordsSkipped: number;
+  readonly unknownRecordTypes: Readonly<Record<string, number>>;
+  /** Assistant/user records already seen (resumed or streamed copies). */
+  readonly duplicateRecords: number;
+  readonly orphanToolResults: number;
+  readonly claudeCodeVersions: readonly string[];
+};
+
+export type ReadSessionsOptions = {
+  readonly projectsDir?: string;
+  readonly from?: Date;
+  readonly to?: Date;
+  /** Case-insensitive substring of the project name or directory. */
+  readonly project?: string;
+  readonly onProgress?: (filesRead: number) => void;
+};
+
+export type ReadSessionsResult = {
+  readonly sessions: readonly Session[];
+  readonly stats: ReadStats;
+};
+
+// ---------------------------------------------------------------------------
+// Metrics (serializable)
+// ---------------------------------------------------------------------------
+
+export type TokenTotals = TokenUsage & {
+  /** input + output + cacheRead + cacheCreation */
+  readonly total: number;
+  /** cacheRead / (input + cacheRead + cacheCreation); null without input. */
+  readonly cacheHitRatio: number | null;
+};
+
+export type ToolStat = {
+  readonly name: string;
+  readonly calls: number;
+  /** Failed calls, excluding denials. */
+  readonly errors: number;
+  readonly denied: number;
+  readonly errorRate: number;
+};
+
+export type ModelMix = {
+  readonly model: string;
+  readonly messages: number;
+  readonly tokens: number;
+  readonly share: number;
+};
+
+export type Distribution = {
+  readonly median: number;
+  readonly p90: number;
+  readonly max: number;
+  readonly buckets: readonly {
+    readonly label: string;
+    readonly count: number;
+  }[];
+};
+
+export type AggregateMetrics = {
+  readonly sessions: number;
+  readonly turns: number;
+  readonly typedPrompts: number;
+  readonly acceptedSuggestions: number;
+  readonly assistantMessages: number;
+  readonly toolCalls: number;
+  readonly toolErrors: number;
+  readonly toolDenied: number;
+  readonly toolErrorRate: number;
+  readonly tools: readonly ToolStat[];
+  readonly tokens: TokenTotals;
+  readonly models: readonly ModelMix[];
+  readonly subagents: {
+    readonly invocations: number;
+    readonly sessionsUsing: number;
+    readonly tokens: number;
+    readonly toolCalls: number;
+  };
+  readonly permissionModes: Readonly<Record<string, number>>;
+  readonly planMode: {
+    readonly sessionsUsing: number;
+    readonly typedPrompts: number;
+  };
+  readonly slashCommands: readonly {
+    readonly name: string;
+    readonly count: number;
+  }[];
+  readonly interruptions: number;
+  readonly compactions: number;
+  readonly apiErrors: number;
+  /** Distribution of active minutes per session (idle gaps > 10m excluded). */
+  readonly sessionMinutes: Distribution;
+  readonly sessionTurns: Distribution;
+};
+
+export type SessionMetrics = {
+  readonly sessionId: string;
+  readonly project: string;
+  readonly title: string | null;
+  readonly startedAt: string;
+  readonly endedAt: string;
+  /** Wall-clock span. */
+  readonly durationMinutes: number;
+  /** Span excluding idle gaps longer than 10 minutes. */
+  readonly activeMinutes: number;
+  readonly turns: number;
+  readonly typedPrompts: number;
+  readonly toolCalls: number;
+  readonly toolErrors: number;
+  readonly toolDenied: number;
+  readonly tokens: TokenTotals;
+  readonly primaryModel: string | null;
+  readonly subagentInvocations: number;
+  readonly interruptions: number;
+  readonly compactions: number;
+  readonly planModeUsed: boolean;
+};
+
+export type Metrics = {
+  readonly overall: AggregateMetrics;
+  readonly byProject: readonly (AggregateMetrics & {
+    readonly project: string;
+  })[];
+  readonly byDay: readonly (AggregateMetrics & { readonly date: string })[];
+  readonly sessions: readonly SessionMetrics[];
+  readonly activity: {
+    /** Typed prompts per local hour, index 0-23. */
+    readonly byHour: readonly number[];
+    /** Typed prompts per weekday, index 0 = Sunday. */
+    readonly byWeekday: readonly number[];
+  };
+};
+
+/** Compact per-day record; persisted under ~/.hyntx so trends outlive logs. */
+export type DailyPoint = {
   readonly date: string;
-  readonly patterns: readonly AnalysisPattern[];
-  readonly stats: AnalysisStats;
-  readonly topSuggestion: string;
+  readonly sessions: number;
+  readonly turns: number;
+  readonly typedPrompts: number;
+  readonly toolCalls: number;
+  readonly toolErrors: number;
+  readonly toolDenied: number;
+  readonly interruptions: number;
+  readonly corrections: number;
+  readonly compactions: number;
+  readonly subagentInvocations: number;
+  readonly activeMinutes: number;
+  readonly tokens: TokenUsage;
 };
 
-/**
- * Prompt analysis without the date field.
- * Used for raw provider responses before date context is added.
- */
-export type PromptAnalysis = Omit<AnalysisResult, 'date'>;
+// ---------------------------------------------------------------------------
+// Friction episodes (serializable, sanitized)
+// ---------------------------------------------------------------------------
 
-// =============================================================================
-// Provider Types
-// =============================================================================
+export const EpisodeType = {
+  INTERRUPTION: 'interruption',
+  CORRECTION: 'correction',
+  TOOL_ERROR_LOOP: 'tool-error-loop',
+  TOOL_DENIED: 'tool-denied',
+  REWORK: 'rework',
+  CONTEXT_PRESSURE: 'context-pressure',
+  REPEATED_INSTRUCTION: 'repeated-instruction',
+  READONLY_COMMAND: 'frequent-readonly-command',
+} as const;
+export type EpisodeType = (typeof EpisodeType)[keyof typeof EpisodeType];
 
-/**
- * Supported AI provider types.
- */
-export type ProviderType = 'ollama' | 'anthropic' | 'google';
+export type EpisodeRef = {
+  readonly sessionId: string;
+  readonly project: string;
+  readonly timestamp: string;
+  readonly prompt: string;
+};
 
-/**
- * Batch strategy type identifier.
- */
-export type BatchStrategyType = 'micro' | 'small' | 'standard';
+export type EpisodeContext = {
+  /** Prompt that opened the previous turn (what the user originally asked). */
+  readonly previousPrompt: string | null;
+  /** Tail of the assistant's last text before the episode. */
+  readonly assistantExcerpt: string | null;
+  /** Tool usage counts in the surrounding turn. */
+  readonly tools: Readonly<Record<string, number>>;
+  /** Type-specific facts (counts, file, command, reason...). */
+  readonly detail: Readonly<Record<string, string | number | boolean | null>>;
+};
 
-/**
- * Batch strategy configuration for different model sizes.
- */
-export type BatchStrategy = {
-  readonly maxTokensPerBatch: number;
-  readonly maxPromptsPerBatch: number;
+export type Episode = {
+  readonly id: string;
+  readonly type: EpisodeType;
+  readonly sessionId: string;
+  readonly project: string;
+  readonly timestamp: string;
+  /** 0-1. Heuristic detectors say so explicitly; the LLM step confirms. */
+  readonly confidence: number;
+  /** Occurrences collapsed into this episode (>= 1). */
+  readonly count: number;
+  /** Sanitized excerpt of the triggering prompt, when there is one. */
+  readonly prompt: string | null;
+  readonly summary: string;
+  readonly context: EpisodeContext;
+  /** Other occurrences (repeated instructions); at most a few. */
+  readonly related: readonly EpisodeRef[];
+};
+
+export type PromptTraitFinding = {
+  readonly trait: string;
+  readonly outcome: string;
+  readonly withTrait: { readonly n: number; readonly value: number };
+  readonly withoutTrait: { readonly n: number; readonly value: number };
+  /** Smallest group size used to decide significance. */
+  readonly sampleSize: number;
+  /** True only when both groups are large enough and the gap is material. */
+  readonly significant: boolean;
   readonly description: string;
 };
 
-/**
- * Available batch strategies by model size.
- */
-export const BATCH_STRATEGIES: Record<BatchStrategyType, BatchStrategy> = {
-  // Conservative: minimal schema, 1 prompt at a time
-  micro: {
-    maxTokensPerBatch: 500,
-    maxPromptsPerBatch: 3,
-    description: 'Conservative: individual schema, 1 prompt at a time',
-  },
-  // Balanced: full schema, up to 10 prompts per batch
-  small: {
-    maxTokensPerBatch: 1_500,
-    maxPromptsPerBatch: 10,
-    description: 'Balanced: full schema, up to 10 prompts per batch',
-  },
-  // Maximum: full schema, up to 50 prompts per batch
-  standard: {
-    maxTokensPerBatch: 3_000,
-    maxPromptsPerBatch: 50,
-    description: 'Maximum: full schema, up to 50 prompts per batch',
-  },
+// ---------------------------------------------------------------------------
+// Insights (serializable, sanitized)
+// ---------------------------------------------------------------------------
+
+export const Severity = {
+  HIGH: 'high',
+  MEDIUM: 'medium',
+  LOW: 'low',
 } as const;
+export type Severity = (typeof Severity)[keyof typeof Severity];
 
-/**
- * Context limits for each provider.
- * Used for intelligent batching of prompts.
- */
-export type ProviderLimits = {
-  readonly maxTokensPerBatch: number;
-  readonly maxPromptsPerBatch?: number;
-  readonly prioritization: 'longest-first' | 'chronological';
-};
-
-/**
- * Provider limits by type.
- */
-export const PROVIDER_LIMITS: Record<ProviderType, ProviderLimits> = {
-  // Small local models struggle with large inputs - limit to ~10 short prompts
-  ollama: { maxTokensPerBatch: 3_000, prioritization: 'longest-first' },
-  anthropic: { maxTokensPerBatch: 100_000, prioritization: 'chronological' },
-  google: { maxTokensPerBatch: 500_000, prioritization: 'chronological' },
+export const InsightKind = {
+  INTERRUPTIONS: 'interruptions',
+  CORRECTIONS: 'corrections',
+  TOOL_ERROR_LOOPS: 'tool-error-loops',
+  TOOL_DENIALS: 'tool-denials',
+  REWORK: 'rework',
+  CONTEXT_PRESSURE: 'context-pressure',
+  REPEATED_INSTRUCTION: 'repeated-instruction',
+  READONLY_COMMANDS: 'readonly-commands',
+  PROMPT_TRAIT: 'prompt-trait',
 } as const;
+export type InsightKind = (typeof InsightKind)[keyof typeof InsightKind];
 
-/**
- * Configuration for a single analysis rule.
- * Allows enabling/disabling rules and overriding their severity.
- */
-export type RuleConfig = {
-  readonly enabled?: boolean;
-  readonly severity?: PatternSeverity;
-};
-
-/**
- * Configuration for all analysis rules.
- * Maps rule IDs to their configuration.
- */
-export type RulesConfig = Record<string, RuleConfig>;
-
-/**
- * Project-specific context information.
- * Loaded from .hyntxrc.json files to provide additional context during analysis.
- */
-export type ProjectContext = {
-  readonly role?: string;
-  readonly techStack?: readonly string[];
-  readonly domain?: string;
-  readonly guidelines?: readonly string[];
-  readonly projectType?: string;
-};
-
-/**
- * Interface for AI analysis providers.
- * All providers must implement this interface.
- */
-export type AnalysisProvider = {
-  readonly name: string;
-  isAvailable(): Promise<boolean>;
-  analyze(
-    prompts: readonly string[],
-    date: string,
-    context?: ProjectContext,
-  ): Promise<AnalysisResult>;
-  getBatchLimits?(): ProviderLimits;
-};
-
-// =============================================================================
-// Configuration Types
-// =============================================================================
-
-/**
- * Ollama provider configuration.
- */
-export type OllamaConfig = {
-  readonly model: string;
-  readonly host: string;
-  readonly schemaOverride?: 'batch' | 'individual';
-};
-
-/**
- * Anthropic provider configuration.
- */
-export type AnthropicConfig = {
-  readonly model: string;
-  readonly apiKey: string;
-};
-
-/**
- * Google provider configuration.
- */
-export type GoogleConfig = {
-  readonly model: string;
-  readonly apiKey: string;
-};
-
-/**
- * Complete configuration from environment variables.
- */
-export type EnvConfig = {
-  readonly services: readonly ProviderType[];
-  readonly reminder: string;
-  readonly ollama: OllamaConfig;
-  readonly anthropic: AnthropicConfig;
-  readonly google: GoogleConfig;
-};
-
-/**
- * Default values for environment configuration.
- */
-export const ENV_DEFAULTS = {
-  reminder: '7d',
-  ollama: {
-    model: 'gemma4:e4b',
-    host: 'http://localhost:11434',
-  },
-  anthropic: {
-    model: 'claude-3-5-haiku-latest',
-  },
-  google: {
-    model: 'gemini-2.0-flash-exp',
-  },
-} as const;
-
-// =============================================================================
-// Shell Configuration Types
-// =============================================================================
-
-/**
- * Result of shell config file update operation.
- */
-export type ShellConfigResult = {
-  readonly success: boolean;
-  readonly shellFile: string;
-  readonly message: string;
-  readonly action: 'created' | 'updated' | 'skipped' | 'failed';
-};
-
-/**
- * Supported shell types for auto-configuration.
- */
-export type ShellType = 'zsh' | 'bash' | 'fish' | 'unknown';
-
-// =============================================================================
-// CLI Types
-// =============================================================================
-
-/**
- * Exit codes for the CLI.
- */
-export const EXIT_CODES = {
-  SUCCESS: 0,
-  ERROR: 1,
-  NO_DATA: 2,
-  PROVIDER_UNAVAILABLE: 3,
-} as const;
-
-export type ExitCode = (typeof EXIT_CODES)[keyof typeof EXIT_CODES];
-
-/**
- * Options parsed from CLI arguments.
- */
-export type CliOptions = {
+export type EvidenceExample = {
+  readonly project: string;
+  /** YYYY-MM-DD, local time. */
   readonly date: string;
-  readonly from?: string;
-  readonly to?: string;
-  readonly project?: string;
-  readonly output?: string;
-  readonly verbose: boolean;
-  readonly dryRun: boolean;
-  readonly checkReminder: boolean;
-  readonly help: boolean;
-  readonly version: boolean;
+  readonly sessionId: string;
+  readonly quote: string;
+  readonly note: string | null;
 };
 
-// =============================================================================
-// Reporter Types
-// =============================================================================
-
-/**
- * Output format for reports.
- */
-export type OutputFormat = 'terminal' | 'markdown' | 'json';
-
-/**
- * JSON error response structure.
- */
-export type JsonErrorResponse = {
-  readonly error: string;
-  readonly code: string;
-};
-
-/**
- * Report context for formatting.
- */
-export type ReportContext = {
-  readonly result: AnalysisResult;
-  readonly date: string;
-  readonly projects: readonly string[];
-};
-
-// =============================================================================
-// History Types
-// =============================================================================
-
-/**
- * Metadata about the analysis execution.
- */
-export type HistoryMetadata = {
-  readonly provider: string;
-  readonly promptCount: number;
-  readonly projects: readonly string[];
-};
-
-/**
- * Complete history entry stored in history files.
- */
-export type HistoryEntry = {
-  readonly result: AnalysisResult;
-  readonly metadata: HistoryMetadata;
-};
-
-/**
- * Options for listing history entries.
- */
-export type ListHistoryOptions = {
-  readonly provider?: string;
-  readonly project?: string;
-  readonly minScore?: number;
-  readonly maxScore?: number;
-};
-
-/**
- * Change detected in a pattern between two analyses.
- */
-export type PatternChange = {
-  readonly id: string;
-  readonly name: string;
-  readonly status: 'new' | 'resolved' | 'changed';
-  readonly frequencyBefore?: number;
-  readonly frequencyAfter?: number;
-  readonly severityBefore?: PatternSeverity;
-  readonly severityAfter?: PatternSeverity;
-};
-
-/**
- * All detected changes between two analyses.
- */
-export type ComparisonChanges = {
-  readonly scoreDelta: number;
-  readonly newPatterns: readonly AnalysisPattern[];
-  readonly resolvedPatterns: readonly AnalysisPattern[];
-  readonly changedPatterns: readonly PatternChange[];
-};
-
-/**
- * Result of comparing two analysis results.
- */
-export type ComparisonResult = {
-  readonly before: AnalysisResult;
-  readonly after: AnalysisResult;
-  readonly changes: ComparisonChanges;
-};
-
-// =============================================================================
-// Watcher Types
-// =============================================================================
-
-/**
- * Event emitted when a new prompt is detected in the logs.
- * Contains the extracted prompt and the file path where it was found.
- */
-export type PromptEvent = {
-  readonly prompt: ExtractedPrompt;
-  readonly filePath: string;
-};
-
-/**
- * Options for configuring the log watcher.
- */
-export type WatcherOptions = {
-  readonly debounceMs?: number;
-  readonly projectFilter?: string;
-  readonly signal?: AbortSignal;
-  readonly baseDir?: string;
-};
-
-/**
- * Tracks the current position in a file for incremental reading.
- * Used to only read new content when files are modified.
- */
-export type FilePosition = {
-  readonly path: string;
-  readonly size: number;
-  readonly lastModified: number;
-};
-
-/**
- * Interface for the log watcher.
- * Watches Claude Code JSONL files for new prompts in real-time.
- */
-export type LogWatcher = {
-  start(): Promise<void>;
-  stop(): Promise<void>;
-  on(event: 'prompt', callback: (event: PromptEvent) => void): void;
-  on(event: 'error', callback: (error: Error) => void): void;
-  on(event: 'ready', callback: () => void): void;
-};
-
-// =============================================================================
-// Cache Types
-// =============================================================================
-
-/**
- * Metadata stored with cached analysis results.
- * Used for cache validation and invalidation.
- */
-export type CacheMetadata = {
-  readonly cachedAt: number;
-  readonly promptCount: number;
-  readonly model: string;
-  readonly systemPromptHash: string;
-};
-
-/**
- * Complete cached batch result including metadata.
- * Stored as JSON files in the cache directory.
- */
-export type CachedBatchResult = {
-  readonly result: AnalysisResult;
-  readonly metadata: CacheMetadata;
-};
-
-/**
- * Options for cache operations.
- */
-export type CacheOptions = {
-  readonly ttlMs: number;
-};
-
-/**
- * Default values for cache configuration.
- */
-export const CACHE_DEFAULTS = {
-  ttlMs: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
-} as const;
-
-// =============================================================================
-// Incremental Results Storage Types
-// =============================================================================
-
-/**
- * Metadata for an individual prompt analysis result.
- * Used for cache validation and tracking analysis provenance.
- *
- * Note: systemPromptHash is included in the file hash (not stored here)
- * per PERFORMANCE_OPTIMIZATION.md Decision 1 & 4.
- */
-export type PromptResultMetadata = {
-  readonly promptHash: string;
-  readonly date: string;
-  readonly project?: string;
-  readonly analyzedAt: number;
-  readonly provider: string;
-  readonly model: string;
-  readonly schemaType: string;
-};
-
-/**
- * Complete cached result for an individual prompt.
- * Stored as JSON files in ~/.hyntx/results/<YYYY-MM-DD>/<hash>.json
- */
-export type PromptResult = {
-  readonly result: AnalysisResult;
-  readonly metadata: PromptResultMetadata;
-};
-
-// =============================================================================
-// Analytics and Data Science Types
-// =============================================================================
-
-/**
- * Descriptive statistics for a dataset.
- * Provides comprehensive statistical measures beyond simple averages.
- */
-export type DescriptiveStats = {
+export type InsightEvidence = {
   readonly count: number;
-  readonly mean: number;
-  readonly median: number;
-  readonly stdDev: number;
-  readonly variance: number;
-  readonly min: number;
-  readonly max: number;
-  readonly range: number;
-  readonly percentiles: {
-    readonly p25: number;
-    readonly p50: number;
-    readonly p75: number;
-    readonly p90: number;
-    readonly p95: number;
-  };
-  readonly skewness: number;
-  readonly kurtosis: number;
+  readonly sessions: number;
+  readonly projects: readonly string[];
+  /** Out of how many comparable items (e.g. typed prompts); null if n/a. */
+  readonly outOf: number | null;
+  readonly examples: readonly EvidenceExample[];
 };
 
-/**
- * Result of outlier detection analysis.
- */
-export type OutlierResult = {
-  readonly outliers: readonly number[];
-  readonly outlierIndices: readonly number[];
-  readonly lowerBound: number;
-  readonly upperBound: number;
-  readonly method: 'iqr' | 'zscore';
-};
+export type InsightAction =
+  | {
+      readonly kind: 'claude-md-rule';
+      readonly scope: 'project' | 'user';
+      readonly project: string | null;
+      readonly file: string;
+      /** Exact line(s) to append. */
+      readonly text: string;
+    }
+  | {
+      readonly kind: 'permission-allow';
+      readonly patterns: readonly string[];
+      readonly file: string;
+      /** JSON fragment to merge into the settings file. */
+      readonly snippet: string;
+    }
+  | {
+      readonly kind: 'slash-command';
+      readonly name: string;
+      readonly file: string;
+      readonly content: string;
+    }
+  | {
+      readonly kind: 'prompt-habit';
+      readonly habit: string;
+      readonly before: string | null;
+      readonly after: string | null;
+    }
+  | {
+      readonly kind: 'workflow';
+      readonly suggestion: string;
+      readonly steps: readonly string[];
+    };
 
-/**
- * Specificity score for a prompt.
- * Measures how specific and detailed a prompt is.
- */
-export type SpecificityScore = {
-  readonly overall: number;
-  readonly filePathCount: number;
-  readonly functionMentions: number;
-  readonly hasErrorMessage: boolean;
-  readonly hasCodeSnippet: boolean;
-  readonly actionVerbClarity: number;
-  readonly wordCount: number;
-  readonly characterCount: number;
-};
-
-/**
- * Lexical complexity metrics for text analysis.
- */
-export type LexicalMetrics = {
-  readonly uniqueWordRatio: number;
-  readonly averageWordLength: number;
-  readonly technicalTermDensity: number;
-  readonly sentenceCount: number;
-  readonly averageSentenceLength: number;
-};
-
-/**
- * A single cluster from clustering analysis.
- */
-export type Cluster = {
-  readonly id: number;
-  readonly indices: readonly number[];
-  readonly size: number;
-};
-
-/**
- * A labeled cluster with interpretation.
- */
-export type LabeledCluster = Cluster & {
-  readonly label: string;
-  readonly keywords: readonly string[];
-  readonly representativePrompt: string;
-  readonly dominantIssue?: string;
-};
-
-/**
- * Result of clustering analysis.
- */
-export type ClusterResult = {
-  readonly clusters: readonly Cluster[];
-  readonly centroids: readonly number[][];
-  readonly k: number;
-  readonly silhouetteScore: number;
-  readonly inertia: number;
-};
-
-/**
- * Complete cluster analysis with labeled clusters.
- */
-export type ClusterAnalysis = {
-  readonly clusters: readonly LabeledCluster[];
-  readonly metrics: {
-    readonly silhouetteScore: number;
-    readonly inertia: number;
-    readonly optimalK: number;
-  };
-  readonly summary: {
-    readonly totalPrompts: number;
-    readonly avgClusterSize: number;
-    readonly largestCluster: number;
-    readonly smallestCluster: number;
-  };
-};
-
-/**
- * Data point for trend analysis.
- */
-export type TrendDataPoint = {
-  readonly date: string;
+export type Insight = {
+  readonly id: string;
+  readonly kind: InsightKind;
+  readonly title: string;
+  readonly severity: Severity;
+  /** One line, with real numbers. */
+  readonly finding: string;
+  readonly evidence: InsightEvidence;
+  readonly action: InsightAction;
+  readonly confidence: number;
+  /** Ranking score; higher first. */
   readonly score: number;
-  readonly promptCount: number;
-  readonly issueCount: number;
+  readonly episodeIds: readonly string[];
 };
 
-/**
- * Result of trend analysis using linear regression.
- */
-export type TrendAnalysis = {
-  readonly slope: number;
-  readonly intercept: number;
-  readonly rSquared: number;
-  readonly direction: 'improving' | 'stable' | 'declining';
-  readonly confidence: 'high' | 'medium' | 'low';
-  readonly projectedScore: (days: number) => number;
+// ---------------------------------------------------------------------------
+// Report contract
+// ---------------------------------------------------------------------------
+
+export const REPORT_SCHEMA_VERSION = 1 as const;
+
+export type DataQuality = {
+  readonly filesRead: number;
+  readonly subagentFilesRead: number;
+  readonly recordsRead: number;
+  readonly recordsSkipped: number;
+  readonly unknownRecordTypes: Readonly<Record<string, number>>;
+  readonly duplicateRecords: number;
+  readonly orphanToolResults: number;
+  readonly claudeCodeVersions: readonly string[];
+  readonly sessionsInPeriod: number;
+  readonly typedPrompts: number;
+  /** False when there is too little data for trustworthy findings. */
+  readonly enoughData: boolean;
+  /** Human-readable caveats; engines append theirs. */
+  readonly notes: readonly string[];
 };
 
-/**
- * Result of improvement detection analysis.
- */
-export type ImprovementResult = {
-  readonly status: 'improving' | 'stable' | 'declining' | 'insufficient_data';
-  readonly recentAverage?: number;
-  readonly historicalAverage?: number;
-  readonly absoluteChange?: number;
-  readonly percentChange?: number;
-  readonly significantPatterns?: readonly PatternChange[];
-  readonly message?: string;
+export type InterpretationVerdict = 'confirmed' | 'rejected' | 'unclear';
+
+/** Filled by the LLM interpretation step (phase 2). */
+export type Interpretation = {
+  readonly engine: string;
+  readonly model: string | null;
+  readonly generatedAt: string;
+  readonly summary: string;
+  readonly episodeVerdicts: readonly {
+    readonly episodeId: string;
+    readonly verdict: InterpretationVerdict;
+    readonly note: string;
+  }[];
+  readonly recommendations: readonly {
+    readonly title: string;
+    readonly body: string;
+    readonly basedOn: readonly string[];
+  }[];
 };
 
-/**
- * Forecast prediction with confidence intervals.
- */
-export type ForecastPrediction = {
-  readonly date: string;
-  readonly predictedScore: number;
-  readonly confidenceInterval: {
-    readonly lower: number;
-    readonly upper: number;
-  };
+export type ReportPeriod = {
+  /** YYYY-MM-DD, local time, inclusive. */
+  readonly from: string;
+  readonly to: string;
+  readonly days: number;
 };
 
-/**
- * Result of forecasting analysis.
- */
-export type ForecastResult = {
-  readonly predictions: readonly ForecastPrediction[];
-  readonly trend: TrendAnalysis;
+export type Report = {
+  readonly schemaVersion: typeof REPORT_SCHEMA_VERSION;
+  readonly generator: { readonly name: 'hyntx'; readonly version: string };
+  readonly generatedAt: string;
+  readonly period: ReportPeriod;
+  readonly filters: { readonly project: string | null };
+  readonly dataQuality: DataQuality;
+  readonly metrics: Metrics;
+  /** Merged daily history (persisted + current run), ascending by date. */
+  readonly daily: readonly DailyPoint[];
+  readonly episodes: readonly Episode[];
+  readonly promptTraits: readonly PromptTraitFinding[];
+  readonly insights: readonly Insight[];
+  readonly interpretation: Interpretation | null;
 };
 
-/**
- * Enhanced statistics extending the basic AnalysisStats.
- * Backward compatible - all enhanced fields are optional.
- */
-export type EnhancedAnalysisStats = AnalysisStats & {
-  readonly descriptive?: DescriptiveStats;
-  readonly specificity?: {
-    readonly mean: number;
-    readonly distribution: readonly number[];
-  };
-  readonly lexical?: {
-    readonly avgComplexity: number;
-    readonly avgWordCount: number;
-  };
-  readonly timing?: {
-    readonly analysisStarted: number;
-    readonly analysisCompleted: number;
-    readonly durationMs: number;
-    readonly tokensProcessed: number;
-  };
+// ---------------------------------------------------------------------------
+// Phase 2 extension points
+// ---------------------------------------------------------------------------
+
+export const InterpretationEngine = {
+  CLAUDE: 'claude',
+  OLLAMA: 'ollama',
+} as const;
+export type InterpretationEngine =
+  (typeof InterpretationEngine)[keyof typeof InterpretationEngine];
+
+export type InterpretOptions = {
+  readonly engine: InterpretationEngine;
+  readonly model?: string;
+  readonly verbose?: boolean;
+  readonly signal?: AbortSignal;
 };
 
-/**
- * Enhanced analysis result with optional data science features.
- * Backward compatible - all enhanced fields are optional.
- */
-export type EnhancedAnalysisResult = AnalysisResult & {
-  readonly enhancedStats?: EnhancedAnalysisStats;
-  readonly clusters?: ClusterAnalysis;
-  readonly trend?: TrendAnalysis;
-};
+export const OutputFormat = {
+  TERMINAL: 'terminal',
+  JSON: 'json',
+  MARKDOWN: 'markdown',
+} as const;
+export type OutputFormat = (typeof OutputFormat)[keyof typeof OutputFormat];

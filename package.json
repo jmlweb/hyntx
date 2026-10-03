@@ -1,7 +1,7 @@
 {
   "name": "hyntx",
   "version": "3.1.0",
-  "description": "CLI that analyzes Claude Code prompts and generates improvement suggestions",
+  "description": "CLI that turns Claude Code session logs into evidence-backed insights and apply-ready actions",
   "type": "module",
   "packageManager": "pnpm@9.15.4",
   "engines": {
@@ -20,13 +20,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:unit": "vitest run tests/unit",
-    "test:integration": "vitest run tests/integration",
-    "test:e2e": "vitest run --config vitest.config.e2e.ts",
-    "test:e2e:watch": "vitest --config vitest.config.e2e.ts",
-    "test:all": "vitest run && vitest run --config vitest.config.e2e.ts",
     "check": "pnpm typecheck && pnpm lint && pnpm format:check",
-    "validate:models": "node scripts/validate-model-sync.mjs",
     "size": "npm pack --dry-run 2>&1 | tail -1",
     "prepare": "husky",
     "release": "semantic-release",
@@ -35,9 +29,10 @@
   "keywords": [
     "cli",
     "claude",
-    "prompts",
-    "analysis",
-    "ai"
+    "claude-code",
+    "sessions",
+    "insights",
+    "analysis"
   ],
   "author": "",
   "license": "MIT",
@@ -58,10 +53,7 @@
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/exec": "^7.1.0",
     "@semantic-release/git": "^10.0.1",
-    "@types/asciichart": "^1.5.8",
-    "@types/figlet": "^1.7.0",
     "@types/node": "^25.0.3",
-    "@types/prompts": "^2.4.9",
     "@vitest/coverage-v8": "^4.0.16",
     "conventional-changelog-conventionalcommits": "^9.1.0",
     "eslint": "^9.39.2",
@@ -87,10 +79,6 @@
     "./cli": {
       "types": "./dist/cli.d.ts",
       "import": "./dist/cli.js"
-    },
-    "./api": {
-      "types": "./dist/api/index.d.ts",
-      "import": "./dist/api/index.js"
     }
   },
   "files": [
@@ -112,29 +100,14 @@
     ]
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.25.3",
-    "asciichart": "^1.5.25",
-    "boxen": "^8.0.1",
     "chalk": "^5.6.2",
-    "cli-table3": "^0.6.5",
-    "date-fns": "^4.1.0",
-    "figlet": "^1.9.4",
-    "glob": "^13.0.0",
-    "ml-distance": "^4.0.1",
-    "ml-kmeans": "^7.0.0",
-    "ora": "^9.0.0",
-    "prompts": "^2.4.2",
-    "simple-statistics": "^7.8.8",
-    "zod": "^4.3.4"
+    "ora": "^9.0.0"
   },
   "pnpm": {
     "overrides": {
-      "hono": ">=4.12.4",
       "lodash": ">=4.18.0",
       "lodash-es": ">=4.18.0",
       "undici": ">=7.24.0",
-      "@hono/node-server": ">=1.19.10",
-      "@modelcontextprotocol/sdk": ">=1.26.0",
       "@isaacs/brace-expansion": ">=5.0.1",
       "minimatch": ">=10.2.3",
       "rollup": ">=4.59.0",
