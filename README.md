@@ -6,7 +6,7 @@
 
 Hyntx reads your Claude Code session logs and tells you where your sessions cost you time, with the evidence and a fix you can apply.
 
-It looks at what actually happened in each session, not at how your prompts are worded: the times you corrected Claude, interrupted it, watched the same command fail in a loop, hit a blocked tool, re-explained the same thing in three sessions, or approved the same read-only command again and again. Each finding comes with counts, quoted examples and one concrete action: a rule for `CLAUDE.md`, a permission entry for `settings.json`, a slash command file, a prompting habit or a workflow change.
+It looks at what actually happened in each session, not at how your prompts are worded: the times you corrected Claude, interrupted it, watched the same command fail in a loop, hit a blocked tool, re-explained the same thing in three sessions, or ran the same read-only command again and again in a mode that can prompt. Each finding comes with counts, quoted examples and one concrete action: a rule for `CLAUDE.md`, a permission entry for `settings.json`, a slash command file, a prompting habit or a workflow change.
 
 > Hyntx 4 is a rewrite. Versions up to 3 sent the text of your prompts to a model and returned prompt-writing advice. If you are upgrading, read [Migrating from v3](#migrating-from-v3).
 
@@ -18,7 +18,7 @@ It looks at what actually happened in each session, not at how your prompts are 
 
 - The core is deterministic. Parsing, metrics, friction detection and ranking are plain code; the same logs give the same findings, and the whole analysis runs with no model at all (`--no-llm`).
 - Every finding carries its evidence: how many times, in how many sessions, in which projects, with quoted examples.
-- Every finding ends in an action that is ready to apply, and the [plugin](#claude-code-plugin) applies it for you after you confirm.
+- Every finding ends in an action that is ready to apply (review it first: suggestions are heuristics, and a permission rule in particular should be checked before you paste it), and the [plugin](#claude-code-plugin) applies it for you after you confirm.
 - Output is also available as JSON and markdown, for scripts and for other tools.
 - Daily totals are kept in `~/.hyntx/`, so trends remain after Claude Code deletes old session logs (30 days by default).
 
@@ -53,19 +53,19 @@ hyntx  2026-09-04 to 2026-10-03 (30 days) - all projects
 Top insights (3 of 6)
 
 1. [MEDIUM] A hook keeps blocking Bash: "Use 'trash' instead of 'rm'"
-   A PreToolUse hook blocked 4 call(s) with the same message in 4 session(s) in shop.
-   evidence: 4 in 4 session(s); e.g. "ssh deploy 'rm -f /var/www/html/.cache…" (shop, 2026-09-19)
+   A PreToolUse hook blocked 4 calls with the same message in 4 sessions in shop.
+   evidence: 4 in 4 sessions; e.g. "… touch /var/www/html/.t && cleanup /var/www/html/.t …" (shop, 2026-09-19)
    do: Add to CLAUDE.md in project "shop"
       - A hook blocks commands that break this rule: "Use 'trash' instead of 'rm'".
         Follow it on the first attempt instead of retrying the blocked command.
 
-2. [LOW] Read-only commands you approve over and over
-   1 read-only command(s) ran 6 times with permission prompts on (top: Bash(grep *)).
+2. [LOW] Read-only commands that may be worth allowing
+   1 read-only command ran 6 times in permission modes that can prompt (top: Bash(gh pr view *)).
    do: Allow in ~/.claude/settings.json
-      { "permissions": { "allow": ["Bash(grep *)"] } }
+      { "permissions": { "allow": ["Bash(gh pr view *)"] } }
 
 3. [LOW] `bin/sync` was reworked repeatedly
-   `bin/sync` was edited 6 times in one session (plan mode was not used).
+   `bin/sync` was edited 6 times across 3 of your prompts, with 2 tool failures in between (plan mode was not used).
    do: Plan before editing: agree on the exact changes first, then execute.
 
 Metrics
@@ -78,7 +78,7 @@ With too little data (fewer than 3 sessions or 10 typed prompts) Hyntx says so i
 
 ## Claude Code plugin
 
-The plugin adds `/hyntx` to Claude Code. It runs the same analyzer with `--no-llm` and lets the Claude in your session do the interpretation: it checks each detected episode against its context, discards the ones that are not real friction, shows you the few findings that matter and offers to apply the fixes. It shows the exact change and asks before every write, and it does not add a rule that is already there.
+The plugin adds the `/hyntx:hyntx` command to Claude Code. It runs the same analyzer with `--no-llm` and lets the Claude in your session do the interpretation: it checks each detected episode against its context, discards the ones that are not real friction, shows you the few findings that matter and offers to apply the fixes. It shows the exact change and asks before every write, and it does not add a rule that is already there. The runner validates its arguments, never uses a shell, and deletes the temporary report it writes before it exits.
 
 ```bash
 claude plugin marketplace add jmlweb/hyntx
@@ -88,12 +88,12 @@ claude plugin install hyntx@hyntx
 Then, in a session:
 
 ```text
-/hyntx                     # last 30 days, all projects
-/hyntx 14d                 # a period
-/hyntx 60d my-app          # a period and a project
+/hyntx:hyntx                     # last 30 days, all projects
+/hyntx:hyntx 14d                 # a period
+/hyntx:hyntx 60d my-app          # a period and a project
 ```
 
-`/hyntx:hyntx` is the full name if another command is already called `/hyntx`.
+The command is `/hyntx:hyntx` (plugin name, then skill name); Claude Code may also accept the short `/hyntx` when nothing else uses that name.
 
 The plugin needs a Hyntx 4 analyzer. It uses, in order: the path in `HYNTX_CLI`, a built checkout that contains the plugin, a globally installed `hyntx` (version 4 or later), and finally `npx hyntx@4`. To try the plugin from a checkout before installing it, see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#testing-the-plugin-locally).
 
@@ -103,17 +103,17 @@ Reading the logs, computing metrics, detecting friction and ranking insights all
 
 After that, an optional interpretation step asks a model to confirm or reject the heuristic episodes (corrections in particular are guessed from phrasing) and to write a short summary. What leaves your machine depends on the engine:
 
-| Engine             | Flag              | What is sent, and where                                                                                                                                                                                                                          |
-| ------------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `claude` (default) | none              | Sanitized excerpts of the report (episode summaries, short prompt and assistant excerpts, counts) go to Anthropic through `claude -p`, using your existing Claude Code login. It uses your plan or API usage like any other Claude Code request. |
-| `ollama`           | `--engine ollama` | The same excerpts go to an Ollama server on your machine. Nothing leaves it.                                                                                                                                                                     |
-| none               | `--no-llm`        | Nothing is sent anywhere. You get the deterministic findings, and heuristic ones are marked as unconfirmed.                                                                                                                                      |
+| Engine             | Flag              | What is sent, and where                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------------------ | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `claude` (default) | none              | Sanitized excerpts of the report (counts, up to 8 insights, and up to 16 flagged episodes with their summary and a 220-character excerpt of the prompt, the previous prompt and the assistant's last text) go to Anthropic through `claude -p`, using your existing Claude Code login. It uses your plan or API usage like any other Claude Code request. A bare run prints a notice about this on stderr before the call. |
+| `ollama`           | `--engine ollama` | A smaller selection (8 episodes, 140 characters each) goes to the Ollama server at `OLLAMA_HOST` (default `http://localhost:11434`). That stays on your machine unless you point `OLLAMA_HOST` elsewhere, in which case it leaves the machine and hyntx warns you.                                                                                                                                                         |
+| none               | `--no-llm`        | Nothing is sent anywhere. You get the deterministic findings, and heuristic ones are marked as unconfirmed.                                                                                                                                                                                                                                                                                                                |
 
-Sanitized means that API keys, tokens, credentials in URLs, private keys, email addresses and common personal identifiers are replaced with `[REDACTED_<TYPE>]` before any text is put in a report, sent to an engine or written to disk. Redaction is pattern-based: it catches well-known formats, not every possible secret.
+Sanitized means that API keys, tokens, credentials in URLs and on command lines, private keys, email addresses and common personal identifiers are replaced with `[REDACTED_<TYPE>]` before text is put in a report, sent to an engine or written to disk, and that terminal escape sequences are removed. Redaction is pattern-based: it catches well-known formats, not every possible secret, and it can hide harmless text that looks like an identifier. Treat a report like any file that may mention your projects.
 
-If the engine is not available (no `claude` on the PATH, Ollama not running), Hyntx still prints the deterministic report and notes that interpretation was skipped.
+If the engine is not available (no `claude` on the PATH, Ollama not running), Hyntx still prints the deterministic report and notes that interpretation was skipped. The model sees only some of the episodes, so a verdict covers part of an insight: an insight is hidden as dismissed only when every episode behind it was rejected, and otherwise it shows how many were reviewed.
 
-The `/hyntx` plugin always runs the analyzer with `--no-llm`. The findings it reads are then part of your Claude Code conversation, like any other tool output in that session.
+The `/hyntx:hyntx` plugin always runs the analyzer with `--no-llm`. The findings it reads are then part of your Claude Code conversation, like any other tool output in that session.
 
 ## Options
 
@@ -139,12 +139,14 @@ Full reference: [docs/CLI.md](docs/CLI.md).
 
 ## What it writes to disk
 
-- `~/.hyntx/daily.json`: one record per day with aggregate numbers only (sessions, prompts, tool calls, errors, tokens and similar). No prompt text, no file names. It is updated on every run that is not filtered by project, and it is what keeps trends available after Claude Code prunes old logs.
+- `~/.hyntx/daily.json`: one record per day with aggregate numbers only (sessions, prompts, tool calls, errors, tokens and similar). No prompt text, no file names. It is updated on every run that is not filtered by project (including plugin runs), and it is what keeps trends available after Claude Code prunes old logs.
 - The files you ask for: `--output <file>` and `--html [path]`.
+- Temporary files while writing (a uniquely named `*.tmp` next to the target, renamed into place). If `daily.json` cannot be parsed it is renamed to `daily.json.corrupt`.
+- The plugin runner writes the full report to a private temp directory and deletes it before it exits.
 
 Nothing else. Hyntx never writes to `~/.claude/` or to your projects. Only the plugin edits `CLAUDE.md`, settings or command files, one change at a time, after you approve each one.
 
-Set `HYNTX_HOME` to move `~/.hyntx/`, and `HYNTX_CLAUDE_PROJECTS_DIR` to read logs from another location.
+Set `HYNTX_HOME` to move `~/.hyntx/`, and `HYNTX_CLAUDE_PROJECTS_DIR` to read logs from another location. `OLLAMA_HOST` selects the Ollama server for `--engine ollama`.
 
 ## Migrating from v3
 

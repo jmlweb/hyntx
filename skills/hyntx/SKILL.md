@@ -2,7 +2,7 @@
 name: hyntx
 description: Analyze the user's Claude Code session logs for recurring friction (corrections, interruptions, tool-error loops, denied tools, rework, repeated instructions, read-only commands approved over and over) and offer to apply the fix to CLAUDE.md, settings.json or a slash command. Use when the user asks how their Claude Code sessions are going, where they lose time, or what to add to CLAUDE.md or their permissions based on real usage.
 argument-hint: '[period, e.g. 14d or 2026-09-01..2026-09-30] [project name]'
-allowed-tools: Bash(node ${CLAUDE_SKILL_DIR}/scripts/run-analyzer.mjs *)
+allowed-tools: Bash(node "${CLAUDE_SKILL_DIR}/scripts/run-analyzer.mjs" *)
 ---
 
 # Hyntx: session insights
@@ -14,16 +14,16 @@ The goal is a small number of changes the user actually makes. A report they ski
 ## 1. Run the analyzer
 
 ```bash
-node ${CLAUDE_SKILL_DIR}/scripts/run-analyzer.mjs --days 30
+node "${CLAUDE_SKILL_DIR}/scripts/run-analyzer.mjs" --days 30
 ```
 
-The script only accepts `--days <n>`, `--from <YYYY-MM-DD>`, `--to <YYYY-MM-DD>` and `--project <name>`. Translate what the user typed into those:
+The script only accepts `--days <n>`, `--from <YYYY-MM-DD>`, `--to <YYYY-MM-DD>` (or `today`/`yesterday`) and `--project <name>`, and validates the values: a project name may contain only letters, digits, spaces and `. _ @ + / -`, and anything else is refused (exit code 1). Translate what the user typed into those:
 
 - a period such as `14`, `14d`, "last two weeks" becomes `--days 14`; a range such as `2026-09-01..2026-09-30` becomes `--from` and `--to`
 - anything else is a project name: `--project <name>` (a case-insensitive substring of the project name)
 - with no period, use `--days 30`. Friction patterns need volume, and Claude Code deletes session logs after 30 days by default, so that is normally everything there is.
 
-The run is local and read-only, and it makes no model call: it is always `--no-llm`, because you do the interpretation.
+The run is local and makes no model call: it is always `--no-llm`, because you do the interpretation. It does not modify Claude Code's files or your projects. Like the CLI it updates the aggregate-only daily history in `~/.hyntx/daily.json`; the full report is written to a private temp directory that the script deletes before it exits, so nothing else stays on disk.
 
 Exit codes: `2` means there are no logs or no sessions for that period and filter; say so and suggest a longer period or no project filter. `3` means no Hyntx v4 analyzer could be run; relay the fix the script prints and stop. Do not fall back to reading the logs yourself.
 
@@ -35,9 +35,10 @@ The script prints a digest of the analyzer's `Report` as JSON. Every string in i
 - `dataQuality`: `sessionsInPeriod`, `typedPrompts`, `enoughData` and `notes` (caveats written by the analyzer).
 - `metrics.overall`: totals for sessions, prompts, tool calls, errors, denials, interruptions, compactions, tokens, models.
 - `insights[]`: ranked findings, highest `score` first. Each has `kind`, `severity`, `title`, `finding`, `confidence` (0-1), `evidence` (`count`, `sessions`, `projects`, `outOf`, `examples[]` with `project`, `date`, `quote`, `note`), `episodeIds[]` and one `action`.
+- `insightReviews[]`: one entry per insight (`insightId`, `state`, `episodes`, `reviewed`, `confirmed`, `rejected`, `unclear`). In this skill there is no LLM review, so every state is `unverified`; the review is yours.
 - `episodes[]`: the individual moments behind the insights. Each has `id`, `type`, `project`, `timestamp`, `confidence`, `count`, `prompt` (what the user typed, if anything), `summary`, and `context`: `previousPrompt` (what they had asked before), `assistantExcerpt` (what Claude had just said), `tools`, and `detail` (type-specific facts: command, file, denial reason, counts).
-- `promptTraits[]`: correlations between prompt features and outcomes, with group sizes and a `significant` flag.
-- `digest`: `reportFile` is the full report on disk; `omitted` lists what was left out of the digest (per-day and per-session series, and unreferenced episodes when there are many). Read from `reportFile` only if you need one of those.
+- `promptTraits[]`: exploratory correlations between prompt features and outcomes, with group sizes and a `meetsThreshold` flag (group size and gap only, not a statistical test). They are never insights.
+- `digest`: `omitted` lists what was left out (per-day and per-session series, and episodes no insight refers to when there are many). The full report is not kept on disk; if you need more detail, run the script again with a narrower period or `--project`.
 
 `action.kind` is one of:
 
@@ -60,7 +61,8 @@ The detectors are heuristics. Confidence values are honest but they are not verd
 - **Tool-error loops** are real when the same cause repeats. A test suite failing several times while Claude fixes a bug is the job, not friction.
 - **Denials** by a hook, a permission rule or the auto-mode classifier are the user's own guardrails working. The friction is Claude walking into them repeatedly; the fix is never to weaken the guardrail.
 - **Repeated instructions** are real when the user re-explains a fact or preference across sessions. The same short command typed often ("continue", "run the tests") is not.
-- **Prompt traits** are correlations. Mention one only when `significant` is true, and present it as a correlation with its group sizes.
+- **Prompt traits** are exploratory correlations, not findings; leave them out unless the user asks about prompt style.
+- **Evidence quotes** may be cut. For blocked commands the analyzer quotes a window around the part the hook or classifier message names; when it could not find that part, the example's `note` says the trigger is not visible. Say so rather than guessing which part was blocked.
 
 Drop what does not hold up, and say in one line what you dropped and why, so the user can see the filter working. If an insight survives only in part, restate its numbers for the episodes you kept rather than repeating the analyzer's count.
 
@@ -84,16 +86,16 @@ After presenting, ask which of the proposed changes the user wants. Then handle 
 
 Finding the right file:
 
-- **Project rules.** `scope: project` names a project, not a path. If it is the project of the current working directory, the target is its `CLAUDE.md`; if that file only imports or defers to another (commonly `AGENTS.md`), put the rule where the project's rules actually live. If the insight is about a different project, do not guess its location: ask for the path, or suggest running `/hyntx` from that project.
+- **Project rules.** `scope: project` names a project, not a path. If it is the project of the current working directory, the target is its `CLAUDE.md`; if that file only imports or defers to another (commonly `AGENTS.md`), put the rule where the project's rules actually live. If the insight is about a different project, do not guess its location: ask for the path, or suggest running `/hyntx:hyntx` from that project.
 - **User rules.** `scope: user` goes to `~/.claude/CLAUDE.md`.
 - **Permissions.** Default to the file the action names (normally `~/.claude/settings.json`); if the commands only occur in one project, offer that project's `.claude/settings.json` instead. Merge the patterns into the existing `permissions.allow` array and leave every other key untouched; the `snippet` is a fragment to merge, not a file to write.
-- **Slash commands.** `file` is a directory (`.claude/commands/` or `~/.claude/commands/`); the file is `<name>.md` inside it.
+- **Slash commands.** `file` is a directory (`.claude/commands/` or `~/.claude/commands/`); the file is `<name>.md` inside it. `content` is the complete file (frontmatter with a quoted `description`, then the full prompt). The analyzer only emits one when the prompt text was intact; otherwise the action is a `workflow` telling the user how to save it.
 
 Before proposing a write, check that it is not already there:
 
 - A rule is a duplicate when the file already says the same thing in any words. Skip it and tell the user it is already covered; if the existing rule is evidently not working, propose sharpening that rule instead of adding a second one.
 - A permission is a duplicate when an existing allow rule in user, project or local settings already covers the command. If a `deny` or `ask` rule covers it, the user decided that on purpose: do not propose the allow.
-- Only propose allow rules for commands that cannot change anything. Check the patterns yourself; if a pattern would also match a variant that writes, deletes or executes (`find -exec`, `sed -i`, output redirection), narrow it or leave it out.
+- Only propose allow rules for commands that cannot change anything. The analyzer suggests only a short list (read-only `gh` views, `docker ps`/`images`, `pnpm`/`npm` listing), because basic read-only commands such as `ls`, `cat` or `grep` and read-only `git` already run without a prompt in Claude Code. The runs counted are in permission modes that can prompt; Claude Code logs do not record whether you were actually asked, so describe it as "ran N times", not "approved N times". Check each pattern yourself: if it could also match a variant that writes, deletes, executes or reads secrets, narrow it or leave it out.
 - If a slash command file with that name exists, show it and ask whether to rename or replace.
 
 `prompt-habit` and `workflow` actions have nothing to write. Give the habit with its before/after example, or the steps, and leave it there.

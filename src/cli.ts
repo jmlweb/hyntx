@@ -4,8 +4,7 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { mkdir, rename, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import chalk from 'chalk';
@@ -22,6 +21,7 @@ import { loadDailyHistory, saveDailyHistory } from './core/history.js';
 import { loadAllowedRules } from './core/permissions.js';
 import { buildReport } from './core/report.js';
 import { claudeProjectsExist, readSessions } from './core/session-reader.js';
+import { describeDataDestination } from './engines/disclosure.js';
 import { interpretReport } from './engines/index.js';
 import { renderHtml } from './report/html.js';
 import { renderMarkdown } from './report/markdown.js';
@@ -31,8 +31,10 @@ import {
   OutputFormat,
   type Report,
 } from './types/index.js';
+import { writeFileAtomic } from './utils/atomic-write.js';
 import { logger } from './utils/logger.js';
 import { CLAUDE_PROJECTS_DIR } from './utils/paths.js';
+import { plural } from './utils/text.js';
 
 const EXIT = { OK: 0, ERROR: 1, NO_DATA: 2 } as const;
 const DEFAULT_HTML_PATH = 'hyntx-report.html';
@@ -78,12 +80,8 @@ function readVersion(): string {
   }
 }
 
-async function writeAtomic(filePath: string, content: string): Promise<void> {
-  const target = resolve(filePath);
-  await mkdir(dirname(target), { recursive: true });
-  const tmpFile = `${target}.tmp`;
-  await writeFile(tmpFile, content, 'utf-8');
-  await rename(tmpFile, target);
+function writeAtomic(filePath: string, content: string): Promise<void> {
+  return writeFileAtomic(resolve(filePath), content);
 }
 
 function render(report: Report, format: OutputFormat, toFile: boolean): string {
@@ -165,7 +163,9 @@ async function run(argv: readonly string[]): Promise<number> {
   }
 
   spinner.text = 'Analyzing...';
-  const history = project ? [] : await loadDailyHistory();
+  const history = project
+    ? { days: [], unreadable: false }
+    : await loadDailyHistory();
   const allowedRules = await loadAllowedRules(
     Object.fromEntries(
       sessions.flatMap((s) => (s.cwd ? [[s.project, s.cwd] as const] : [])),
@@ -177,21 +177,25 @@ async function run(argv: readonly string[]): Promise<number> {
     from,
     to,
     project,
-    history,
+    history: history.days,
+    historyUnreadable: history.unreadable,
     allowedRules,
     version,
   });
 
   if (!values['no-llm']) {
+    // Printed before the call: the user decides on seeing it, not afterwards.
+    spinner.clear();
+    process.stderr.write(`${describeDataDestination(engine, process.env)}\n`);
     spinner.text = `Interpreting with ${engine}...`;
+    spinner.start();
     report = await interpretReport(report, {
       engine,
-      verbose: values.verbose,
       ...(values.model ? { model: values.model } : {}),
     });
   }
   spinner.succeed(
-    `Analyzed ${String(sessions.length)} sessions (${String(report.metrics.overall.typedPrompts)} typed prompts)`,
+    `Analyzed ${plural(sessions.length, 'session')} (${plural(report.metrics.overall.typedPrompts, 'typed prompt')})`,
   );
 
   if (!project) {
@@ -215,7 +219,6 @@ async function run(argv: readonly string[]): Promise<number> {
     await writeAtomic(htmlPath, renderHtml(report));
     process.stderr.write(chalk.green(`HTML report written to ${htmlPath}\n`));
   }
-  logger.reportWarnings();
   return EXIT.OK;
 }
 

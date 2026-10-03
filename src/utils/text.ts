@@ -6,13 +6,46 @@
 
 import { sanitize } from '../core/sanitizer.js';
 
+// Built from strings so the control characters stay out of regex literals.
+const ESCAPE_SEQUENCES = new RegExp(
+  [
+    // CSI: ESC [ params intermediates final (also the 8-bit form, 0x9b)
+    '(?:\\u001b\\[|\\u009b)[0-?]*[ -/]*[@-~]',
+    // OSC / DCS / SOS / PM / APC strings, up to BEL or ST
+    '\\u001b[\\]PX^_][^\\u0007\\u001b]*(?:\\u0007|\\u001b\\\\)?',
+    // Two-character escapes
+    '\\u001b[@-Z\\\\-_]',
+  ].join('|'),
+  'g',
+);
+const CONTROL_CHARS = new RegExp(
+  '[\\u0000-\\u0008\\u000b-\\u001f\\u007f-\\u009f\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]',
+  'g',
+);
+
+/**
+ * Removes terminal escape sequences and control characters (keeping newline
+ * and tab) so text from tool output cannot drive the user's terminal.
+ */
+export function stripControlChars(text: string): string {
+  return text.replace(ESCAPE_SEQUENCES, '').replace(CONTROL_CHARS, '');
+}
+
 export function collapseWhitespace(text: string): string {
-  return text.replace(/\s+/g, ' ').trim();
+  return stripControlChars(text).replace(/\s+/g, ' ').trim();
 }
 
 export function excerpt(text: string, max = 200): string {
-  const clean = collapseWhitespace(sanitize(text).text);
+  const clean = collapseWhitespace(sanitize(stripControlChars(text)).text);
   return clean.length > max ? `${clean.slice(0, max - 1).trimEnd()}…` : clean;
+}
+
+const ATTACHMENT_PLACEHOLDERS =
+  /\[(?:Image|Pasted text|Pasted image|Image source)[^\]]*\]/gi;
+
+/** False for turns made only of `[Image #3]` or `[Pasted text #1 +20 lines]`. */
+export function hasTypedContent(text: string): boolean {
+  return text.replace(ATTACHMENT_PLACEHOLDERS, '').trim() !== '';
 }
 
 export function wordCount(text: string): number {
@@ -58,4 +91,9 @@ export function jaccard(
     }
   }
   return shared / (a.size + b.size - shared);
+}
+
+/** "1 session", "3 sessions". */
+export function plural(count: number, one: string, many = `${one}s`): string {
+  return `${String(count)} ${count === 1 ? one : many}`;
 }

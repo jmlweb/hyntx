@@ -61,7 +61,7 @@ import { type Report } from './types/index.js';
 
 - Pure functions, immutability, composition
 - IO at the edges: `cli.ts`, `session-reader.ts`, `history.ts`, `permissions.ts` and the engines do IO; metrics, friction, insights, report building and renderers are pure
-- No classes for stateless logic (custom errors and the logger are the exceptions)
+- No classes for stateless logic (custom errors are the exception; the logger is a plain factory function)
 - Early returns over nested conditionals
 - Local mutation is acceptable only where copying would be quadratic (the streaming session reader), and must be commented
 
@@ -138,11 +138,12 @@ A failing or unavailable interpretation engine is never an error: the determinis
 
 - `session-reader.ts` - Streams JSONL logs (including subagent sidechains) into `Session` objects; tolerant of format changes
 - `metrics.ts` - Deterministic metrics: overall, per project, per day, per session
-- `friction.ts` - Friction detectors producing `Episode`s, plus prompt-trait correlations
+- `friction.ts` - Friction detectors producing `Episode`s, plus exploratory prompt-trait correlations (never insights); `SAFE_RULE_KEYS` is the short list of commands a permission rule may be suggested for
 - `tool-errors.ts` - Tool error classification used by the detectors
 - `insights.ts` - Episodes and metrics to ranked `Insight`s with evidence and actions
-- `permissions.ts` - Reads existing Claude Code allow rules (read-only) so they are not suggested again
-- `report.ts` - Builds the `Report`; `sanitizeReport` is the final redaction pass
+- `permissions.ts` - Reads existing Claude Code `allow`, `deny` and `ask` rules (read-only) so a suggested rule is never a duplicate and never meets a deny or ask rule
+- `insight-review.ts` - Applies interpretation verdicts to insights (`confirmed`, `dismissed`, `unverified`, with coverage); the one source renderers and the JSON use
+- `report.ts` - Builds the `Report`; `sanitizeReport` is the final pass (redaction plus removal of terminal escape sequences)
 - `sanitizer.ts` - Secret and personal-data redaction
 - `history.ts` - Daily aggregate history under `~/.hyntx/daily.json`
 
@@ -150,6 +151,7 @@ A failing or unavailable interpretation engine is never an error: the determinis
 
 - `index.ts` - `interpretReport`: runs the chosen engine, degrades to a note on failure
 - `claude.ts` - Default engine, shells out to `claude -p` with the user's login
+- `disclosure.ts` - The stderr notice, printed before the call, about where data goes
 - `ollama.ts` - Local engine (opt-in)
 
 ### Report Modules (src/report/)
@@ -162,13 +164,15 @@ A failing or unavailable interpretation engine is never an error: the determinis
 
 - `paths.ts` - Path constants and their environment overrides
 - `dates.ts`, `text.ts` - Date and text helpers
-- `logger.ts`, `logger-base.ts` - Logging on stderr with collected warnings
+- `logger.ts` - Minimal stderr logger (`createLogger`)
+- `atomic-write.ts` - Temp-file-and-rename writes with unique temp names
+- `collections.ts` - Linear `pushTo` for grouping into Maps
 
 ### Plugin (outside src/)
 
 - `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` - Claude Code plugin manifest; the repo is its own marketplace
-- `skills/hyntx/SKILL.md` - The `/hyntx` skill: a prompt for the session's Claude, which acts as the interpretation layer
-- `skills/hyntx/scripts/run-analyzer.mjs` - Locates a v4 analyzer, runs it with `--format json --no-llm`, prints a digest
+- `skills/hyntx/SKILL.md` - The `/hyntx:hyntx` skill: a prompt for the session's Claude, which acts as the interpretation layer
+- `skills/hyntx/scripts/run-analyzer.mjs` - Locates a v4 analyzer, runs it without a shell with validated arguments and `--format json --no-llm`, prints a digest and deletes its temp directory; helpers in `analyzer-lib.mjs`
 
 ---
 
@@ -176,14 +180,14 @@ A failing or unavailable interpretation engine is never an error: the determinis
 
 **Privacy is critical.** Session logs contain prompts, commands, file contents and tool output.
 
-- The raw session model (`Session`, `Turn`, `ToolCall`) is in-memory only and may hold unsanitized text. It is never serialized, logged or sent.
+- The session reader sanitizes prompt, command, tool-result and assistant text before truncating them, so the in-memory session model is already redacted for those fields; other fields (titles, file paths, cwd) are not. It is never serialized as is, logged or sent.
 - Everything in a `Report` is sanitized. Detectors sanitize what they put in an episode, and `sanitizeReport` runs over every free-text string again as a safety net, including engine output.
 - Redaction pattern: `[REDACTED_<TYPE>]` (API keys, tokens, URL credentials, PEM keys, emails, personal identifiers). See `src/core/sanitizer.ts`.
 - Engines receive the sanitized `Report`, never sessions.
 - Only aggregate numbers go to `~/.hyntx/`.
 - The CLI never writes to `~/.claude/` or to a project. Applying an action is done by the plugin skill, one change at a time, after the user confirms.
 
-**What leaves the machine**: nothing with `--no-llm` or `--engine ollama`; sanitized report excerpts go to Anthropic with the default `claude` engine. Keep README and docs accurate about this when engines change.
+**What leaves the machine**: nothing with `--no-llm`; with `--engine ollama`, sanitized excerpts go to `OLLAMA_HOST`, which is this machine by default and not necessarily so if the variable is set; with the default `claude` engine, sanitized excerpts go to Anthropic. The CLI prints a notice on stderr before any engine call. Keep README and docs accurate about this when engines change.
 
 ---
 

@@ -9,7 +9,7 @@
     {
       "name": "hyntx",
       "source": "./",
-      "description": "Adds /hyntx: finds where your Claude Code sessions cost you time and offers to apply the fix.",
+      "description": "Adds the /hyntx:hyntx command: finds where your Claude Code sessions cost you time and offers to apply the fix.",
       "category": "productivity",
       "tags": ["sessions", "insights", "workflow"]
     }

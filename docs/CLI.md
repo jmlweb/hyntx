@@ -27,7 +27,7 @@ hyntx [options]
 
 `--html` is in addition to the main output, not instead of it. The HTML file has inline CSS, JavaScript and charts and loads nothing from the network.
 
-A run with `--project` does not read or update the stored daily history, so its trend only covers the logs still on disk.
+A run with `--project` does not read or update the stored daily history, so its trend only covers the logs still on disk. Runs without `--project` update `~/.hyntx/daily.json` (aggregate numbers only); concurrent runs are safe.
 
 ## Interpretation
 
@@ -37,8 +37,10 @@ A run with `--project` does not read or update the stored daily history, so its 
 | `--engine <name>` | `claude` (default) or `ollama`                        |
 | `--model <name>`  | Model for the engine; each engine has its own default |
 
-- `claude` runs `claude -p` with your existing Claude Code login and sends sanitized report excerpts to Anthropic. It needs the `claude` command on the PATH and counts against your plan or API usage.
-- `ollama` talks to a local Ollama server. Nothing leaves the machine.
+- `claude` runs `claude -p` with your existing Claude Code login and sends sanitized report excerpts to Anthropic: aggregate counts, up to 8 insights, and up to 16 flagged episodes with short (220 character) excerpts of the prompt, the previous prompt and the assistant's last text. It needs the `claude` command on the PATH and counts against your plan or API usage. Before the call, hyntx prints a notice on stderr saying so and how to avoid it (`--no-llm`, `--engine ollama`).
+- `ollama` talks to an Ollama server at `OLLAMA_HOST` (default `http://localhost:11434`) with a smaller excerpt budget (8 episodes, 140 characters). On localhost nothing leaves the machine. If `OLLAMA_HOST` points to another machine, the same excerpts are sent there; hyntx prints a warning on stderr when the host is not local.
+
+Only part of the episodes is judged. An insight is hidden as dismissed only when every episode behind it was reviewed and rejected; otherwise it stays, with a line such as "LLM reviewed 3 of 9 episodes".
 
 If the engine is unavailable or fails, the report is still produced and a note explains what happened. The exit code stays `0`.
 
@@ -74,11 +76,12 @@ hyntx --format json --no-llm | jq '.insights[] | {title, severity}'
 
 ## Environment variables
 
-| Variable                    | Purpose                                       | Default              |
-| --------------------------- | --------------------------------------------- | -------------------- |
-| `HYNTX_CLAUDE_PROJECTS_DIR` | Where to read session logs from               | `~/.claude/projects` |
-| `HYNTX_HOME`                | Where Hyntx keeps its state (`daily.json`)    | `~/.hyntx`           |
-| `HYNTX_CLI`                 | Plugin only: path to the `dist/cli.js` to run | unset                |
+| Variable                    | Purpose                                                                                   | Default                  |
+| --------------------------- | ----------------------------------------------------------------------------------------- | ------------------------ |
+| `HYNTX_CLAUDE_PROJECTS_DIR` | Where to read session logs from                                                           | `~/.claude/projects`     |
+| `HYNTX_HOME`                | Where Hyntx keeps its state (`daily.json`)                                                | `~/.hyntx`               |
+| `HYNTX_CLI`                 | Plugin only: path to the `dist/cli.js` to run                                             | unset                    |
+| `OLLAMA_HOST`               | Ollama server for `--engine ollama`. A host that is not this machine means data leaves it | `http://localhost:11434` |
 
 There are no API keys and no configuration file.
 
@@ -95,4 +98,4 @@ hyntx --engine ollama
 
 ## In Claude Code
 
-With the plugin installed, `/hyntx [period] [project]` runs the analysis inside a session and offers to apply the actions. See the [README](../README.md#claude-code-plugin).
+With the plugin installed, `/hyntx:hyntx [period] [project]` runs the analysis inside a session and offers to apply the actions. See the [README](../README.md#claude-code-plugin).

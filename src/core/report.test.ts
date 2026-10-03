@@ -27,6 +27,9 @@ const STATS: ReadStats = {
   duplicateRecords: 0,
   orphanToolResults: 0,
   claudeCodeVersions: ['2.1.278'],
+  filesFailed: 0,
+  failedFiles: [],
+  emptySessions: 0,
 };
 
 const FROM = new Date(2026, 8, 1);
@@ -198,7 +201,7 @@ describe('buildReport', () => {
     });
     expect(report.dataQuality.enoughData).toBe(false);
     expect(report.dataQuality.notes[0]).toContain(
-      'Only 1 session(s) and 1 typed prompt(s)',
+      'Only 1 session and 1 typed prompt',
     );
     expect(report.insights).toEqual([]);
   });
@@ -217,9 +220,9 @@ describe('buildReport', () => {
       version: '4.0.0',
     });
     const notes = report.dataQuality.notes.join('\n');
-    expect(notes).toContain('4 record(s) of unknown type');
+    expect(notes).toContain('4 records of unknown type');
     expect(notes).toContain('new-thing');
-    expect(notes).toContain('3 malformed line(s)');
+    expect(notes).toContain('3 malformed lines');
   });
 
   it('merges stored history unless a project filter is active', () => {
@@ -293,18 +296,109 @@ describe('daily history', () => {
 
   it('round-trips through an atomic write and tolerates missing or corrupt files', async () => {
     const file = `${dir}/nested/daily.json`;
-    expect(await loadDailyHistory(file)).toEqual([]);
+    expect(await loadDailyHistory(file)).toEqual({
+      days: [],
+      unreadable: false,
+    });
     await saveDailyHistory([point('2026-09-01', 4)], file);
-    expect(await loadDailyHistory(file)).toEqual([point('2026-09-01', 4)]);
+    expect((await loadDailyHistory(file)).days).toEqual([
+      point('2026-09-01', 4),
+    ]);
 
     await saveDailyHistory(
       [point('2026-09-01', 4), point('2026-09-02', 5)],
       file,
     );
-    expect(await loadDailyHistory(file)).toHaveLength(2);
+    expect((await loadDailyHistory(file)).days).toHaveLength(2);
 
-    const { writeFile } = await import('node:fs/promises');
+    const { writeFile, readdir } = await import('node:fs/promises');
     await writeFile(file, '{broken');
-    expect(await loadDailyHistory(file)).toEqual([]);
+    // A corrupt file is reported, and set aside rather than silently lost.
+    expect(await loadDailyHistory(file)).toEqual({
+      days: [],
+      unreadable: true,
+    });
+    expect(await readdir(`${dir}/nested`)).toContain('daily.json.corrupt');
+  });
+
+  it('concurrent saves never corrupt the file and keep every day', async () => {
+    const file = `${dir}/race/daily.json`;
+    await Promise.all(
+      Array.from({ length: 12 }, (_, i) =>
+        saveDailyHistory(
+          [point(`2026-09-${String(i + 1).padStart(2, '0')}`, 3)],
+          file,
+        ),
+      ),
+    );
+    const { readFile, readdir } = await import('node:fs/promises');
+    const raw = await readFile(file, 'utf-8');
+    expect(() => {
+      JSON.parse(raw) as unknown;
+    }).not.toThrow();
+    const loaded = await loadDailyHistory(file);
+    expect(loaded.unreadable).toBe(false);
+    expect(loaded.days.length).toBeGreaterThanOrEqual(1);
+    expect(
+      (await readdir(`${dir}/race`)).filter((f) => f.endsWith('.tmp')),
+    ).toEqual([]);
+  });
+
+  it('notes an unreadable history file, failed log files and skipped empty sessions', () => {
+    const report = buildReport({
+      sessions: [makeSession([makeTurn(0, 'hello there')])],
+      stats: {
+        ...STATS,
+        filesFailed: 2,
+        failedFiles: ['a.jsonl: EACCES'],
+        emptySessions: 3,
+      },
+      from: FROM,
+      to: TO,
+      project: null,
+      historyUnreadable: true,
+      version: '4.0.0',
+    });
+    const notes = report.dataQuality.notes.join('\n');
+    expect(notes).toContain('2 log files could not be read');
+    expect(notes).toContain('3 sessions with no typed prompt');
+    expect(notes).toContain('history file');
+    expect(report.dataQuality.filesFailed).toBe(2);
+  });
+
+  it('strips terminal escape sequences from every string in the report', () => {
+    const esc = String.fromCharCode(27);
+    const report = buildReport({
+      sessions: [
+        makeSession([
+          makeTurn(
+            0,
+            `${esc}[31mred${esc}[0m ${esc}]0;owned${String.fromCharCode(7)}prompt`,
+          ),
+        ]),
+      ],
+      stats: STATS,
+      from: FROM,
+      to: TO,
+      project: null,
+      version: '4.0.0',
+    });
+    const text = allStrings(report).join('\n');
+    expect(text).not.toContain(esc);
+  });
+
+  it('lists a review per insight, all unverified before any interpretation', () => {
+    const report = buildReport({
+      sessions: leakySessions(),
+      stats: STATS,
+      from: FROM,
+      to: TO,
+      project: null,
+      version: '4.0.0',
+    });
+    expect(report.insightReviews).toHaveLength(report.insights.length);
+    expect(report.insightReviews.every((r) => r.state === 'unverified')).toBe(
+      true,
+    );
   });
 });

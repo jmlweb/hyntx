@@ -5,6 +5,7 @@
  * available", which is recorded as a data-quality note, never an error.
  */
 
+import { reviewInsights } from '../core/insight-review.js';
 import { sanitizeReport } from '../core/report.js';
 import {
   type Interpretation,
@@ -50,7 +51,14 @@ export async function interpretReport(
         'Nothing to interpret: no findings or flagged episodes in this period.',
       );
     }
-    return sanitizeReport({ ...report, interpretation });
+    const sanitized = sanitizeReport({ ...report, interpretation });
+    return {
+      ...sanitized,
+      insightReviews: reviewInsights(
+        sanitized.insights,
+        sanitized.interpretation,
+      ),
+    };
   } catch (error) {
     // The deterministic report stays valuable when the LLM step fails.
     const reason = error instanceof Error ? error.message : String(error);

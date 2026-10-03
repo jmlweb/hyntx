@@ -6,7 +6,12 @@
 import chalk, { Chalk, type ChalkInstance } from 'chalk';
 
 import { type Insight, type Report } from '../types/index.js';
-import { type JudgedInsight, judgeInsights } from './interpretation.js';
+import { plural } from '../utils/text.js';
+import {
+  describeCoverage,
+  type JudgedInsight,
+  judgeInsights,
+} from './interpretation.js';
 import {
   describeAction,
   formatMinutes,
@@ -41,16 +46,16 @@ export function renderTerminal(
 
   push(c.bold('hyntx') + c.dim(`  ${periodLabel(report)}`), '');
   push(
-    `${c.bold(formatNumber(overall.sessions))} sessions  ` +
-      `${c.bold(formatNumber(overall.typedPrompts))} typed prompts  ` +
-      `${c.bold(formatNumber(overall.toolCalls))} tool calls ` +
+    `${c.bold(formatNumber(overall.sessions))} ${overall.sessions === 1 ? 'session' : 'sessions'}  ` +
+      `${c.bold(formatNumber(overall.typedPrompts))} typed ${overall.typedPrompts === 1 ? 'prompt' : 'prompts'}  ` +
+      `${c.bold(formatNumber(overall.toolCalls))} tool ${overall.toolCalls === 1 ? 'call' : 'calls'} ` +
       c.dim(`(${formatPercent(overall.toolErrorRate, 1)} errors)`),
     `${c.bold(formatTokens(overall.tokens.total))} tokens ` +
       c.dim(
         `(${formatPercent(overall.tokens.cacheHitRatio)} cache hits, ${formatTokens(overall.tokens.output)} output)  `,
       ) +
-      `${c.bold(String(overall.interruptions))} interruptions  ` +
-      `${c.bold(String(overall.compactions))} compactions`,
+      `${c.bold(String(overall.interruptions))} ${overall.interruptions === 1 ? 'interruption' : 'interruptions'}  ` +
+      `${c.bold(String(overall.compactions))} ${overall.compactions === 1 ? 'compaction' : 'compactions'}`,
     '',
   );
 
@@ -136,12 +141,12 @@ export function renderTerminal(
     [
       'Sessions',
       `median ${formatMinutes(overall.sessionMinutes.median)}, p90 ${formatMinutes(overall.sessionMinutes.p90)}, ` +
-        `${String(overall.sessionTurns.median)} turns median`,
+        `${plural(overall.sessionTurns.median, 'turn')} median`,
     ],
     [
       'Agents',
-      `${String(overall.subagents.invocations)} subagent calls in ${String(overall.subagents.sessionsUsing)} sessions; ` +
-        `plan mode in ${String(overall.planMode.sessionsUsing)} sessions`,
+      `${plural(overall.subagents.invocations, 'subagent call')} in ${plural(overall.subagents.sessionsUsing, 'session')}; ` +
+        `plan mode in ${plural(overall.planMode.sessionsUsing, 'session')}`,
     ],
     [
       'Commands',
@@ -177,12 +182,16 @@ function renderInsight(
   c: ChalkInstance,
   severityColor: Record<Insight['severity'], (text: string) => string>,
 ): string[] {
-  const { insight, state, notes } = judged;
+  const { insight, state, notes, review } = judged;
   const out: string[] = [];
   out.push(
     `${c.dim(`${String(position)}.`)} ${severityColor[insight.severity](`[${insight.severity.toUpperCase()}]`)} ${c.bold(insight.title)}${state === 'confirmed' ? c.green(' [confirmed]') : ''}`,
     `   ${insight.finding}`,
   );
+  const coverage = describeCoverage(review);
+  if (coverage) {
+    out.push(c.dim(`   ${coverage}`));
+  }
   const note = notes[0];
   if (note) {
     out.push(c.dim(`   ${note.verdict}: ${note.note}`));
@@ -191,13 +200,13 @@ function renderInsight(
   const example = evidence.examples[0];
   const scope =
     evidence.sessions > 0
-      ? `${String(evidence.count)} in ${String(evidence.sessions)} session(s)`
+      ? `${String(evidence.count)} in ${plural(evidence.sessions, 'session')}`
       : `n=${String(evidence.count)}`;
   out.push(
     c.dim(
       `   evidence: ${scope}` +
         (example
-          ? `; e.g. "${example.quote}" (${example.project}, ${example.date})`
+          ? `; e.g. "${example.quote}" (${example.project}, ${example.date})${example.note ? ` - ${example.note}` : ''}`
           : ''),
     ),
   );

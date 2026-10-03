@@ -14,8 +14,10 @@ import {
   type Session,
 } from '../types/index.js';
 import { listDateKeys, toDateKey } from '../utils/dates.js';
+import { plural, stripControlChars } from '../utils/text.js';
 import { detectFriction } from './friction.js';
 import { mergeDaily } from './history.js';
+import { reviewInsights } from './insight-review.js';
 import { generateInsights } from './insights.js';
 import { computeDailyPoints, computeMetrics } from './metrics.js';
 import { type AllowedRules } from './permissions.js';
@@ -31,6 +33,8 @@ export type BuildReportOptions = {
   readonly to: Date;
   readonly project: string | null;
   readonly history?: readonly DailyPoint[];
+  /** The stored history file existed but could not be used. */
+  readonly historyUnreadable?: boolean;
   readonly allowedRules?: AllowedRules;
   readonly version: string;
   readonly now?: Date;
@@ -59,7 +63,7 @@ function sanitizeValue(value: unknown, key: string | null): unknown {
   if (typeof value === 'string') {
     return key !== null && UNSANITIZED_KEYS.has(key)
       ? value
-      : sanitize(value).text;
+      : sanitize(stripControlChars(value)).text;
   }
   if (Array.isArray(value)) {
     return value.map((item) => sanitizeValue(item, key));
@@ -86,6 +90,7 @@ function buildDataQuality(
   typedPrompts: number,
   periodDays: number,
   episodes: readonly Episode[],
+  extraNotes: readonly string[],
 ): DataQuality {
   const enoughData =
     sessions.length >= MIN_SESSIONS_FOR_FINDINGS &&
@@ -98,16 +103,29 @@ function buildDataQuality(
     ...(enoughData
       ? []
       : [
-          `Only ${String(sessions.length)} session(s) and ${String(typedPrompts)} typed prompt(s) in the last ${String(periodDays)} day(s); findings need at least ${String(MIN_SESSIONS_FOR_FINDINGS)} sessions and ${String(MIN_PROMPTS_FOR_FINDINGS)} prompts to be reliable.`,
+          `Only ${plural(sessions.length, 'session')} and ${plural(typedPrompts, 'typed prompt')} in the last ${plural(periodDays, 'day')}; findings need at least ${String(MIN_SESSIONS_FOR_FINDINGS)} sessions and ${String(MIN_PROMPTS_FOR_FINDINGS)} prompts to be reliable.`,
         ]),
     ...(unknownCount > 0
       ? [
-          `${String(unknownCount)} record(s) of unknown type were skipped (${Object.keys(stats.unknownRecordTypes).join(', ')}); the log format may have changed.`,
+          `${plural(unknownCount, 'record')} of unknown type ${unknownCount === 1 ? 'was' : 'were'} skipped (${Object.keys(stats.unknownRecordTypes).join(', ')}); the log format may have changed.`,
         ]
       : []),
     ...(stats.recordsSkipped > 0
-      ? [`${String(stats.recordsSkipped)} malformed line(s) were skipped.`]
+      ? [
+          `${plural(stats.recordsSkipped, 'malformed line')} ${stats.recordsSkipped === 1 ? 'was' : 'were'} skipped.`,
+        ]
       : []),
+    ...(stats.filesFailed > 0
+      ? [
+          `${plural(stats.filesFailed, 'log file')} could not be read and ${stats.filesFailed === 1 ? 'was' : 'were'} skipped (${stats.failedFiles.join('; ')}); numbers may be low.`,
+        ]
+      : []),
+    ...(stats.emptySessions > 0
+      ? [
+          `${plural(stats.emptySessions, 'session')} with no typed prompt, tool call or reply (for example only /clear or /model) ${stats.emptySessions === 1 ? 'was' : 'were'} left out of the counts.`,
+        ]
+      : []),
+    ...extraNotes,
     ...(episodes.some((e) => e.type === EpisodeType.CORRECTION)
       ? [
           'Corrections are detected heuristically from phrasing and are not confirmed without an interpretation step.',
@@ -126,6 +144,8 @@ function buildDataQuality(
     sessionsInPeriod: sessions.length,
     typedPrompts,
     enoughData,
+    filesFailed: stats.filesFailed,
+    emptySessionsSkipped: stats.emptySessions,
     notes,
   };
 }
@@ -133,11 +153,10 @@ function buildDataQuality(
 export function buildReport(options: BuildReportOptions): Report {
   const { sessions, stats, from, to, project } = options;
   const metrics = computeMetrics(sessions);
-  const { episodes, promptTraits } = detectFriction(sessions);
+  const { episodes, promptTraits, notes } = detectFriction(sessions);
   const insights = generateInsights({
     metrics,
     episodes,
-    promptTraits,
     ...(options.allowedRules ? { allowedRules: options.allowedRules } : {}),
   });
   const currentDaily = computeDailyPoints(sessions, episodes);
@@ -161,12 +180,21 @@ export function buildReport(options: BuildReportOptions): Report {
       metrics.overall.typedPrompts,
       periodDays,
       episodes,
+      [
+        ...notes,
+        ...(options.historyUnreadable
+          ? [
+              'The daily history file could not be read (a copy was kept next to it as .corrupt); trends only cover the logs still on disk.',
+            ]
+          : []),
+      ],
     ),
     metrics,
     daily,
     episodes,
     promptTraits,
     insights,
+    insightReviews: reviewInsights(insights, null),
     interpretation: null,
   };
   return sanitizeReport(report);

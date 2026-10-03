@@ -265,9 +265,45 @@ const PLACEHOLDER_PATTERNS: readonly RegExp[] = [
 const CIRCULAR_REASON =
   /\b(episode type|the episode is|type is '|type is "|summary (states|notes|says|explicitly)|the summary)\b/i;
 
-/** Advice to weaken a safety net is never the right takeaway from a block. */
-const LOOSENS_SAFETY =
-  /\b(allow|permit|loosen|relax|disable|bypass|remove|adjust|reconsider|review|update)\b[^.]{0,60}\b(auto[- ]?mode|classifier|hooks?)\b/i;
+/**
+ * Advice to weaken a safety net is never the right takeaway from a block.
+ * Only verbs that actually weaken count: "review your hooks" is fine,
+ * "disable the hook" is not, and "never disable the hook" is fine again.
+ */
+const WEAKEN_VERBS =
+  'allow(?:ing)?|permit|loosen|relax|disable|bypass|circumvent|remove|skip|turn(?:ing)? off|whitelist|exempt|override|weaken';
+const SAFETY_NOUNS =
+  'auto[- ]?mode|classifier|hooks?|safety rules?|guardrails?';
+const LOOSENS_PATTERNS: readonly RegExp[] = [
+  // "disable the hook"
+  new RegExp(
+    `\\b(?:${WEAKEN_VERBS})\\b[^.]{0,60}\\b(?:${SAFETY_NOUNS})\\b`,
+    'i',
+  ),
+  // "auto-mode blocking ... consider allowing"
+  new RegExp(
+    `\\b(?:${SAFETY_NOUNS})\\b[^.]{0,80}\\b(?:${WEAKEN_VERBS})\\b`,
+    'i',
+  ),
+  // "adjust the hook so deletes pass"
+  new RegExp(
+    `\\b(?:adjust|modify|change|edit|tweak|update)\\b[^.]{0,40}\\b(?:${SAFETY_NOUNS})\\b[^.]{0,60}\\b(?:pass|allow|permit|let|go through)\\b`,
+    'i',
+  ),
+];
+const NEGATED_BEFORE = /\b(?:never|not|don'?t|avoid|without)\s*$/i;
+
+export function loosensSafety(text: string): boolean {
+  return LOOSENS_PATTERNS.some((pattern) => {
+    const match = pattern.exec(text);
+    return (
+      match !== null &&
+      !NEGATED_BEFORE.test(
+        text.slice(Math.max(0, match.index - 15), match.index),
+      )
+    );
+  });
+}
 
 export function isPlaceholder(text: string): boolean {
   return PLACEHOLDER_PATTERNS.some((pattern) => pattern.test(text));
@@ -359,7 +395,7 @@ export function validateAnswer(raw: unknown, evidence: Evidence): ParsedAnswer {
       return title &&
         body &&
         basedOn.length > 0 &&
-        !LOOSENS_SAFETY.test(`${title} ${body}`)
+        !loosensSafety(`${title} ${body}`)
         ? [{ title, body, basedOn }]
         : [];
     })

@@ -3,7 +3,8 @@
  */
 
 import { type Report } from '../types/index.js';
-import { judgeInsights } from './interpretation.js';
+import { plural } from '../utils/text.js';
+import { describeCoverage, judgeInsights } from './interpretation.js';
 import {
   describeAction,
   formatMinutes,
@@ -13,8 +14,19 @@ import {
   periodLabel,
 } from './shared.js';
 
+/** A fence longer than any backtick run inside, so content cannot close it early. */
 function fence(lines: readonly string[]): string[] {
-  return lines.length === 0 ? [] : ['```', ...lines, '```'];
+  if (lines.length === 0) {
+    return [];
+  }
+  const longestRun = Math.max(
+    0,
+    ...lines.flatMap((line) =>
+      [...line.matchAll(/`+/g)].map((match) => match[0].length),
+    ),
+  );
+  const mark = '`'.repeat(Math.max(3, longestRun + 1));
+  return [mark, ...lines, mark];
 }
 
 function escapeCell(text: string): string {
@@ -82,19 +94,21 @@ export function renderMarkdown(report: Report): string {
       '',
     );
   }
-  kept.forEach(({ insight, state, notes }, i) => {
+  kept.forEach(({ insight, state, notes, review }, i) => {
+    const coverage = describeCoverage(review);
     const action = describeAction(insight.action);
     out.push(
       `### ${String(i + 1)}. ${insight.title} (${insight.severity})${state === 'confirmed' ? ' - confirmed' : ''}`,
       '',
       insight.finding,
       '',
+      ...(coverage ? [`_${coverage}_`, ''] : []),
       ...(notes[0]
         ? [`_Interpretation: ${notes[0].verdict} - ${notes[0].note}_`, '']
         : []),
       `**Evidence:** ${String(insight.evidence.count)}${insight.evidence.outOf ? ` of ${String(insight.evidence.outOf)}` : ''}` +
         (insight.evidence.sessions > 0
-          ? ` in ${String(insight.evidence.sessions)} session(s)`
+          ? ` in ${plural(insight.evidence.sessions, 'session')}`
           : ''),
       '',
       ...insight.evidence.examples.map(

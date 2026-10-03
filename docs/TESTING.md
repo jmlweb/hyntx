@@ -23,6 +23,7 @@ There is no separate end-to-end suite. CI builds the package and smoke-tests `di
 | Engines       | `src/engines/*.test.ts`           | Degradation to a note when an engine is missing or fails           |
 | Renderers     | `src/report/*.test.ts`            | Output contains the findings; HTML escapes untrusted text          |
 | CLI arguments | `src/cli-args.test.ts`            | Period resolution and validation                                   |
+| Plugin runner | `src/plugin/run-analyzer.test.ts` | Argument validation, digest, temp-dir cleanup (with a fake CLI)    |
 
 ## Helpers
 

@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
+import { reviewInsights } from '../core/insight-review.js';
 import {
   EPISODE_ID,
   fixtureReport,
   GOOD_ANSWER,
 } from '../engines/test-fixtures.js';
-import { type Report } from '../types/index.js';
-import { judgeInsights } from './interpretation.js';
+import { type InsightReview, type Report } from '../types/index.js';
+import { renderHtml } from './html.js';
+import { describeCoverage, judgeInsights } from './interpretation.js';
 import { renderMarkdown } from './markdown.js';
 import { renderTerminal } from './terminal.js';
 
@@ -68,5 +70,99 @@ describe('renderers with an interpretation', () => {
     expect(confirmed).toContain('- confirmed');
     const rejected = renderMarkdown(withVerdict('rejected'));
     expect(rejected).toContain('## Dismissed by the interpretation');
+  });
+});
+
+function firstReview(
+  kept: ReturnType<typeof judgeInsights>['kept'],
+): InsightReview {
+  const review = kept[0]?.review;
+  if (!review) {
+    throw new Error('no insight kept');
+  }
+  return review;
+}
+
+describe('coverage of verdicts', () => {
+  function withEpisodes(
+    verdicts: readonly ('confirmed' | 'rejected' | 'unclear')[],
+    total: number,
+  ): Report {
+    const base = withVerdict('rejected');
+    const insight = base.insights[0];
+    if (!insight || !base.interpretation) {
+      throw new Error('fixture changed');
+    }
+    const ids = Array.from({ length: total }, (_, i) =>
+      i === 0 ? EPISODE_ID : `extra-${String(i)}`,
+    );
+    return {
+      ...base,
+      insights: [{ ...insight, episodeIds: ids }],
+      interpretation: {
+        ...base.interpretation,
+        episodeVerdicts: verdicts.map((verdict, i) => ({
+          episodeId: ids[i] ?? EPISODE_ID,
+          verdict,
+          note: 'You said "only the invoice helpers".',
+        })),
+      },
+    };
+  }
+
+  it('does not dismiss an insight whose episodes were mostly never judged', () => {
+    const report = withEpisodes(['rejected'], 5);
+    const { kept, dismissed } = judgeInsights(report);
+    expect(dismissed).toHaveLength(0);
+    expect(kept[0]?.state).toBe('unverified');
+    expect(describeCoverage(firstReview(kept))).toBe(
+      'LLM reviewed 1 of 5 episodes: 1 rejected; 4 not reviewed',
+    );
+  });
+
+  it('dismisses only when every episode was reviewed and rejected', () => {
+    expect(
+      judgeInsights(withEpisodes(['rejected', 'rejected'], 2)).dismissed,
+    ).toHaveLength(1);
+    expect(
+      judgeInsights(withEpisodes(['rejected', 'unclear'], 2)).dismissed,
+    ).toHaveLength(0);
+  });
+
+  it('keeps a confirmed insight and says how much of it was reviewed', () => {
+    const report = withEpisodes(['confirmed', 'rejected'], 6);
+    const out = renderTerminal(report, { color: false });
+    expect(out).toContain('[confirmed]');
+    expect(out).toContain(
+      'LLM reviewed 2 of 6 episodes: 1 confirmed, 1 rejected; 4 not reviewed',
+    );
+    expect(renderMarkdown(report)).toContain('LLM reviewed 2 of 6 episodes');
+    expect(renderHtml(report)).toContain('LLM reviewed 2 of 6 episodes');
+  });
+
+  it('exposes the same state in the report for JSON and plugin consumers', () => {
+    const report = withEpisodes(['rejected', 'rejected'], 2);
+    const reviews = reviewInsights(report.insights, report.interpretation);
+    expect(reviews[0]).toMatchObject({
+      state: 'dismissed',
+      episodes: 2,
+      reviewed: 2,
+      rejected: 2,
+    });
+  });
+});
+
+describe('every renderer agrees on dismissed insights', () => {
+  it('hides a dismissed insight in terminal, markdown and HTML, and lists it as dismissed', () => {
+    const report = withVerdict('rejected');
+    const title = report.insights[0]?.title ?? '';
+    expect(title).not.toBe('');
+    const html = renderHtml(report);
+    const start = html.indexOf('id="h-insights"');
+    const body = html.slice(start, html.indexOf('</section>', start));
+    expect(body).toContain('Dismissed by the interpretation (1)');
+    expect(body).not.toContain('class="card"');
+    expect(renderTerminal(report, { color: false })).not.toContain('[MEDIUM]');
+    expect(renderMarkdown(report)).not.toMatch(/### 1\./);
   });
 });

@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { sanitize, sanitizePrompts } from './sanitizer.js';
+import { sanitize } from './sanitizer.js';
 
 describe('sanitize', () => {
   describe('OpenAI API keys', () => {
@@ -734,75 +734,6 @@ Connect to https://user:pass@api.example.com`;
   });
 });
 
-describe('sanitizePrompts', () => {
-  it('sanitizes array of prompts', () => {
-    const prompts = [
-      'Use key sk-abc123def456ghi789jkl012mno345pqr678stu901vwx234',
-      'Email me at user@example.com',
-      'Regular text without secrets',
-    ];
-
-    const result = sanitizePrompts(prompts);
-
-    expect(result.prompts).toHaveLength(3);
-    expect(result.prompts[0]).toContain('[REDACTED_OPENAI_KEY]');
-    expect(result.prompts[1]).toContain('[REDACTED_EMAIL]');
-    expect(result.prompts[2]).toBe('Regular text without secrets');
-    expect(result.totalRedacted).toBe(2);
-  });
-
-  it('returns empty array for empty input', () => {
-    const result = sanitizePrompts([]);
-
-    expect(result.prompts).toEqual([]);
-    expect(result.totalRedacted).toBe(0);
-  });
-
-  it('counts total redactions across all prompts', () => {
-    const prompts = [
-      'Key1: sk-abc123def456ghi789jkl012mno345pqr678stu901vwx234',
-      'Key2: sk-xyz789abc123def456ghi789jkl012mno345pqr678stu901',
-      'Email: user@example.com',
-    ];
-
-    const result = sanitizePrompts(prompts);
-
-    expect(result.totalRedacted).toBe(3);
-  });
-
-  it('handles prompts with multiple secrets each', () => {
-    const prompts = [
-      'Key: sk-abc123def456ghi789jkl012mno345pqr678stu901vwx234 Email: user@test.com',
-      'AWS: AKIAIOSFODNN7EXAMPLE Bearer token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ',
-    ];
-
-    const result = sanitizePrompts(prompts);
-
-    expect(result.totalRedacted).toBe(4);
-  });
-
-  it('preserves prompt order', () => {
-    const prompts = ['First prompt', 'Second prompt', 'Third prompt'];
-
-    const result = sanitizePrompts(prompts);
-
-    expect(result.prompts[0]).toBe('First prompt');
-    expect(result.prompts[1]).toBe('Second prompt');
-    expect(result.prompts[2]).toBe('Third prompt');
-  });
-
-  it('handles single prompt array', () => {
-    const prompts = [
-      'Single prompt with key sk-abc123def456ghi789jkl012mno345pqr678stu901vwx234',
-    ];
-
-    const result = sanitizePrompts(prompts);
-
-    expect(result.prompts).toHaveLength(1);
-    expect(result.totalRedacted).toBe(1);
-  });
-});
-
 describe('provider tokens and secret assignments', () => {
   it('redacts GitHub, Slack, Google, Stripe and JWT tokens', () => {
     const input = [
@@ -890,6 +821,89 @@ describe('opaque identifiers and over-redaction', () => {
     );
     expect(sanitize('passport strategy and driver license checker').text).toBe(
       'passport strategy and driver license checker',
+    );
+  });
+});
+
+describe('sanitize: review findings', () => {
+  const realAnthropicKey = `sk-ant-api03-${'aB3_xY-9'.repeat(12)}_tail-END_marker`;
+
+  it('redacts a whole Anthropic key including underscores', () => {
+    const { text } = sanitize(`export KEY=${realAnthropicKey} && run`);
+    expect(text).not.toContain('tail');
+    expect(text).not.toContain('marker');
+    expect(text).not.toContain('aB3_');
+    expect(text).toContain('&& run');
+  });
+
+  it.each([
+    ['sk-proj-' + 'Ab1_cD2-'.repeat(8)],
+    ['hf_' + 'abcDEF1234'.repeat(4)],
+    ['npm_' + 'abcDEF1234'.repeat(4)],
+  ])('redacts provider token %s', (token) => {
+    const { text } = sanitize(`use ${token} now`);
+    expect(text).not.toContain(token.slice(4, 20));
+    expect(text).toContain('[REDACTED_');
+  });
+
+  it.each([
+    ['postgres://admin:hunter2@localhost/app', 'hunter2'],
+    ['redis://:s3cretpw@cache:6379', 's3cretpw'],
+    ['amqp://user:p@ss@broker/vhost', 'p@ss'],
+    ['mysql -u root -pSuperSecret db', 'SuperSecret'],
+    ['tool --password hunter22 --x', 'hunter22'],
+    ['tool --password=hunter22', 'hunter22'],
+    ['curl -u deploy:pa55word https://x.test', 'pa55word'],
+    ['password: "two words"', 'two words'],
+    ['PASSWORD=hunter2', 'hunter2'],
+    ["curl -H 'Cookie: session=abcdef123456; theme=dark' x", 'abcdef123456'],
+    ['Authorization: Basic dXNlcjpwYXNz', 'dXNlcjpwYXNz'],
+  ])('does not leak the secret in %s', (input, secret) => {
+    expect(sanitize(input).text).not.toContain(secret);
+  });
+
+  it('redacts a PEM block cut off before its END line', () => {
+    const body = 'MIIEvQIBADANBgkqhkiG9w0BAQEFAASC'.repeat(5);
+    const { text } = sanitize(
+      `-----BEGIN PRIVATE KEY-----\n${body}\n${body.slice(0, 20)}`,
+    );
+    expect(text).toBe('[REDACTED_PEM_KEY]');
+  });
+
+  it.each(['Hey Claude, fix this', 'Hello World program', 'Hi there team'])(
+    'keeps %s readable',
+    (input) => {
+      expect(sanitize(input).text).toBe(input);
+    },
+  );
+
+  it('still redacts a greeted person name', () => {
+    expect(sanitize('Hi John Smith, thanks').text).toContain('[REDACTED_NAME]');
+  });
+
+  it('keeps version numbers and git commit ids', () => {
+    expect(sanitize('upgrade to version 1.2.3.4 today').text).toContain(
+      '1.2.3.4',
+    );
+    expect(sanitize('pkg@2.0.1.5').text).toContain('2.0.1.5');
+    const sha = 'a'.repeat(20) + 'b1c2d3e4f5'.repeat(2);
+    expect(sanitize(`git cherry-pick ${sha}`).text).toContain(sha);
+    expect(sanitize('server at 10.20.30.40 failed').text).toContain(
+      '[REDACTED_IPV4]',
+    );
+  });
+
+  it('redacts a bare 40-hex string outside git context', () => {
+    const hex = 'c0ffee'.repeat(6) + 'abcd';
+    expect(sanitize(`token ${hex}`).text).toContain('[REDACTED_ID]');
+  });
+
+  it('keeps remote targets readable but hides the account', () => {
+    expect(sanitize('ssh deploy@build.example.com uptime').text).toBe(
+      'ssh [REDACTED_USER]@build.example.com uptime',
+    );
+    expect(sanitize('mail me at ana@example.com').text).toContain(
+      '[REDACTED_EMAIL]',
     );
   });
 });

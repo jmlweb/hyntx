@@ -5,57 +5,75 @@
  *
  * The analyzer always runs with `--format json --no-llm`: inside Claude Code
  * the session's own Claude interprets the findings, so no second model call
- * is made. The full report is written to a temp file because it grows with
- * the period; only the parts needed for interpretation are printed.
+ * is made. The full report goes to a private temp directory (the analyzer
+ * writes it to a file because it grows with the period), is read back, and
+ * the directory is deleted before this script exits. Only a digest is
+ * printed; nothing is left on disk. The daily-metrics history under ~/.hyntx
+ * is the analyzer's own and is updated by every run, as with the CLI.
+ *
+ * No shell is involved on any platform, and argument values are validated.
  *
  * Exit codes: 0 ok, 1 analyzer error or bad arguments, 2 no logs or
- * sessions, 3 no Hyntx v4 analyzer could be found.
+ * sessions, 3 no Hyntx v4 analyzer could be found or started.
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+  ArgumentError,
+  classifyNpxFailure,
+  parseForwardedArgs,
+  toDigest,
+} from './analyzer-lib.mjs';
+
 /** Major version whose report schema this skill was written against. */
 const ANALYZER_MAJOR = 4;
 const EXIT_NO_ANALYZER = 3;
-const MAX_INLINE_EPISODES = 60;
 
-/** Only period and project filters are forwarded; output flags are ours. */
-const VALUE_FLAGS = new Set(['--days', '--from', '--to', '--project']);
+let tempDir = null;
+function cleanup() {
+  if (tempDir) {
+    rmSync(tempDir, { recursive: true, force: true });
+    tempDir = null;
+  }
+}
+process.on('exit', cleanup);
 
 function fail(message, code = 1) {
   process.stderr.write(`${message}\n`);
   process.exit(code);
 }
 
-function parseForwardedArgs(argv) {
-  const forwarded = [];
-  for (let i = 0; i < argv.length; i += 1) {
-    const [flag, inlineValue] = argv[i].split(/=(.*)/s);
-    if (!VALUE_FLAGS.has(flag)) {
-      fail(
-        `Unsupported argument "${argv[i]}". Allowed: ${[...VALUE_FLAGS].join(', ')}.`,
-      );
-    }
-    const value = inlineValue ?? argv[(i += 1)];
-    if (value === undefined || value === '') {
-      fail(`${flag} needs a value.`);
-    }
-    forwarded.push(`${flag}=${value}`);
-  }
-  return forwarded;
-}
-
 function run(command, args) {
   return spawnSync(command, args, {
     encoding: 'utf-8',
-    // npx and globally installed bins are .cmd shims on Windows.
-    shell: process.platform === 'win32',
+    shell: false,
     maxBuffer: 16 * 1024 * 1024,
   });
+}
+
+/**
+ * npx is a .cmd shim on Windows, which cannot be spawned without a shell.
+ * Run npm's own script with node instead; it ships next to node.exe.
+ */
+function npxCommand() {
+  if (process.platform !== 'win32') {
+    return { command: 'npx', prefix: [] };
+  }
+  const script = join(
+    dirname(process.execPath),
+    'node_modules',
+    'npm',
+    'bin',
+    'npx-cli.js',
+  );
+  return existsSync(script)
+    ? { command: process.execPath, prefix: [script] }
+    : null;
 }
 
 /** A built checkout that contains this skill: the analyzer it shipped with. */
@@ -70,7 +88,11 @@ function findCheckoutCli() {
   }
 }
 
+/** Version of a globally installed `hyntx`; POSIX only (a .cmd shim on Windows). */
 function installedMajor() {
+  if (process.platform === 'win32') {
+    return null;
+  }
   const result = run('hyntx', ['--version']);
   const match = /^(\d+)\./.exec((result.stdout ?? '').trim());
   return result.status === 0 && match ? Number(match[1]) : null;
@@ -93,18 +115,28 @@ function resolveAnalyzer() {
   if (major !== null && major >= ANALYZER_MAJOR) {
     return { command: 'hyntx', prefix: [], via: 'installed' };
   }
+  const npx = npxCommand();
+  if (!npx) {
+    fail(
+      'Could not locate npx next to node. Install hyntx (`npm install -g hyntx`) or set HYNTX_CLI=/path/to/hyntx/dist/cli.js.',
+      EXIT_NO_ANALYZER,
+    );
+  }
   return {
-    command: 'npx',
-    prefix: ['--yes', `hyntx@${String(ANALYZER_MAJOR)}`],
+    command: npx.command,
+    prefix: [...npx.prefix, '--yes', `hyntx@${String(ANALYZER_MAJOR)}`],
     via: 'npx',
   };
 }
 
-function explainMissingAnalyzer(stderr) {
+function explainNpxFailure(kind, stderr) {
   const tail = stderr.trim().split('\n').slice(-6).join('\n');
+  const reason =
+    kind === 'not-published'
+      ? `hyntx@${String(ANALYZER_MAJOR)} is not published on npm yet.`
+      : 'npm could not be reached.';
   return [
-    `Could not run the Hyntx v${String(ANALYZER_MAJOR)} analyzer through npx.`,
-    `Either hyntx@${String(ANALYZER_MAJOR)} is not published on npm yet, or npm is unreachable.`,
+    `Could not run the Hyntx v${String(ANALYZER_MAJOR)} analyzer through npx: ${reason}`,
     'Fix: install it (`npm install -g hyntx`), or build a checkout',
     '(`pnpm install && pnpm build`) and set HYNTX_CLI=/path/to/hyntx/dist/cli.js.',
     tail ? `npx said:\n${tail}` : '',
@@ -113,48 +145,18 @@ function explainMissingAnalyzer(stderr) {
     .join('\n');
 }
 
-/**
- * Drops the bulky series by name and keeps everything else, so fields added
- * to the report later still reach the reader.
- */
-function toDigest(report, reportFile, via) {
-  const { daily, metrics, episodes, ...rest } = report;
-  const { byDay, byProject, sessions, ...metricsRest } = metrics ?? {};
-  const allEpisodes = Array.isArray(episodes) ? episodes : [];
-  const referenced = new Set(
-    (Array.isArray(report.insights) ? report.insights : []).flatMap(
-      (insight) => insight.episodeIds ?? [],
-    ),
-  );
-  const inlineEpisodes =
-    allEpisodes.length <= MAX_INLINE_EPISODES
-      ? allEpisodes
-      : allEpisodes.filter((episode) => referenced.has(episode.id));
-  const omitted = [
-    ...(daily ? ['daily'] : []),
-    ...(byDay ? ['metrics.byDay'] : []),
-    ...(byProject ? ['metrics.byProject'] : []),
-    ...(sessions ? ['metrics.sessions'] : []),
-    ...(inlineEpisodes.length < allEpisodes.length
-      ? ['episodes not referenced by an insight']
-      : []),
-  ];
-  return {
-    digest: {
-      reportFile,
-      analyzer: via,
-      omitted,
-      episodesTotal: allEpisodes.length,
-    },
-    ...rest,
-    metrics: metricsRest,
-    episodes: inlineEpisodes,
-  };
-}
-
 function main() {
-  const forwarded = parseForwardedArgs(process.argv.slice(2));
-  const reportFile = join(mkdtempSync(join(tmpdir(), 'hyntx-')), 'report.json');
+  let forwarded;
+  try {
+    forwarded = parseForwardedArgs(process.argv.slice(2));
+  } catch (error) {
+    if (error instanceof ArgumentError) {
+      fail(error.message);
+    }
+    throw error;
+  }
+  tempDir = mkdtempSync(join(tmpdir(), 'hyntx-'));
+  const reportFile = join(tempDir, 'report.json');
   const analyzer = resolveAnalyzer();
   const result = run(analyzer.command, [
     ...analyzer.prefix,
@@ -174,7 +176,10 @@ function main() {
     const stderr = result.stderr ?? '';
     // Exit 2 is the analyzer saying "no logs or sessions"; pass it through.
     if (analyzer.via === 'npx' && result.status !== 2) {
-      fail(explainMissingAnalyzer(stderr), EXIT_NO_ANALYZER);
+      const kind = classifyNpxFailure(stderr);
+      if (kind !== 'analyzer-error') {
+        fail(explainNpxFailure(kind, stderr), EXIT_NO_ANALYZER);
+      }
     }
     fail(stderr.trim() || 'The analyzer failed.', result.status ?? 1);
   }
@@ -184,11 +189,11 @@ function main() {
     report = JSON.parse(readFileSync(reportFile, 'utf-8'));
   } catch (error) {
     fail(
-      `The analyzer did not produce a readable report at ${reportFile}: ${error instanceof Error ? error.message : String(error)}`,
+      `The analyzer did not produce a readable report: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
   process.stdout.write(
-    `${JSON.stringify(toDigest(report, reportFile, analyzer.via), null, 1)}\n`,
+    `${JSON.stringify(toDigest(report, analyzer.via), null, 1)}\n`,
   );
 }
 

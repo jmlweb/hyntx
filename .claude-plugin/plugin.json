@@ -1,7 +1,7 @@
 {
   "name": "hyntx",
   "displayName": "Hyntx",
-  "description": "Adds /hyntx: finds where your Claude Code sessions cost you time (corrections, tool-error loops, denied tools, repeated instructions) and offers to apply the fix to CLAUDE.md, settings.json or a slash command.",
+  "description": "Adds the /hyntx:hyntx command: finds where your Claude Code sessions cost you time (corrections, tool-error loops, denied tools, repeated instructions) and offers to apply the fix to CLAUDE.md, settings.json or a slash command.",
   "author": {
     "name": "José Manuel Lucas",
     "url": "https://github.com/jmlweb"

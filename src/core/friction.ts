@@ -20,14 +20,17 @@ import {
   type Turn,
   TurnKind,
 } from '../types/index.js';
+import { pushTo } from '../utils/collections.js';
 import { isoToDateKey } from '../utils/dates.js';
 import {
   contentTokens,
   excerpt,
   jaccard,
+  plural,
   stripDiacritics,
   wordCount,
 } from '../utils/text.js';
+import { isTypedTurn } from './metrics.js';
 import {
   errorLine,
   isRealToolError,
@@ -51,12 +54,7 @@ export const MIN_TRAIT_SAMPLE = 20;
 // Shared helpers
 // ---------------------------------------------------------------------------
 
-export function isHumanTypedTurn(turn: Turn): boolean {
-  return (
-    turn.kind === TurnKind.TYPED &&
-    turn.prompt.source !== PromptSource.SUGGESTION
-  );
-}
+export const isHumanTypedTurn = isTypedTurn;
 
 function round(value: number, digits = 2): number {
   const factor = 10 ** digits;
@@ -197,23 +195,48 @@ export function detectInterruptions(session: Session): readonly Episode[] {
 // Corrections
 // ---------------------------------------------------------------------------
 
-const STRONG_START: readonly RegExp[] = [
+/**
+ * Phrases that refer back to what the assistant did or said. They read as
+ * pushback on their own, once the assistant produced something.
+ */
+const STRONG_REFERENTIAL: readonly RegExp[] = [
   // English
-  /^(no|nope|wrong|incorrect)\b(?! (problem|worries|rush|doubt))/,
+  /^(wrong|incorrect)\b/,
   /^that('?s| is) (not|wrong|incorrect)/,
   /^(not (what|that|like|quite)|this is (wrong|not))/,
   /^i (said|told you|asked|meant|didn'?t (ask|say|want)|did not)/,
-  /^(don'?t|do not|stop|wait|hold on|revert|undo|roll ?back|go back)\b/,
   /^(why did you|why are you|you (didn'?t|forgot|missed|broke|ignored|still))/,
   /^(still (not|fails|failing|broken|wrong|doesn'?t)|it'?s still|that didn'?t work|doesn'?t work)/,
-  /^(actually|instead)\b/,
   // Spanish (diacritics stripped before matching)
-  /^(no|nop|mal)\b(?! (hay|pasa|te preocupes|problema|problem|worries|rush))/,
-  /^(eso no|asi no|no es (eso|lo que)|no era|no quiero|no hagas|no he pedido|no te pedi)/,
+  /^(eso no|asi no|no es (eso|lo que)|no era|no quiero|no he pedido|no te pedi)/,
   /^(te (dije|pedi|he dicho|habia dicho|olvidaste|has olvidado)|dije que|ya te dije|yo queria|queria que)/,
-  /^(para|detente|espera|aguanta|revierte|revertir|deshaz|deshacer|vuelve (atras|a como))\b/,
   /^(por que (has|hiciste|lo has)|sigue (sin|fallando|igual|mal|roto)|no funciona|no ha funcionado|esta mal)/,
-  /^(en realidad|mejor (no|haz|usa)|en vez de|en lugar de)/,
+];
+
+/**
+ * Short rejections ("no", "stop", "undo that"). Without a previous action or
+ * claim to reject they are just answers or fresh instructions.
+ */
+const STRONG_NEEDS_ACTION: readonly RegExp[] = [
+  /^(no|nope|nop)\b/,
+  /^(stop|revert|undo|roll ?back|go back)\b/,
+  /^(mal)\b/,
+  /^(detente|revierte|revertir|deshaz|deshacer|vuelve (atras|a como))\b/,
+  /^para\s*[.!]*$/,
+];
+
+/** "no" followed by agreement is the opposite of pushback. */
+const AGREEMENT_AFTER_NO =
+  /^(no|nope|nop|mal)\b[\s,.!]*(problem|worries|rush|doubt|hay|pasa|te preocupes|need|thanks|thank|gracias|sounds good|looks good|that'?s (fine|ok|okay|good|all)|all good|fine|ok|okay|perfect|great|vale|bien|perfecto|adelante|sigue|continua|go ahead|proceed|continue)\b/;
+
+/**
+ * Instructions that can follow either an error or a new idea ("don't forget
+ * to add tests", "actually can you also..."). Never enough for the strong tier.
+ */
+const WEAK_START: readonly RegExp[] = [
+  /^(don'?t|do not|dont|wait|hold on|actually|instead)\b/,
+  /^(espera|aguanta|mejor (no|haz|usa)|en vez de|en lugar de|en realidad|no hagas)\b/,
+  /^para (ya|ahora|eso|esto)\b/,
 ];
 
 const WEAK_ANYWHERE: readonly RegExp[] = [
@@ -227,9 +250,30 @@ export type CorrectionSignal = {
   readonly confidence: number;
 };
 
+const NOT_MATCHED: CorrectionSignal = {
+  matched: false,
+  strong: false,
+  confidence: 0,
+};
+
+const ENDS_WITH_QUESTION = /\?[\s"'`)\]*_]*$/;
+
+/** What the previous turn gives a rejection something to bite on. */
+function previousTurnEvidence(previous: Turn | undefined): {
+  readonly rejectable: boolean;
+  readonly askedQuestion: boolean;
+} {
+  const said = previous?.assistantExcerpt?.trim() ?? '';
+  const acted = previous?.toolCalls.some((call) => !call.sidechain) ?? false;
+  const askedQuestion = ENDS_WITH_QUESTION.test(said);
+  const claimed = said !== '' && !askedQuestion && wordCount(said) >= 8;
+  return { rejectable: acted || claimed, askedQuestion };
+}
+
 /**
- * Scores whether a prompt reads like pushback. `previousTurn` supplies the
- * evidence that something went wrong just before (interruption, tool errors).
+ * Scores whether a prompt reads like pushback. The strong tier needs evidence
+ * from `previousTurn`: the assistant did or claimed something that could be
+ * rejected. A bare "no" after a question is an answer, not a correction.
  */
 export function scoreCorrection(
   text: string,
@@ -241,13 +285,28 @@ export function scoreCorrection(
   );
   const words = wordCount(text);
   if (normalized === '' || words > 120) {
-    return { matched: false, strong: false, confidence: 0 };
+    return NOT_MATCHED;
   }
   const head = normalized.slice(0, 80);
-  const strong = STRONG_START.some((re) => re.test(head));
-  const weak = !strong && WEAK_ANYWHERE.some((re) => re.test(normalized));
+  const { rejectable, askedQuestion } = previousTurnEvidence(previousTurn);
+  const agrees = AGREEMENT_AFTER_NO.test(head);
+  const needsAction =
+    !agrees && STRONG_NEEDS_ACTION.some((re) => re.test(head));
+  if (needsAction && askedQuestion) {
+    return NOT_MATCHED;
+  }
+  const strong =
+    !agrees &&
+    (STRONG_REFERENTIAL.some((re) => re.test(head)) ||
+      (needsAction && rejectable));
+  const weak =
+    !strong &&
+    !agrees &&
+    (needsAction ||
+      WEAK_START.some((re) => re.test(head)) ||
+      WEAK_ANYWHERE.some((re) => re.test(normalized)));
   if (!strong && !weak) {
-    return { matched: false, strong: false, confidence: 0 };
+    return NOT_MATCHED;
   }
   const interrupted = (previousTurn?.interruptions.length ?? 0) > 0;
   const errored =
@@ -401,7 +460,7 @@ export function detectToolErrorLoops(session: Session): readonly Episode[] {
   for (const entry of calls) {
     if (isRealError(entry.call)) {
       const key = callSignature(entry.call);
-      bySignature.set(key, [...(bySignature.get(key) ?? []), entry]);
+      pushTo(bySignature, key, entry);
     }
   }
   for (const [signature, entries] of bySignature) {
@@ -427,7 +486,7 @@ export function detectToolErrorLoops(session: Session): readonly Episode[] {
       prompt: first.turn
         ? excerpt(first.turn.prompt.text, PROMPT_EXCERPT)
         : null,
-      summary: `"${excerpt(signature, 60)}" failed ${String(entries.length)} times in one session`,
+      summary: `"${excerpt(signature, 60)}" failed ${plural(entries.length, 'time')} in one session`,
       context: {
         previousPrompt: null,
         assistantExcerpt: null,
@@ -478,13 +537,50 @@ export function denialReason(text: string): string {
     : excerpt(firstLine(text), 160);
 }
 
+const COMMAND_WINDOW = 160;
+
+/**
+ * Quotes the part of a blocked command that explains the block. The hook or
+ * classifier message usually names the trigger in quotes ('rm'); when it can
+ * be found in a long command the quote is a window around it. Otherwise the
+ * evidence says plainly that the trigger is not visible.
+ */
+export function commandWindow(
+  command: string,
+  reason: string,
+): { readonly text: string; readonly triggerVisible: boolean } {
+  const flat = command.replace(/\s+/g, ' ').trim();
+  if (flat.length <= COMMAND_WINDOW) {
+    return { text: excerpt(flat, COMMAND_WINDOW), triggerVisible: true };
+  }
+  const candidates = [...reason.matchAll(/['"`]([^'"`]{1,40})['"`]/g)].flatMap(
+    (m) => (m[1] ? [m[1]] : []),
+  );
+  for (const candidate of candidates) {
+    const escaped = candidate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = new RegExp(`(?<![\\w-])${escaped}(?![\\w-])`).exec(flat);
+    if (match) {
+      const start = Math.max(0, match.index - 70);
+      const end = Math.min(flat.length, match.index + candidate.length + 70);
+      return {
+        text: `${start > 0 ? '… ' : ''}${flat.slice(start, end)}${end < flat.length ? ' …' : ''}`,
+        triggerVisible: true,
+      };
+    }
+  }
+  return {
+    text: excerpt(flat, COMMAND_WINDOW),
+    triggerVisible: reason === '',
+  };
+}
+
 export function detectDenials(session: Session): readonly Episode[] {
   const groups = new Map<string, CallInTurn[]>();
   for (const entry of mainThreadCalls(session)) {
     const denial = entry.call.result?.denial;
     if (denial) {
       const key = `${denial}|${callSignature(entry.call)}`;
-      groups.set(key, [...(groups.get(key) ?? []), entry]);
+      pushTo(groups, key, entry);
     }
   }
   return [...groups.entries()].flatMap(([key, entries]): Episode[] => {
@@ -494,6 +590,10 @@ export function detectDenials(session: Session): readonly Episode[] {
       return [];
     }
     const signature = key.split('|')[1] ?? '';
+    const reason = denialReason(first.call.result.excerpt);
+    const window = first.call.command
+      ? commandWindow(first.call.command, reason)
+      : null;
     return [
       {
         id: makeId(
@@ -524,10 +624,9 @@ export function detectDenials(session: Session): readonly Episode[] {
             denial,
             tool: first.call.name,
             signature: excerpt(signature, 80),
-            command: first.call.command
-              ? excerpt(first.call.command, 160)
-              : null,
-            reason: denialReason(first.call.result.excerpt),
+            command: window?.text ?? null,
+            triggerVisible: window?.triggerVisible ?? true,
+            reason,
           },
         },
         related: [],
@@ -541,33 +640,55 @@ export function detectDenials(session: Session): readonly Episode[] {
 // ---------------------------------------------------------------------------
 
 export const REWORK_MIN_EDITS = 5;
+/** Edits to one file must span this many of the user's own prompts... */
+export const REWORK_MIN_TURNS = 3;
 
 export function detectRework(session: Session): readonly Episode[] {
-  const byFile = new Map<string, CallInTurn[]>();
-  for (const entry of mainThreadCalls(session)) {
+  const calls = mainThreadCalls(session);
+  const byFile = new Map<string, { entry: CallInTurn; position: number }[]>();
+  calls.forEach((entry, position) => {
     const { call } = entry;
     if (
       EDIT_TOOLS.has(call.name) &&
       call.target &&
       call.result?.isError !== true
     ) {
-      byFile.set(call.target, [...(byFile.get(call.target) ?? []), entry]);
+      pushTo(byFile, call.target, { entry, position });
     }
-  }
-  return [...byFile.entries()].flatMap(([file, entries]): Episode[] => {
-    const first = entries[0];
-    if (entries.length < REWORK_MIN_EDITS || !first) {
+  });
+  return [...byFile.entries()].flatMap(([file, hits]): Episode[] => {
+    const first = hits[0]?.entry;
+    const lastPosition = hits.at(-1)?.position;
+    if (
+      hits.length < REWORK_MIN_EDITS ||
+      !first ||
+      lastPosition === undefined
+    ) {
       return [];
     }
-    const turnIndexes = entries.flatMap(({ turn }) =>
-      turn ? [turn.index] : [],
+    const entries = hits.map((hit) => hit.entry);
+    const humanTurns = entries.flatMap(({ turn }) =>
+      turn && isHumanTypedTurn(turn) ? [turn.index] : [],
     );
-    const distinctTurns = new Set(turnIndexes).size;
-    const busiestTurn = [...turnIndexes]
-      .sort()
-      .reduce<
-        Map<number, number>
-      >((acc, i) => acc.set(i, (acc.get(i) ?? 0) + 1), new Map());
+    const distinctTurns = new Set(humanTurns).size;
+    // Failures between the first and last edit of the file: the file was
+    // touched, something broke, and it was touched again.
+    const firstPosition = hits[0]?.position ?? 0;
+    const interleavedFailures = calls
+      .slice(firstPosition, lastPosition + 1)
+      .filter(({ call }) => isRealError(call)).length;
+    // Many edits inside one turn is ordinary authoring. Rework needs the user
+    // to come back to the file, or things to break in between.
+    const isRework =
+      distinctTurns >= REWORK_MIN_TURNS ||
+      (distinctTurns >= 2 && interleavedFailures >= 1);
+    if (!isRework) {
+      return [];
+    }
+    const busiestTurn = humanTurns.reduce<Map<number, number>>(
+      (acc, i) => acc.set(i, (acc.get(i) ?? 0) + 1),
+      new Map(),
+    );
     const busiestIndex = [...busiestTurn.entries()].sort(
       (a, b) => b[1] - a[1],
     )[0]?.[0];
@@ -587,23 +708,25 @@ export function detectRework(session: Session): readonly Episode[] {
         confidence: round(
           clamp(
             0.45 +
-              0.07 * (entries.length - REWORK_MIN_EDITS) +
-              (distinctTurns >= 2 ? 0.1 : 0),
+              0.07 * (hits.length - REWORK_MIN_EDITS) +
+              (distinctTurns >= REWORK_MIN_TURNS ? 0.1 : 0) +
+              (interleavedFailures > 0 ? 0.1 : 0),
             0,
             0.9,
           ),
         ),
-        count: entries.length,
+        count: hits.length,
         prompt: busiest ? excerpt(busiest.prompt.text, PROMPT_EXCERPT) : null,
-        summary: `${excerpt(shortPath(file, session.cwd), 80)} edited ${String(entries.length)} times in one session`,
+        summary: `${excerpt(shortPath(file, session.cwd), 80)} edited ${String(hits.length)} times across ${String(distinctTurns)} prompts`,
         context: {
           previousPrompt: null,
           assistantExcerpt: null,
           tools: toolCounts(entries.map(({ call }) => call)),
           detail: {
             file: excerpt(shortPath(file, session.cwd), 120),
-            edits: entries.length,
+            edits: hits.length,
             turns: distinctTurns,
+            interleavedFailures,
             planModeUsed: session.planModeUsed,
           },
         },
@@ -614,13 +737,12 @@ export function detectRework(session: Session): readonly Episode[] {
 }
 
 export const LONG_SESSION_TURNS = 40;
-export const LONG_SESSION_MESSAGES = 300;
 
 export function detectContextPressure(session: Session): readonly Episode[] {
   const compactions = session.compactions.length;
-  const isLong =
-    session.turns.length >= LONG_SESSION_TURNS ||
-    session.assistantMessages >= LONG_SESSION_MESSAGES;
+  // Assistant message counts include subagents, which run in their own
+  // context, so they say nothing about pressure on the main thread.
+  const isLong = session.turns.length >= LONG_SESSION_TURNS;
   if (compactions === 0 && !isLong) {
     return [];
   }
@@ -639,8 +761,8 @@ export function detectContextPressure(session: Session): readonly Episode[] {
       prompt: null,
       summary:
         compactions > 0
-          ? `Context was compacted ${String(compactions)}x (${String(session.turns.length)} turns, ${String(session.assistantMessages)} assistant messages)`
-          : `Very long session: ${String(session.turns.length)} turns, ${String(session.assistantMessages)} assistant messages`,
+          ? `Context was compacted ${String(compactions)}x (${plural(session.turns.length, 'turn')}, ${plural(session.assistantMessages, 'assistant message')})`
+          : `Very long session: ${plural(session.turns.length, 'turn')}, ${plural(session.assistantMessages, 'assistant message')}`,
       context: {
         previousPrompt: null,
         assistantExcerpt: null,
@@ -688,8 +810,7 @@ function eligibleOccurrences(sessions: readonly Session[]): PromptOccurrence[] {
           return { session, turn, tokens, key: [...tokens].sort().join(' ') };
         }),
     )
-    .filter((occ) => occ.tokens.size >= 2)
-    .slice(-MAX_PROMPTS_FOR_CLUSTERING);
+    .filter((occ) => occ.tokens.size >= 2);
 }
 
 function findRoot(parent: number[], i: number): number {
@@ -700,13 +821,30 @@ function findRoot(parent: number[], i: number): number {
   return root;
 }
 
+export type RepeatedInstructionResult = {
+  readonly episodes: readonly Episode[];
+  /** Older prompts left out because clustering is quadratic. */
+  readonly omittedPrompts: number;
+};
+
 export function detectRepeatedInstructions(
   sessions: readonly Session[],
 ): readonly Episode[] {
-  const occurrences = eligibleOccurrences(sessions);
+  return analyzeRepeatedInstructions(sessions).episodes;
+}
+
+export function analyzeRepeatedInstructions(
+  sessions: readonly Session[],
+): RepeatedInstructionResult {
+  const eligible = eligibleOccurrences(sessions);
+  const omittedPrompts = Math.max(
+    0,
+    eligible.length - MAX_PROMPTS_FOR_CLUSTERING,
+  );
+  const occurrences = eligible.slice(-MAX_PROMPTS_FOR_CLUSTERING);
   const byKey = new Map<string, PromptOccurrence[]>();
   for (const occ of occurrences) {
-    byKey.set(occ.key, [...(byKey.get(occ.key) ?? []), occ]);
+    pushTo(byKey, occ.key, occ);
   }
   const unique = [...byKey.values()];
   const parent = unique.map((_, i) => i);
@@ -731,10 +869,15 @@ export function detectRepeatedInstructions(
   const clusters = new Map<number, PromptOccurrence[]>();
   unique.forEach((group, i) => {
     const root = findRoot(parent, i);
-    clusters.set(root, [...(clusters.get(root) ?? []), ...group]);
+    const list = clusters.get(root);
+    if (list) {
+      list.push(...group);
+    } else {
+      clusters.set(root, [...group]);
+    }
   });
 
-  return [...clusters.values()].flatMap((members): Episode[] => {
+  const episodes = [...clusters.values()].flatMap((members): Episode[] => {
     const sessionIds = new Set(members.map((m) => m.session.id));
     const maxTokens = Math.max(...members.map((m) => m.tokens.size));
     const qualifies =
@@ -795,6 +938,10 @@ export function detectRepeatedInstructions(
             ),
             lastSeen: isoToDateKey(latest.turn.prompt.timestamp),
             words: wordCount(representative.turn.prompt.text),
+            fullPrompt:
+              representative.turn.prompt.text.length <= 2000
+                ? representative.turn.prompt.text.trim()
+                : null,
           },
         },
         related: sorted
@@ -804,132 +951,106 @@ export function detectRepeatedInstructions(
       },
     ];
   });
+  return { episodes, omittedPrompts };
 }
 
 // ---------------------------------------------------------------------------
 // Frequently-run read-only Bash commands (permission allowlist candidates)
 // ---------------------------------------------------------------------------
 
-const READ_ONLY_BINARIES: ReadonlySet<string> = new Set([
+/**
+ * Rules worth suggesting. Each key is the literal command prefix of a rule
+ * `Bash(<key> *)`, and every invocation that rule can match, with any
+ * arguments, must be harmless: no writes, no execution through flags, and
+ * nothing that reads arbitrary files or secrets. That excludes `cat`, `jq`,
+ * `grep`, `find`, `sed`, `sort`, `kubectl get` (can print Secrets), and
+ * `docker inspect`/`logs` (environment variables, logs).
+ *
+ * Plain read-only git and basics such as ls/cat/grep/head are already run by
+ * Claude Code without a prompt (code.claude.com/docs/en/permissions), so they
+ * never need a rule either.
+ */
+export const SAFE_RULE_KEYS: ReadonlySet<string> = new Set([
+  'gh pr view',
+  'gh pr list',
+  'gh pr diff',
+  'gh pr checks',
+  'gh pr status',
+  'gh issue view',
+  'gh issue list',
+  'gh run list',
+  'gh run view',
+  'gh repo view',
+  'docker ps',
+  'docker images',
+  'pnpm ls',
+  'pnpm list',
+  'pnpm outdated',
+  'pnpm why',
+  'npm ls',
+  'npm list',
+  'npm outdated',
+]);
+
+/**
+ * Commands that may appear next to a suggestible one (`gh pr view 1 | head`)
+ * without making the whole command ineligible. They are already run without a
+ * prompt by Claude Code and, with redirections excluded below, change nothing.
+ */
+const PASSTHROUGH_BINARIES: ReadonlySet<string> = new Set([
+  'cd',
   'ls',
   'cat',
   'head',
   'tail',
   'wc',
-  'grep',
-  'rg',
-  'egrep',
-  'fgrep',
   'pwd',
   'which',
-  'whoami',
-  'date',
-  'stat',
-  'file',
-  'du',
-  'df',
-  'tree',
-  'jq',
-  'sort',
-  'uniq',
-  'cut',
-  'tr',
-  'basename',
-  'dirname',
-  'realpath',
   'echo',
-  'printf',
+  'grep',
   'diff',
-  'comm',
-  'column',
-  'nl',
-  'od',
-  'xxd',
-  'shasum',
-  'md5',
+  'stat',
+  'du',
   'true',
-  'test',
 ]);
 
-const READ_ONLY_SUBCOMMANDS: Readonly<Record<string, ReadonlySet<string>>> = {
-  git: new Set([
-    'status',
-    'diff',
-    'log',
-    'show',
-    'rev-parse',
-    'ls-files',
-    'blame',
-    'describe',
-    'shortlog',
-    'grep',
-    'ls-tree',
-    'cat-file',
-    'merge-base',
-  ]),
-  gh: new Set([
-    'pr view',
-    'pr list',
-    'pr diff',
-    'pr checks',
-    'pr status',
-    'issue view',
-    'issue list',
-    'run list',
-    'run view',
-    'repo view',
-  ]),
-  docker: new Set(['ps', 'images', 'logs', 'inspect']),
-  pnpm: new Set(['ls', 'list', 'outdated', 'why']),
-  npm: new Set(['ls', 'list', 'outdated', 'view']),
-  kubectl: new Set(['get', 'describe', 'logs']),
-};
+const SAFE_REDIRECT = /\s*(?:\d|&)?>\s*(?:&\d|\/dev\/null)/g;
 
-const SAFE_REDIRECT = /\s*\d?>\s*(&\d|\/dev\/null)/g;
-
-/** Returns '' for segments that need no rule (cd, empty), null if unsafe. */
+/** Returns '' for segments that need no rule, null if unsafe or unknown. */
 function segmentKey(segment: string): string | null {
-  const cleaned = segment
-    .replace(SAFE_REDIRECT, ' ')
-    .replace(/^(\s*[A-Za-z_][A-Za-z0-9_]*=\S*\s+)+/, '')
-    .trim();
+  const cleaned = segment.trim();
   if (cleaned === '') {
     return '';
   }
-  if (/[<>`]|\$\(/.test(cleaned)) {
+  // Redirections, substitutions, grouping, env assignments and variables used
+  // as the command all change what a rule would really allow.
+  if (/[<>`(){}]|\$\(|^\s*[A-Za-z_]\w*=/.test(cleaned)) {
     return null;
   }
   const words = cleaned.split(/\s+/);
   const bin = words[0] ?? '';
-  if (bin === 'cd') {
+  if (PASSTHROUGH_BINARIES.has(bin)) {
     return '';
   }
-  const subcommands = READ_ONLY_SUBCOMMANDS[bin];
-  if (subcommands) {
-    const rest = words.slice(1).filter((w) => !w.startsWith('-'));
-    const two = `${rest[0] ?? ''} ${rest[1] ?? ''}`.trim();
-    if (subcommands.has(rest[0] ?? '')) {
-      return `${bin} ${rest[0] ?? ''}`;
-    }
-    return subcommands.has(two) ? `${bin} ${two}` : null;
+  // The rule is a literal prefix, so flags between binary and subcommand
+  // (`gh -R x pr view`) would not match it and are not accepted.
+  const key = words.slice(0, 3).join(' ');
+  const twoWords = words.slice(0, 2).join(' ');
+  if (SAFE_RULE_KEYS.has(key)) {
+    return key;
   }
-  if (bin === 'find') {
-    return /\s-(delete|exec|execdir|ok|fprint|fls)\b/.test(cleaned)
-      ? null
-      : 'find';
-  }
-  if (bin === 'sed') {
-    return /\s-[a-zA-Z]*i/.test(cleaned) ? null : 'sed';
-  }
-  return READ_ONLY_BINARIES.has(bin) ? bin : null;
+  return SAFE_RULE_KEYS.has(twoWords) ? twoWords : null;
 }
 
 /**
- * Returns allowlist keys (e.g. "git status", "ls") when every part of a
- * compound command is read-only, otherwise null.
+ * Returns allowlist keys (e.g. "gh pr view") when every part of a compound
+ * command is either harmless or suggestible, otherwise null. All shell
+ * separators count: `&&`, `||`, `;`, `|`, `|&`, `&` and newlines.
  */
 export function readOnlyKeys(command: string): readonly string[] | null {
-  const segments = command.split(/&&|\|\||;|\||\n/);
+  const segments = command
+    .replace(SAFE_REDIRECT, ' ')
+    .split(/&&|\|\||\|&|;|\||&|\n/);
   const keys = segments.map(segmentKey);
   if (keys.some((key) => key === null)) {
     return null;
@@ -960,12 +1081,13 @@ export function detectReadonlyCommands(
         continue;
       }
       for (const call of turn.toolCalls) {
+        // A call the user or a rule refused was not approved, let alone often.
         const keys =
-          call.name === 'Bash' && call.command
+          call.name === 'Bash' && call.command && !call.result?.denial
             ? readOnlyKeys(call.command)
             : null;
         for (const key of keys ?? []) {
-          byKey.set(key, [...(byKey.get(key) ?? []), { session, call, mode }]);
+          pushTo(byKey, key, { session, call, mode });
         }
       }
     }
@@ -997,7 +1119,7 @@ export function detectReadonlyCommands(
         confidence: round(knownMode === hits.length ? 0.8 : 0.5),
         count: hits.length,
         prompt: null,
-        summary: `"${key}" ran ${String(hits.length)}x in ${String(sessionIds.size)} sessions with permission prompts on`,
+        summary: `"${key}" ran ${String(hits.length)}x in ${String(sessionIds.size)} sessions whose permission mode can prompt`,
         context: {
           previousPrompt: null,
           assistantExcerpt: null,
@@ -1009,7 +1131,7 @@ export function detectReadonlyCommands(
             projects: new Set(hits.map((h) => h.session.project)).size,
             example: excerpt(first.call.command ?? key, 160),
             projectNames: [...new Set(hits.map((h) => h.session.project))]
-              .slice(0, 6)
+              .slice(0, 30)
               .join(', '),
             modesKnown: knownMode === hits.length,
           },
@@ -1065,7 +1187,7 @@ export function detectModelSwitches(session: Session): readonly Episode[] {
       confidence: 0.85,
       count: switches.length,
       prompt: excerpt(first.turn.prompt.text, PROMPT_EXCERPT),
-      summary: `${String(switches.length)} model switch(es) mid-session re-wrote ${String(Math.round(cacheWrite / 1000))}k cache tokens`,
+      summary: `${plural(switches.length, 'model switch', 'model switches')} mid-session re-wrote ${String(Math.round(cacheWrite / 1000))}k cache tokens`,
       context: {
         previousPrompt: null,
         assistantExcerpt: null,
@@ -1192,7 +1314,7 @@ export function analyzePromptTraits(
         def.unit === 'rate'
           ? Math.abs(a - b) >= 0.15
           : b > 0 && (a / b >= 1.5 || a / b <= 0.67);
-      const significant = sampleSize >= MIN_TRAIT_SAMPLE && material;
+      const meetsThreshold = sampleSize >= MIN_TRAIT_SAMPLE && material;
       const fmt = (v: number): string =>
         def.unit === 'rate'
           ? `${String(Math.round(v * 100))}%`
@@ -1203,7 +1325,7 @@ export function analyzePromptTraits(
         withTrait: { n: withTrait.length, value: round(a, 3) },
         withoutTrait: { n: without.length, value: round(b, 3) },
         sampleSize,
-        significant,
+        meetsThreshold,
         description: `${def.name}: ${fmt(a)} with "${trait.name}" (n=${String(withTrait.length)}) vs ${fmt(b)} without (n=${String(without.length)})`,
       };
     }),
@@ -1217,6 +1339,8 @@ export function analyzePromptTraits(
 export type FrictionResult = {
   readonly episodes: readonly Episode[];
   readonly promptTraits: readonly PromptTraitFinding[];
+  /** Caveats about what the detectors could not cover. */
+  readonly notes: readonly string[];
 };
 
 export function detectFriction(sessions: readonly Session[]): FrictionResult {
@@ -1229,10 +1353,20 @@ export function detectFriction(sessions: readonly Session[]): FrictionResult {
     ...detectContextPressure(session),
     ...detectModelSwitches(session),
   ]);
+  const repeated = analyzeRepeatedInstructions(sessions);
   const episodes = [
     ...perSession,
-    ...detectRepeatedInstructions(sessions),
+    ...repeated.episodes,
     ...detectReadonlyCommands(sessions),
   ].sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
-  return { episodes, promptTraits: analyzePromptTraits(sessions, episodes) };
+  return {
+    episodes,
+    promptTraits: analyzePromptTraits(sessions, episodes),
+    notes:
+      repeated.omittedPrompts > 0
+        ? [
+            `Repeated-instruction detection compared only the most recent ${String(MAX_PROMPTS_FOR_CLUSTERING)} prompts; ${String(repeated.omittedPrompts)} older prompt(s) were left out.`,
+          ]
+        : [],
+  };
 }

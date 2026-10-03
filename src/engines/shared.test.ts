@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   EngineOutputError,
+  loosensSafety,
   OLLAMA_BUDGET,
   parseJsonObject,
   selectEvidence,
@@ -184,5 +185,26 @@ describe('parseJsonObject', () => {
     expect(parseJsonObject('```json\n{"a":1}\n```')).toEqual({ a: 1 });
     expect(parseJsonObject('Here you go: {"a":2} thanks')).toEqual({ a: 2 });
     expect(() => parseJsonObject('not json')).toThrow(EngineOutputError);
+  });
+});
+
+describe('loosensSafety', () => {
+  it.each([
+    'Disable the hook that blocks rm',
+    'Allow the classifier to pass these commands',
+    'Relax auto mode for deploys',
+    'Add an exception: bypass hooks for this repo',
+  ])('flags advice that weakens a guardrail: %s', (text) => {
+    expect(loosensSafety(text)).toBe(true);
+  });
+
+  it.each([
+    'Review your hooks to see which message repeats',
+    'Update CLAUDE.md so Claude reads the hook message first',
+    'Never disable the hook, follow the message instead',
+    'Do not bypass auto mode; ask for approval',
+    'Reconsider how you word the prompt',
+  ])('keeps benign advice: %s', (text) => {
+    expect(loosensSafety(text)).toBe(false);
   });
 });

@@ -6,7 +6,7 @@
 import {
   type DailyPoint,
   type Episode,
-  type Insight,
+  EpisodeType,
   type InsightAction,
   type Report,
 } from '../types/index.js';
@@ -17,6 +17,11 @@ import {
   renderTimeChart,
 } from './html/charts.js';
 import { esc, round, safeNumber } from './html/escape.js';
+import {
+  describeCoverage,
+  type JudgedInsight,
+  judgeInsights,
+} from './interpretation.js';
 import {
   formatMinutes,
   formatNumber,
@@ -34,15 +39,17 @@ const MAX_TOOLS_SHOWN = 12;
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
-const EPISODE_LABELS: Readonly<Record<string, string>> = {
-  interruption: 'Interruption',
-  correction: 'Correction',
-  'tool-error-loop': 'Tool error loop',
-  'tool-denied': 'Tool denied',
-  rework: 'Rework',
-  'context-pressure': 'Context pressure',
-  'repeated-instruction': 'Repeated instruction',
-  'frequent-readonly-command': 'Frequent read-only command',
+/** A Record over every EpisodeType: a new type fails to compile until labelled. */
+const EPISODE_LABELS: Readonly<Record<EpisodeType, string>> = {
+  [EpisodeType.INTERRUPTION]: 'Interruption',
+  [EpisodeType.CORRECTION]: 'Correction',
+  [EpisodeType.TOOL_ERROR_LOOP]: 'Tool error loop',
+  [EpisodeType.TOOL_DENIED]: 'Tool denied',
+  [EpisodeType.REWORK]: 'Rework',
+  [EpisodeType.CONTEXT_PRESSURE]: 'Context pressure',
+  [EpisodeType.REPEATED_INSTRUCTION]: 'Repeated instruction',
+  [EpisodeType.READONLY_COMMAND]: 'Frequent read-only command',
+  [EpisodeType.MODEL_SWITCH]: 'Model switch',
 };
 
 type Ids = () => string;
@@ -131,21 +138,10 @@ ${action.steps.length > 0 ? `<ol class="steps">${action.steps.map((step) => `<li
   }
 }
 
-function verdictCounts(
-  report: Report,
-  insight: Insight,
-): { confirmed: number; rejected: number; unclear: number } {
-  const ids = new Set(insight.episodeIds);
-  const counts = { confirmed: 0, rejected: 0, unclear: 0 };
-  for (const verdict of report.interpretation?.episodeVerdicts ?? []) {
-    if (ids.has(verdict.episodeId)) {
-      counts[verdict.verdict] += 1;
-    }
-  }
-  return counts;
-}
-
-function renderInsight(report: Report, insight: Insight, ids: Ids): string {
+function renderInsight(
+  { insight, state, review }: JudgedInsight,
+  ids: Ids,
+): string {
   const { evidence } = insight;
   const facts = [
     plural(evidence.count, 'occurrence'),
@@ -155,21 +151,8 @@ function renderInsight(report: Report, insight: Insight, ids: Ids): string {
     `confidence ${formatPercent(insight.confidence)}`,
   ].filter((fact): fact is string => fact !== null);
 
-  const verdicts = verdictCounts(report, insight);
-  const verdictHtml =
-    verdicts.confirmed + verdicts.rejected + verdicts.unclear > 0
-      ? `<p class="facts">LLM review: ${[
-          verdicts.confirmed > 0
-            ? `${String(verdicts.confirmed)} confirmed`
-            : null,
-          verdicts.rejected > 0
-            ? `${String(verdicts.rejected)} rejected`
-            : null,
-          verdicts.unclear > 0 ? `${String(verdicts.unclear)} unclear` : null,
-        ]
-          .filter((part): part is string => part !== null)
-          .join(', ')}</p>`
-      : '';
+  const coverage = describeCoverage(review);
+  const verdictHtml = coverage ? `<p class="facts">${esc(coverage)}</p>` : '';
 
   const examples =
     evidence.examples.length > 0
@@ -182,7 +165,7 @@ function renderInsight(report: Report, insight: Insight, ids: Ids): string {
       : '';
 
   return `<article class="card">
-<header><span class="badge ${esc(insight.severity)}">${esc(insight.severity)}</span><h3>${esc(insight.title)}</h3></header>
+<header><span class="badge ${esc(insight.severity)}">${esc(insight.severity)}</span><h3>${esc(insight.title)}</h3>${state === 'confirmed' ? '<span class="badge confirmed">confirmed</span>' : ''}</header>
 <p class="finding">${esc(insight.finding)}</p>
 <p class="facts">${facts.map(esc).join(' &middot; ')}</p>
 ${verdictHtml}
@@ -253,16 +236,24 @@ function renderRecommendations(report: Report): string {
 }
 
 function renderInsights(report: Report, ids: Ids): string {
+  const { kept, dismissed } = judgeInsights(report);
   const body =
-    report.insights.length === 0
+    kept.length === 0
       ? `<p class="empty">${report.dataQuality.enoughData ? 'No actionable friction found in this period. Nothing to change.' : 'No findings yet. There is not enough data to say anything reliable.'}</p>`
-      : report.insights
-          .map((insight) => renderInsight(report, insight, ids))
-          .join('');
+      : kept.map((judged) => renderInsight(judged, ids)).join('');
+  const dismissedHtml =
+    dismissed.length > 0
+      ? `<details><summary>Dismissed by the interpretation (${esc(dismissed.length)})</summary><ul>${dismissed
+          .map(
+            ({ insight, notes }) =>
+              `<li>${esc(insight.title)}${notes[0] ? ` <span class="muted small">- ${esc(notes[0].note)}</span>` : ''}</li>`,
+          )
+          .join('')}</ul></details>`
+      : '';
   return section(
     'insights',
-    `What to change${report.insights.length > 0 ? ` (${String(report.insights.length)})` : ''}`,
-    `${renderInterpretationSummary(report)}${body}`,
+    `What to change${kept.length > 0 ? ` (${String(kept.length)})` : ''}`,
+    `${renderInterpretationSummary(report)}${body}${dismissedHtml}`,
   );
 }
 
@@ -492,10 +483,10 @@ function renderMetrics(report: Report): string {
   const { overall, byProject } = report.metrics;
   const traits =
     report.promptTraits.length > 0
-      ? `<h3>Prompt traits</h3><ul>${report.promptTraits
+      ? `<h3>Exploratory prompt correlations (not findings)</h3><ul>${report.promptTraits
           .map(
             (t) =>
-              `<li>${esc(t.description)} <span class="muted small">(${t.significant ? 'meaningful gap' : 'not significant'})</span></li>`,
+              `<li>${esc(t.description)} <span class="muted small">(${t.meetsThreshold ? 'passes size and gap threshold' : 'below threshold'})</span></li>`,
           )
           .join('')}</ul>`
       : '';
@@ -538,7 +529,7 @@ function renderEpisode(report: Report, episode: Episode): string {
   const verdict = report.interpretation?.episodeVerdicts.find(
     (v) => v.episodeId === episode.id,
   );
-  return `<div class="ep"><span class="type">${esc(EPISODE_LABELS[episode.type] ?? episode.type)}</span>${verdict ? `<span class="badge ${esc(verdict.verdict)}">${esc(verdict.verdict)}</span> ` : ''}${esc(episode.summary)}${episode.count > 1 ? ` (x${esc(episode.count)})` : ''}<div class="muted small">${esc(episode.project)} - ${esc(episode.timestamp.slice(0, 10))}${episode.prompt ? ` - &ldquo;${esc(episode.prompt)}&rdquo;` : ''}${verdict?.note ? ` - ${esc(verdict.note)}` : ''}</div></div>`;
+  return `<div class="ep"><span class="type">${esc(EPISODE_LABELS[episode.type])}</span>${verdict ? `<span class="badge ${esc(verdict.verdict)}">${esc(verdict.verdict)}</span> ` : ''}${esc(episode.summary)}${episode.count > 1 ? ` (x${esc(episode.count)})` : ''}<div class="muted small">${esc(episode.project)} - ${esc(episode.timestamp.slice(0, 10))}${episode.prompt ? ` - &ldquo;${esc(episode.prompt)}&rdquo;` : ''}${verdict?.note ? ` - ${esc(verdict.note)}` : ''}</div></div>`;
 }
 
 function renderEpisodes(report: Report): string {

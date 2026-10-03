@@ -7,7 +7,7 @@ import {
   type Session,
 } from '../types/index.js';
 import { detectFriction } from './friction.js';
-import { generateInsights, toPermissionPattern } from './insights.js';
+import { commandName, generateInsights } from './insights.js';
 import { computeMetrics } from './metrics.js';
 import { at, makeCall, makeSession, makeTurn } from './test-helpers.js';
 
@@ -15,8 +15,8 @@ function insightsFor(
   sessions: readonly Session[],
 ): ReturnType<typeof generateInsights> {
   const metrics = computeMetrics(sessions);
-  const { episodes, promptTraits } = detectFriction(sessions);
-  return generateInsights({ metrics, episodes, promptTraits });
+  const { episodes } = detectFriction(sessions);
+  return generateInsights({ metrics, episodes });
 }
 
 const err = (command: string): ReturnType<typeof makeCall> =>
@@ -185,18 +185,20 @@ describe('generateInsights', () => {
     const edits = Array.from({ length: 6 }, () =>
       makeCall('Edit', { target: '/work/app/src/pay.ts' }),
     );
-    const without = insightsFor([
-      makeSession([makeTurn(0, 'fix payments', { calls: edits })]),
-    ]);
+    const turnsOf = (): ReturnType<typeof makeTurn>[] =>
+      [0, 1, 2].map((i) =>
+        makeTurn(i, 'fix payments again', {
+          calls: edits.slice(i * 2, i * 2 + 2),
+        }),
+      );
+    const without = insightsFor([makeSession(turnsOf())]);
     const insight = without.find((i) => i.kind === InsightKind.REWORK);
     expect(insight?.finding).toContain('src/pay.ts');
     expect(insight?.finding).toContain('plan mode was not used');
     expect(insight?.action).toMatchObject({ kind: 'workflow' });
 
     const withPlan = insightsFor([
-      makeSession([makeTurn(0, 'fix payments', { calls: edits })], {
-        planModeUsed: true,
-      }),
+      makeSession(turnsOf(), { planModeUsed: true }),
     ]).find((i) => i.kind === InsightKind.REWORK);
     expect(withPlan?.finding).toContain('plan mode was used');
   });
@@ -208,7 +210,7 @@ describe('generateInsights', () => {
     const insight = insightsFor([session]).find(
       (i) => i.kind === InsightKind.CONTEXT_PRESSURE,
     );
-    expect(insight?.finding).toContain('1 compaction(s)');
+    expect(insight?.finding).toContain('1 compaction,');
     expect(insight?.severity).toBe('medium');
   });
 
@@ -223,7 +225,7 @@ describe('generateInsights', () => {
       kind: 'claude-md-rule',
       scope: 'project',
       project: 'app',
-      text: '- always run the linter first.',
+      text: '- Always run the linter first.',
     });
 
     const longText =
@@ -233,8 +235,57 @@ describe('generateInsights', () => {
     );
     const slash = insightsFor(longRule).find(
       (i) => i.kind === InsightKind.REPEATED_INSTRUCTION,
+    )?.action;
+    expect(slash?.kind).toBe('slash-command');
+    // The file holds the complete prompt, not a shortened excerpt.
+    expect(slash?.kind === 'slash-command' && slash.content).toContain(
+      `\n\n${longText}\n`,
     );
-    expect(slash?.action.kind).toBe('slash-command');
+  });
+
+  it('never emits a task-like short prompt as a CLAUDE.md rule', () => {
+    const sessions = [1, 2, 3, 4].map((d) =>
+      makeSession([makeTurn(0, 'run the tests please', { ts: at(d) })]),
+    );
+    const action = insightsFor(sessions).find(
+      (i) => i.kind === InsightKind.REPEATED_INSTRUCTION,
+    )?.action;
+    expect(action?.kind).toBe('slash-command');
+  });
+
+  it('quotes the frontmatter description so a colon cannot break the YAML', () => {
+    const text = 'Fix: the bug in the checkout flow and add a regression test';
+    const sessions = [1, 2, 3].map((d) =>
+      makeSession([makeTurn(0, text, { ts: at(d) })]),
+    );
+    const action = insightsFor(sessions).find(
+      (i) => i.kind === InsightKind.REPEATED_INSTRUCTION,
+    )?.action;
+    expect(action?.kind === 'slash-command' && action.content).toContain(
+      `description: ${JSON.stringify(text)}`,
+    );
+  });
+
+  it('does not name a command after a built-in', () => {
+    const text = 'review';
+    expect(commandName(text)).toBe('my-review');
+    expect(commandName('init')).toBe('my-init');
+    expect(commandName('')).toBe('repeated-task');
+    expect(commandName('Run the full test suite now')).toBe(
+      'run-the-full-test',
+    );
+  });
+
+  it('offers no ready-made file when the prompt was redacted or shortened', () => {
+    const redacted =
+      'deploy to staging using the key [REDACTED_SECRET] then run the smoke tests';
+    const sessions = [1, 2, 3].map((d) =>
+      makeSession([makeTurn(0, redacted, { ts: at(d) })]),
+    );
+    const action = insightsFor(sessions).find(
+      (i) => i.kind === InsightKind.REPEATED_INSTRUCTION,
+    )?.action;
+    expect(action?.kind).toBe('workflow');
   });
 
   it('builds an exact settings.json allowlist entry from read-only commands', () => {
@@ -243,7 +294,7 @@ describe('generateInsights', () => {
         makeTurn(0, 'look', {
           ts: at(d),
           calls: Array.from({ length: 4 }, () =>
-            makeCall('Bash', { command: 'git status' }),
+            makeCall('Bash', { command: 'gh pr view 12 --json title' }),
           ),
         }),
       ]),
@@ -253,16 +304,17 @@ describe('generateInsights', () => {
     );
     expect(insight?.action).toEqual({
       kind: 'permission-allow',
-      patterns: ['Bash(git status *)'],
+      patterns: ['Bash(gh pr view *)'],
       file: '~/.claude/settings.json',
       snippet: JSON.stringify(
-        { permissions: { allow: ['Bash(git status *)'] } },
+        { permissions: { allow: ['Bash(gh pr view *)'] } },
         null,
         2,
       ),
     });
     expect(insight?.evidence.sessions).toBe(2);
-    expect(toPermissionPattern('ls')).toBe('Bash(ls *)');
+    expect(insight?.finding).toContain('do not record approvals');
+    expect(insight?.finding).not.toContain('prompts on');
   });
 
   it('ranks by severity, confidence and volume and gives every insight evidence and an action', () => {
@@ -290,30 +342,29 @@ describe('generateInsights', () => {
     }
   });
 
-  it('only builds prompt-trait insights from significant, well-sampled findings', () => {
+  it('keeps prompt traits out of the insights, whatever the numbers say', () => {
     const sessions = [
       makeSession(
-        Array.from({ length: 20 }, (_, i) =>
+        Array.from({ length: 24 }, (_, i) =>
           makeTurn(i, 'fix it', { calls: [err('x')] }),
         ),
       ),
       makeSession(
-        Array.from({ length: 20 }, (_, i) =>
+        Array.from({ length: 24 }, (_, i) =>
           makeTurn(
             i,
             'please fix the failing build in the checkout module today',
-            {
-              calls: [makeCall('Bash', { command: 'ls' })],
-            },
+            { calls: [makeCall('Bash', { command: 'ls' })] },
           ),
         ),
       ),
     ];
-    const trait = insightsFor(sessions).find(
-      (i) => i.kind === InsightKind.PROMPT_TRAIT,
-    );
-    expect(trait?.finding).toContain('n=20');
-    expect(trait?.severity).toBe('low');
+    expect(
+      detectFriction(sessions).promptTraits.some((t) => t.meetsThreshold),
+    ).toBe(true);
+    expect(
+      insightsFor(sessions).some((i) => i.title.includes('Prompt trait')),
+    ).toBe(false);
   });
 });
 
@@ -342,30 +393,54 @@ describe('permission allowlist suggestions', () => {
       makeTurn(0, 'look', {
         ts: at(d),
         calls: Array.from({ length: 4 }, () =>
-          makeCall('Bash', { command: 'git status' }),
+          makeCall('Bash', { command: 'gh pr view 12' }),
         ),
       }),
     ]),
   );
+  type Rules = {
+    user: string[];
+    byProject: Record<string, string[]>;
+    restricted?: { user: string[]; byProject: Record<string, string[]> };
+  };
+  const has = (allowedRules: Rules): boolean => {
+    const metrics = computeMetrics(sessions);
+    const { episodes } = detectFriction(sessions);
+    return generateInsights({ metrics, episodes, allowedRules }).some(
+      (i) => i.kind === InsightKind.READONLY_COMMANDS,
+    );
+  };
 
   it('skips commands the user or the project already allows', () => {
-    const metrics = computeMetrics(sessions);
-    const { episodes, promptTraits } = detectFriction(sessions);
-    const base = { metrics, episodes, promptTraits };
-    const has = (allowedRules: {
-      user: string[];
-      byProject: Record<string, string[]>;
-    }): boolean =>
-      generateInsights({ ...base, allowedRules }).some(
-        (i) => i.kind === InsightKind.READONLY_COMMANDS,
-      );
     expect(has({ user: [], byProject: {} })).toBe(true);
-    expect(has({ user: ['Bash(git status:*)'], byProject: {} })).toBe(false);
-    expect(has({ user: ['Bash(git *)'], byProject: {} })).toBe(false);
-    expect(has({ user: ['Bash(git status)'], byProject: {} })).toBe(true);
-    expect(has({ user: [], byProject: { app: ['Bash(git status *)'] } })).toBe(
+    expect(has({ user: ['Bash(gh pr view:*)'], byProject: {} })).toBe(false);
+    expect(has({ user: ['Bash(gh *)'], byProject: {} })).toBe(false);
+    expect(has({ user: ['Bash(gh pr view)'], byProject: {} })).toBe(true);
+    expect(has({ user: [], byProject: { app: ['Bash(gh pr view *)'] } })).toBe(
       false,
     );
+  });
+
+  it('never suggests an allow against a deny or ask rule', () => {
+    const none = { user: [], byProject: {} };
+    expect(
+      has({ ...none, restricted: { user: ['Bash(gh *)'], byProject: {} } }),
+    ).toBe(false);
+    expect(
+      has({
+        ...none,
+        restricted: { user: [], byProject: { app: ['Bash(gh pr view *)'] } },
+      }),
+    ).toBe(false);
+    expect(
+      has({
+        ...none,
+        restricted: { user: ['Bash(gh pr view 12)'], byProject: {} },
+      }),
+    ).toBe(false);
+    expect(
+      has({ ...none, restricted: { user: ['Bash(rm *)'], byProject: {} } }),
+    ).toBe(true);
   });
 });
 

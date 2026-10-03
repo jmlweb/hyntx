@@ -35,7 +35,7 @@ export type ToolResult = {
   readonly timestamp: string;
   readonly isError: boolean;
   readonly denial: DenialKind | null;
-  /** First characters of the result text; raw (unsanitized). */
+  /** First characters of the result text (sanitized at read time). */
   readonly excerpt: string;
 };
 
@@ -46,7 +46,7 @@ export type ToolCall = {
   readonly sidechain: boolean;
   /** File path, URL, pattern or subagent type, depending on the tool. */
   readonly target: string | null;
-  /** Bash command line (raw). */
+  /** Bash command line (sanitized at read time, truncated). */
   readonly command: string | null;
   readonly result: ToolResult | null;
 };
@@ -61,7 +61,7 @@ export type PromptSource = (typeof PromptSource)[keyof typeof PromptSource];
 export type Prompt = {
   readonly uuid: string;
   readonly timestamp: string;
-  /** Raw text (unsanitized, truncated). */
+  /** Text sanitized at read time, then truncated. */
   readonly text: string;
   readonly source: PromptSource;
   readonly permissionMode: string | null;
@@ -92,7 +92,7 @@ export type Turn = {
   readonly toolCalls: readonly ToolCall[];
   readonly interruptions: readonly Interruption[];
   readonly models: readonly string[];
-  /** Last assistant text of the turn (raw, truncated). */
+  /** Last assistant text of the turn (sanitized, truncated). */
   readonly assistantExcerpt: string | null;
 };
 
@@ -159,6 +159,12 @@ export type ReadStats = {
   readonly duplicateRecords: number;
   readonly orphanToolResults: number;
   readonly claudeCodeVersions: readonly string[];
+  /** Files that could not be read (deleted or unreadable mid-run). */
+  readonly filesFailed: number;
+  /** First few failures, as "file: reason". */
+  readonly failedFiles: readonly string[];
+  /** Sessions with no typed prompt, tool call or reply, left out. */
+  readonly emptySessions: number;
 };
 
 export type ReadSessionsOptions = {
@@ -363,8 +369,11 @@ export type PromptTraitFinding = {
   readonly withoutTrait: { readonly n: number; readonly value: number };
   /** Smallest group size used to decide significance. */
   readonly sampleSize: number;
-  /** True only when both groups are large enough and the gap is material. */
-  readonly significant: boolean;
+  /**
+   * True when both groups reach the minimum size and the gap clears a fixed
+   * threshold. Not a statistical test: exploratory only, never an insight.
+   */
+  readonly meetsThreshold: boolean;
   readonly description: string;
 };
 
@@ -389,7 +398,6 @@ export const InsightKind = {
   REPEATED_INSTRUCTION: 'repeated-instruction',
   READONLY_COMMANDS: 'readonly-commands',
   MODEL_SWITCHES: 'model-switches',
-  PROMPT_TRAIT: 'prompt-trait',
 } as const;
 export type InsightKind = (typeof InsightKind)[keyof typeof InsightKind];
 
@@ -477,6 +485,10 @@ export type DataQuality = {
   readonly claudeCodeVersions: readonly string[];
   readonly sessionsInPeriod: number;
   readonly typedPrompts: number;
+  /** Log files that could not be read this run. */
+  readonly filesFailed?: number;
+  /** Sessions with no prompt, tool call or reply that were left out. */
+  readonly emptySessionsSkipped?: number;
   /** False when there is too little data for trustworthy findings. */
   readonly enoughData: boolean;
   /** Human-readable caveats; engines append theirs. */
@@ -484,6 +496,26 @@ export type DataQuality = {
 };
 
 export type InterpretationVerdict = 'confirmed' | 'rejected' | 'unclear';
+
+export type InsightState = 'confirmed' | 'dismissed' | 'unverified';
+
+/**
+ * What the interpretation step did with one insight. Renderers and the plugin
+ * digest all read this, so they agree on what is shown and what is hidden.
+ * `dismissed` requires every episode of the insight to have been reviewed and
+ * rejected; partial review only changes the counts.
+ */
+export type InsightReview = {
+  readonly insightId: string;
+  readonly state: InsightState;
+  /** Episodes behind the insight. */
+  readonly episodes: number;
+  /** Episodes that received a verdict. */
+  readonly reviewed: number;
+  readonly confirmed: number;
+  readonly rejected: number;
+  readonly unclear: number;
+};
 
 /** Filled by the LLM interpretation step (phase 2). */
 export type Interpretation = {
@@ -523,6 +555,8 @@ export type Report = {
   readonly episodes: readonly Episode[];
   readonly promptTraits: readonly PromptTraitFinding[];
   readonly insights: readonly Insight[];
+  /** One entry per insight; all `unverified` without an interpretation. */
+  readonly insightReviews: readonly InsightReview[];
   readonly interpretation: Interpretation | null;
 };
 
@@ -540,7 +574,6 @@ export type InterpretationEngine =
 export type InterpretOptions = {
   readonly engine: InterpretationEngine;
   readonly model?: string;
-  readonly verbose?: boolean;
   readonly signal?: AbortSignal;
 };
 

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { contentTokens, excerpt, jaccard, wordCount } from './text.js';
+import {
+  contentTokens,
+  excerpt,
+  jaccard,
+  stripControlChars,
+  wordCount,
+} from './text.js';
 
 describe('excerpt', () => {
   it('sanitizes before truncating so secrets are never cut into fragments', () => {
@@ -37,5 +43,19 @@ describe('contentTokens / jaccard', () => {
   it('counts words', () => {
     expect(wordCount('  one two\nthree ')).toBe(3);
     expect(wordCount('')).toBe(0);
+  });
+});
+
+describe('stripControlChars', () => {
+  it('removes ANSI, OSC and other control sequences', () => {
+    const esc = String.fromCharCode(27);
+    const bel = String.fromCharCode(7);
+    const raw = `${esc}[31mred${esc}[0m ${esc}]0;evil title${bel}ok ${esc}]8;;http://x${esc}\\link${esc}[2J${String.fromCharCode(0)}end`;
+    expect(stripControlChars(raw)).toBe('red ok link' + 'end');
+    expect(excerpt(raw)).not.toContain(esc);
+  });
+
+  it('keeps newlines and tabs and strips bidi overrides', () => {
+    expect(stripControlChars('a\n\tb\u202ec')).toBe('a\n\tbc');
   });
 });

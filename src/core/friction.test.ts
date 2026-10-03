@@ -9,6 +9,7 @@ import {
 import {
   analyzePromptTraits,
   callSignature,
+  commandWindow,
   detectContextPressure,
   detectCorrections,
   detectDenials,
@@ -23,6 +24,7 @@ import {
   readOnlyKeys,
   scoreCorrection,
 } from './friction.js';
+import { computeMetrics } from './metrics.js';
 import { at, makeCall, makeSession, makeTurn } from './test-helpers.js';
 
 const err = (command: string): ReturnType<typeof makeCall> =>
@@ -55,41 +57,83 @@ describe('detectInterruptions', () => {
 });
 
 describe('scoreCorrection', () => {
+  // The assistant just edited a file: there is something to reject.
+  const afterWork = makeTurn(0, 'add a login form', {
+    calls: [makeCall('Edit', { target: '/work/app/src/login.ts' })],
+    assistantExcerpt: 'I added the login form and wired it to the API route.',
+  });
+  const afterQuestion = makeTurn(0, 'add a login form', {
+    calls: [makeCall('Read', { target: '/work/app/src/login.ts' })],
+    assistantExcerpt: 'Do you want the form to use the existing auth hook?',
+  });
+  const MIN_INSIGHT_CONFIDENCE = 0.6;
+
   it.each([
     'no, that is not what I asked',
     "that's wrong, revert it",
+    'No, use pnpm',
+    'No, usa pnpm',
     'I said only the header',
     'undo that',
     'stop',
-    'wait, I just want ssh from anywhere',
     'No. Así no, te dije que usara otro archivo',
     'eso no es lo que pedí',
     'deshaz el último cambio',
     'revierte eso por favor',
     'sigue fallando el build',
-  ])('detects pushback: %s', (text) => {
-    expect(scoreCorrection(text, undefined).matched).toBe(true);
+    'te dije que usaras pnpm',
+  ])('counts as pushback after the assistant did something: %s', (text) => {
+    const signal = scoreCorrection(text, afterWork);
+    expect(signal.matched).toBe(true);
+    expect(signal.confidence).toBeGreaterThanOrEqual(MIN_INSIGHT_CONFIDENCE);
   });
 
   it.each([
-    'looks good, now add tests',
+    'para que funcione, usa pnpm',
+    'Para el login crea un componente',
+    "don't forget to add tests",
+    'actually can you also add a test',
+    'Instead use pnpm',
+    'wait, also update README',
+    'no hay problema',
+    'nope, sounds good',
+    'Do not touch the migrations, just add the column',
+    'mejor haz el test primero',
+    'espera, antes revisa el CI',
     'no problem, go ahead',
+    'looks good, now add tests',
     'now deploy it',
     'añade un botón de guardar',
-  ])('does not flag neutral prompts: %s', (text) => {
-    expect(scoreCorrection(text, undefined).matched).toBe(false);
+  ])('stays below the insight threshold without real pushback: %s', (text) => {
+    const signal = scoreCorrection(text, afterWork);
+    expect(signal.confidence).toBeLessThan(MIN_INSIGHT_CONFIDENCE);
+  });
+
+  it.each(['no', 'No.', 'nope', 'no, gracias'])(
+    'a bare answer to a question is not a correction: %s',
+    (text) => {
+      expect(scoreCorrection(text, afterQuestion).matched).toBe(false);
+    },
+  );
+
+  it('a short rejection with nothing to reject stays weak', () => {
+    const nothing = makeTurn(0, 'hi', { assistantExcerpt: null, calls: [] });
+    expect(scoreCorrection('no', nothing).confidence).toBeLessThan(0.6);
+    expect(scoreCorrection('stop', undefined).confidence).toBeLessThan(0.6);
   });
 
   it('raises confidence right after an interruption and lowers it for long prompts', () => {
     const interrupted = makeTurn(0, 'x', {
-      interruptions: [{ timestamp: at(1), duringToolUse: false }],
+      interruptions: [{ timestamp: at(1, 1), duringToolUse: false }],
     });
-    const base = scoreCorrection('no, wrong file', undefined).confidence;
+    const base = scoreCorrection('wait, wrong file', afterWork).confidence;
     expect(
-      scoreCorrection('no, wrong file', interrupted).confidence,
+      scoreCorrection('wait, wrong file', interrupted).confidence,
     ).toBeGreaterThan(base);
-    const long = `no, ${'word '.repeat(70)}`;
-    expect(scoreCorrection(long, undefined).confidence).toBeLessThan(base);
+    const long = `that's wrong, ${'word '.repeat(70)}`;
+    expect(scoreCorrection(long, afterWork).confidence).toBeLessThan(
+      scoreCorrection("that's wrong", afterWork).confidence,
+    );
   });
 
   it('weak mid-sentence matches stay below the insight threshold', () => {
@@ -228,18 +272,20 @@ describe('detectDenials', () => {
 });
 
 describe('detectRework', () => {
-  it('flags a file edited 5+ times and ignores failed edits', () => {
-    const edits = Array.from({ length: 5 }, () =>
-      makeCall('Edit', { target: '/work/app/src/a.ts' }),
-    );
+  const edit = (file = '/work/app/src/a.ts'): ReturnType<typeof makeCall> =>
+    makeCall('Edit', { target: file });
+
+  it('flags a file edited 5+ times across 3+ of the user prompts and ignores failed edits', () => {
+    const edits = Array.from({ length: 5 }, () => edit());
     const failed = makeCall('Edit', {
       target: '/work/app/src/b.ts',
       error: true,
     });
     const session = makeSession([
-      makeTurn(0, 'build it', { calls: edits.slice(0, 3) }),
-      makeTurn(1, 'fix it', {
-        calls: [...edits.slice(3), failed, failed, failed, failed, failed],
+      makeTurn(0, 'build it', { calls: edits.slice(0, 2) }),
+      makeTurn(1, 'fix it', { calls: edits.slice(2, 4) }),
+      makeTurn(2, 'fix it again', {
+        calls: [...edits.slice(4), failed, failed, failed, failed, failed],
       }),
     ]);
     const episodes = detectRework(session);
@@ -247,17 +293,39 @@ describe('detectRework', () => {
     expect(episodes[0]).toMatchObject({ count: 5, type: EpisodeType.REWORK });
     expect(episodes[0]?.context.detail).toMatchObject({
       file: 'src/a.ts',
+      turns: 3,
+    });
+  });
+
+  it('does not flag many edits inside a single turn: that is ordinary authoring', () => {
+    const six = Array.from({ length: 6 }, () => edit());
+    expect(
+      detectRework(makeSession([makeTurn(0, 'proceed', { calls: six })])),
+    ).toHaveLength(0);
+  });
+
+  it('flags two prompts only when something failed in between', () => {
+    const calm = makeSession([
+      makeTurn(0, 'a', { calls: [edit(), edit(), edit()] }),
+      makeTurn(1, 'b', { calls: [edit(), edit()] }),
+    ]);
+    expect(detectRework(calm)).toHaveLength(0);
+    const broken = makeSession([
+      makeTurn(0, 'a', { calls: [edit(), edit(), edit()] }),
+      makeTurn(1, 'b', { calls: [err('pnpm test'), edit(), edit()] }),
+    ]);
+    const episodes = detectRework(broken);
+    expect(episodes).toHaveLength(1);
+    expect(episodes[0]?.context.detail).toMatchObject({
       turns: 2,
+      interleavedFailures: 1,
     });
   });
 
   it('does not flag 4 edits', () => {
-    const edits = Array.from({ length: 4 }, () =>
-      makeCall('Edit', { target: '/a.ts' }),
-    );
-    expect(
-      detectRework(makeSession([makeTurn(0, 'x', { calls: edits })])),
-    ).toHaveLength(0);
+    const edits = Array.from({ length: 4 }, () => edit('/a.ts'));
+    const turns = edits.map((call, i) => makeTurn(i, 'x', { calls: [call] }));
+    expect(detectRework(makeSession(turns))).toHaveLength(0);
   });
 });
 
@@ -281,6 +349,11 @@ describe('detectContextPressure', () => {
     expect(detectContextPressure(makeSession([makeTurn(0, 'x')]))).toHaveLength(
       0,
     );
+  });
+
+  it('ignores a single turn with many assistant messages (subagent fan-out)', () => {
+    const fanOut = makeSession([makeTurn(0, 'x')], { assistantMessages: 392 });
+    expect(detectContextPressure(fanOut)).toHaveLength(0);
   });
 });
 
@@ -341,26 +414,56 @@ describe('detectRepeatedInstructions', () => {
 });
 
 describe('readOnlyKeys', () => {
-  it('returns keys for read-only compound commands', () => {
-    expect(readOnlyKeys('git status')).toEqual(['git status']);
-    expect(readOnlyKeys('cd /x && git diff --stat | head -5')).toEqual([
-      'git diff',
-      'head',
-    ]);
-    expect(readOnlyKeys('ls -la 2>/dev/null')).toEqual(['ls']);
+  it('returns keys only for commands every invocation of which is harmless', () => {
     expect(readOnlyKeys('gh pr view 12 --json title')).toEqual(['gh pr view']);
+    expect(readOnlyKeys('cd /x && gh pr list | head -5')).toEqual([
+      'gh pr list',
+    ]);
+    expect(readOnlyKeys('pnpm outdated 2>&1')).toEqual(['pnpm outdated']);
+    expect(readOnlyKeys('docker ps -a 2>/dev/null')).toEqual(['docker ps']);
   });
 
   it.each([
+    // mutation
     'git push',
     'git commit -m x',
     'ls > out.txt',
     'cat a | tee b',
-    'find . -name x -delete',
-    'sed -i s/a/b/ f',
-    'echo $(whoami)',
     'pnpm install',
-  ])('rejects mutating or unknown commands: %s', (command) => {
+    // chaining with a single & or |&
+    'ls & rm -rf /tmp/x',
+    'gh pr view 1 & rm -rf /tmp/x',
+    'gh pr view 1 |& tee out',
+    // write or exec through flags
+    'find . -name x -delete',
+    'find . -fprintf out.txt %p',
+    'find . -okdir sh {} ;',
+    'sed -i s/a/b/ f',
+    'sed --in-place s/a/b/ f',
+    "sed -n '1w out' f",
+    "sed '1e id' f",
+    'sort -o out in',
+    'tree -o out',
+    'xxd -r a b',
+    'date -s 2020-01-01',
+    'rg --pre sh x',
+    'git diff --output=f',
+    'git log --output=f',
+    'git grep -O sh x',
+    // reads arbitrary sensitive files
+    'cat ~/.ssh/id_ed25519',
+    'jq . .env',
+    'head ~/.aws/credentials',
+    'grep -r TOKEN ~',
+    'kubectl get secret x -o yaml',
+    'docker inspect x',
+    'docker logs x',
+    // substitution, grouping, env prefixes, flags before the subcommand
+    'echo $(whoami)',
+    'gh pr view 1; (rm x)',
+    'GH_TOKEN=x gh pr view 1',
+    'gh -R other/repo pr view 1',
+  ])('rejects mutating, unknown or file-reading commands: %s', (command) => {
     expect(readOnlyKeys(command)).toBeNull();
   });
 });
@@ -374,19 +477,19 @@ describe('detectReadonlyCommands', () => {
       makeTurn(0, 'look around', {
         permissionMode: mode,
         calls: Array.from({ length: count }, () =>
-          makeCall('Bash', { command: 'git status' }),
+          makeCall('Bash', { command: 'gh pr view 1' }),
         ),
       }),
     ]);
 
-  it('flags frequent read-only commands run with permission prompts across sessions', () => {
+  it('flags frequent read-only commands run in prompting permission modes across sessions', () => {
     const episodes = detectReadonlyCommands([
       sessionWith('default', 4),
       sessionWith('acceptEdits', 4),
     ]);
     expect(episodes).toHaveLength(1);
     expect(episodes[0]?.context.detail).toMatchObject({
-      key: 'git status',
+      key: 'gh pr view',
       runs: 8,
       sessions: 2,
     });
@@ -414,6 +517,20 @@ describe('detectReadonlyCommands', () => {
       sessionWith(null, 4),
     ]);
     expect(episodes[0]?.confidence).toBe(0.5);
+  });
+
+  it('does not count calls the user or a rule refused', () => {
+    const refused = makeSession([
+      makeTurn(0, 'look', {
+        calls: Array.from({ length: 8 }, () =>
+          makeCall('Bash', {
+            command: 'gh pr view 1',
+            denial: DenialKind.USER,
+          }),
+        ),
+      }),
+    ]);
+    expect(detectReadonlyCommands([refused, refused])).toHaveLength(0);
   });
 });
 
@@ -447,7 +564,7 @@ describe('analyzePromptTraits', () => {
     const short = findings.find(
       (f) => f.trait.startsWith('short') && f.outcome.startsWith('tool errors'),
     );
-    expect(short?.significant).toBe(false);
+    expect(short?.meetsThreshold).toBe(false);
     expect(short?.sampleSize).toBe(5);
     expect(short?.description).toContain('n=5');
   });
@@ -461,7 +578,7 @@ describe('analyzePromptTraits', () => {
     const short = findings.find(
       (f) => f.trait.startsWith('short') && f.outcome.startsWith('tool errors'),
     );
-    expect(short).toMatchObject({ significant: true, sampleSize: n });
+    expect(short).toMatchObject({ meetsThreshold: true, sampleSize: n });
     expect(short?.withTrait.value).toBe(1);
     expect(short?.withoutTrait.value).toBe(0);
   });
@@ -508,5 +625,71 @@ describe('detectModelSwitches', () => {
     expect(episodes).toHaveLength(1);
     expect(episodes[0]).toMatchObject({ count: 1 });
     expect(episodes[0]?.context.detail['cacheWriteTokens']).toBe(120_000);
+  });
+});
+
+describe('commandWindow', () => {
+  const filler = 'echo "=== checking ==="; ls -ld /var/www/html; ';
+  const remote = `ssh host '${filler.repeat(4)}rm -f /var/www/html/.fm.tmp; ${filler.repeat(2)}'`;
+
+  it('quotes a window around the part the hook message names', () => {
+    const window = commandWindow(
+      remote,
+      "Use 'trash' instead of 'rm' per workspace rules",
+    );
+    expect(window.triggerVisible).toBe(true);
+    expect(window.text).toContain('rm -f /var/www/html/.fm.tmp');
+    expect(window.text.startsWith('…')).toBe(true);
+  });
+
+  it('says so when the trigger cannot be located in a long command', () => {
+    const window = commandWindow(remote, 'Reason: [Production changes]');
+    expect(window.triggerVisible).toBe(false);
+  });
+
+  it('returns short commands whole', () => {
+    expect(commandWindow('rm -rf a', "Use 'trash'")).toEqual({
+      text: 'rm -rf a',
+      triggerVisible: true,
+    });
+  });
+
+  it('records the window in the denial episode', () => {
+    const session = makeSession([
+      makeTurn(0, 'go', {
+        calls: [
+          makeCall('Bash', {
+            command: remote,
+            denial: DenialKind.HOOK,
+            text: "PreToolUse:Bash hook error: [/h/s.sh]: BLOCKED: Use 'trash' instead of 'rm'",
+          }),
+        ],
+      }),
+    ]);
+    const detail = detectDenials(session)[0]?.context.detail;
+    expect(String(detail?.['command'])).toContain('rm -f /var/www');
+    expect(detail?.['triggerVisible']).toBe(true);
+  });
+});
+
+describe('typed prompts', () => {
+  it('image-only and paste-only turns are not typed prompts', () => {
+    const session = makeSession([
+      makeTurn(0, 'fix the build'),
+      makeTurn(1, '[Image #3]'),
+      makeTurn(2, '[Pasted text #1 +45 lines]'),
+      makeTurn(3, 'see this [Image #4]'),
+    ]);
+    expect(computeMetrics([session]).overall.typedPrompts).toBe(2);
+  });
+});
+
+describe('detectFriction notes', () => {
+  it('says when repeated-instruction clustering left prompts out', () => {
+    const turns = Array.from({ length: 3005 }, (_, i) =>
+      makeTurn(i, `unique prompt number ${String(i)} alpha beta gamma`),
+    );
+    const result = detectFriction([makeSession(turns)]);
+    expect(result.notes.join(' ')).toContain('3000');
   });
 });

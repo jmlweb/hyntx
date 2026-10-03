@@ -37,6 +37,9 @@ function reportWithInsights(): Report {
       duplicateRecords: 0,
       orphanToolResults: 0,
       claudeCodeVersions: ['2.1.278'],
+      filesFailed: 0,
+      failedFiles: [],
+      emptySessions: 0,
     },
     from: new Date(2026, 8, 1),
     to: new Date(2026, 8, 7),
@@ -81,6 +84,9 @@ describe('renderTerminal', () => {
         duplicateRecords: 0,
         orphanToolResults: 0,
         claudeCodeVersions: [],
+        filesFailed: 0,
+        failedFiles: [],
+        emptySessions: 0,
       },
       from: new Date(2026, 8, 1),
       to: new Date(2026, 8, 7),
@@ -124,5 +130,71 @@ describe('formatters', () => {
     expect(formatTokens(78_100_000)).toBe('78.1M');
     expect(formatMinutes(30)).toBe('30m');
     expect(formatMinutes(120)).toBe('2.0h');
+  });
+});
+
+describe('action blocks and wording', () => {
+  const withRule = (text: string): Report => {
+    const base = reportWithInsights();
+    const insight = base.insights[0];
+    if (!insight) {
+      throw new Error('fixture changed');
+    }
+    return {
+      ...base,
+      insights: [
+        {
+          ...insight,
+          action: {
+            kind: 'claude-md-rule',
+            scope: 'user',
+            project: null,
+            file: '~/.claude/CLAUDE.md',
+            text,
+          },
+        },
+      ],
+    };
+  };
+
+  it('markdown fences are longer than any backtick run inside the content', () => {
+    const out = renderMarkdown(withRule('- Wrap code in ```ts fences```'));
+    expect(out).toContain('````\n- Wrap code in ```ts fences```\n````');
+    const plain = renderMarkdown(withRule('- plain rule'));
+    expect(plain).toContain('```\n- plain rule\n```');
+  });
+
+  it('uses proper plurals instead of (s) suffixes', () => {
+    const base = reportWithInsights();
+    const one: Report = {
+      ...base,
+      metrics: {
+        ...base.metrics,
+        overall: {
+          ...base.metrics.overall,
+          sessions: 1,
+          typedPrompts: 1,
+          toolCalls: 1,
+          interruptions: 1,
+          compactions: 1,
+        },
+      },
+    };
+    const out = renderTerminal(one, { color: false });
+    expect(out).toContain('1 session ');
+    expect(out).toContain('1 typed prompt ');
+    expect(out).toContain('1 tool call ');
+    expect(out).not.toMatch(/\(s\)/);
+    expect(renderTerminal(reportWithInsights(), { color: false })).not.toMatch(
+      /\w\(s\)/,
+    );
+    expect(renderMarkdown(reportWithInsights())).not.toMatch(/\w\(s\)/);
+  });
+
+  it('strips nothing readable but never emits raw escape sequences', () => {
+    const esc = String.fromCharCode(27);
+    expect(
+      renderTerminal(reportWithInsights(), { color: false }),
+    ).not.toContain(esc);
   });
 });

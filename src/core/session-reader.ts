@@ -37,11 +37,12 @@ import {
   TurnKind,
 } from '../types/index.js';
 import { CLAUDE_PROJECTS_DIR, ENCODED_HOME } from '../utils/paths.js';
+import { sanitize } from './sanitizer.js';
 
 const MAX_PROMPT_CHARS = 6000;
 const MAX_RESULT_EXCERPT = 400;
 const MAX_ASSISTANT_EXCERPT = 600;
-const MAX_COMMAND_CHARS = 600;
+const MAX_COMMAND_CHARS = 2000;
 const COMPACTION_MERGE_MS = 120_000;
 
 /** Record types we understand but deliberately do not analyze. */
@@ -92,8 +93,27 @@ function num(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
+/** Bounds sanitizer work on huge tool output; PEM blocks cut here still redact. */
+const MAX_RAW_CHARS = 24_000;
+
+/**
+ * Sanitizes first, then cuts: truncating raw text could leave a fragment of a
+ * secret (half a PEM body, a key's tail) that no pattern recognizes.
+ */
 function truncate(text: string, max: number): string {
-  return text.length > max ? text.slice(0, max) : text;
+  const raw = text.length > MAX_RAW_CHARS ? text.slice(0, MAX_RAW_CHARS) : text;
+  const clean = sanitize(raw).text;
+  return clean.length > max ? clean.slice(0, max) : clean;
+}
+
+/**
+ * Like `truncate` but keeps the end: the last words of an assistant message
+ * (was it a question? did it claim to be done?) matter more than its start.
+ */
+function truncateTail(text: string, max: number): string {
+  const raw = text.length > MAX_RAW_CHARS ? text.slice(-MAX_RAW_CHARS) : text;
+  const clean = sanitize(raw).text;
+  return clean.length > max ? clean.slice(-max) : clean;
 }
 
 export function addTokens(a: TokenUsage, b: TokenUsage): TokenUsage {
@@ -1085,7 +1105,7 @@ function foldSession(acc: SessionAccumulator): FoldResult {
             draft.models.add(event.model);
           }
           if (!event.sidechain && event.text) {
-            draft.assistantExcerpt = truncate(
+            draft.assistantExcerpt = truncateTail(
               event.text,
               MAX_ASSISTANT_EXCERPT,
             );
@@ -1141,6 +1161,18 @@ function foldSession(acc: SessionAccumulator): FoldResult {
     sourceFiles: [...acc.sourceFiles],
   };
   return { session, orphanResults };
+}
+
+/**
+ * Sessions that never had a prompt typed by a human, tool call or assistant
+ * reply (a lone /model or /clear). They would only skew session counts.
+ */
+function isEmptySession(session: Session): boolean {
+  return (
+    session.turns.every((turn) => turn.kind !== TurnKind.TYPED) &&
+    session.toolCalls.length === 0 &&
+    session.assistantMessages === 0
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -1207,6 +1239,8 @@ export async function readSessions(
 
   let filesRead = 0;
   let subagentFilesRead = 0;
+  let filesFailed = 0;
+  const failedFiles: string[] = [];
 
   for (const projectDir of projectDirs) {
     const files = [
@@ -1221,17 +1255,26 @@ export async function readSessions(
         .slice(join(projectsDir, projectDir).length)
         .split(/[\\/]/)
         .includes('subagents');
-      await readFileInto({
-        state,
-        projectDir,
-        filePath,
-        fallbackSessionId: isSubagentFile
-          ? (filePath.split(/[\\/]/).at(-3) ?? basename(filePath, '.jsonl'))
-          : basename(filePath, '.jsonl'),
-        isSubagentFile,
-        from,
-        to,
-      });
+      try {
+        await readFileInto({
+          state,
+          projectDir,
+          filePath,
+          fallbackSessionId: isSubagentFile
+            ? (filePath.split(/[\\/]/).at(-3) ?? basename(filePath, '.jsonl'))
+            : basename(filePath, '.jsonl'),
+          isSubagentFile,
+          from,
+          to,
+        });
+      } catch (error) {
+        // A file deleted or unreadable mid-run must not lose the rest.
+        filesFailed++;
+        failedFiles.push(
+          `${basename(filePath)}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        continue;
+      }
       filesRead++;
       if (isSubagentFile) {
         subagentFilesRead++;
@@ -1241,8 +1284,11 @@ export async function readSessions(
   }
 
   const folded = [...state.sessions.values()].map(foldSession);
-  const sessions = folded
-    .flatMap((result) => (result.session ? [result.session] : []))
+  const foldedSessions = folded.flatMap((result) =>
+    result.session ? [result.session] : [],
+  );
+  const sessions = foldedSessions
+    .filter((session) => !isEmptySession(session))
     .sort((a, b) => Date.parse(a.startedAt) - Date.parse(b.startedAt));
 
   const stats: ReadStats = {
@@ -1257,6 +1303,9 @@ export async function readSessions(
       0,
     ),
     claudeCodeVersions: [...state.versions].sort(),
+    filesFailed,
+    failedFiles: failedFiles.slice(0, 5),
+    emptySessions: foldedSessions.length - sessions.length,
   };
   return { sessions, stats };
 }

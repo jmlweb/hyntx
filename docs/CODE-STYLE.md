@@ -20,7 +20,7 @@ class ReworkDetector {
 }
 ```
 
-Classes are used only for custom errors and the logger.
+Classes are used only for custom errors.
 
 Keep IO at the edges. `cli.ts`, the session reader, history, permissions and the engines do IO. Metrics, detectors, insights, report building and renderers take data and return data, which is what makes them easy to test.
 

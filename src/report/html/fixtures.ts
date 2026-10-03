@@ -1,5 +1,6 @@
 /** Synthetic reports for HTML renderer tests and manual inspection. */
 
+import { reviewInsights } from '../../core/insight-review.js';
 import {
   type DailyPoint,
   type Insight,
@@ -158,10 +159,10 @@ export function makeInsights(): Insight[] {
     {
       ...base,
       id: 'i4',
-      kind: 'prompt-trait',
-      title: 'Short prompts cause more errors',
+      kind: 'corrections',
+      title: 'Many prompts push back on the previous answer',
       severity: 'low',
-      finding: '18% vs 13% tool errors.',
+      finding: '4 of 20 typed prompts read as corrections.',
       action: {
         kind: 'prompt-habit',
         habit: 'Name the file and the expected outcome',
@@ -186,8 +187,17 @@ export function makeInsights(): Insight[] {
 }
 
 export function makeRichReport(overrides: Partial<Report> = {}): Report {
+  const report = buildRich(overrides);
+  return {
+    ...report,
+    insightReviews: reviewInsights(report.insights, report.interpretation),
+  };
+}
+
+function buildRich(overrides: Partial<Report>): Report {
   const daily = makeDaily(30);
   return {
+    insightReviews: [],
     schemaVersion: 1,
     generator: { name: 'hyntx', version: '4.0.0' },
     generatedAt: '2026-10-03T10:00:00.000Z',
@@ -250,7 +260,7 @@ export function makeRichReport(overrides: Partial<Report> = {}): Report {
         withTrait: { n: 22, value: 0.18 },
         withoutTrait: { n: 23, value: 0.13 },
         sampleSize: 22,
-        significant: false,
+        meetsThreshold: false,
         description:
           'tool errors: 18% with short prompts (n=22) vs 13% without (n=23)',
       },
@@ -293,6 +303,7 @@ export function makeLowDataReport(): Report {
     episodes: [],
     promptTraits: [],
     insights: [],
+    insightReviews: [],
     interpretation: null,
   };
 }

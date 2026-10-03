@@ -55,7 +55,7 @@ src/
   report/                 terminal, markdown and HTML renderers
   utils/                  paths, dates, text, logger
 .claude-plugin/           plugin and marketplace manifests
-skills/hyntx/             the /hyntx skill and its analyzer runner
+skills/hyntx/             the /hyntx:hyntx skill and its analyzer runner
 docs/                     these documents
 ```
 
@@ -102,7 +102,7 @@ node skills/hyntx/scripts/run-analyzer.mjs --days 30 | head -40
 claude --plugin-dir .
 ```
 
-In that session, run `/hyntx` or `/hyntx 60d my-project`. After editing `SKILL.md`, run `/reload-plugins`. `claude --plugin-dir . plugin details hyntx` shows what was loaded.
+In that session, run `/hyntx:hyntx` or `/hyntx:hyntx 60d my-project`. After editing `SKILL.md`, run `/reload-plugins`. `claude --plugin-dir . plugin details hyntx` shows what was loaded.
 
 `claude plugin validate .` reports one warning, that `plugin.json` has no `version`. That is deliberate: without a version, every commit counts as an update. A version would pin installed copies until it is bumped, and the release automation does not write to `plugin.json`.
 

@@ -1,3 +1,5 @@
+import { chmod } from 'node:fs/promises';
+
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { DenialKind, PromptSource, TurnKind } from '../types/index.js';
@@ -550,5 +552,91 @@ describe('readSessions', () => {
     });
     expect(sessions).toEqual([]);
     expect(stats.filesRead).toBe(0);
+  });
+
+  it('sanitizes before truncating so a cut secret leaves no fragment', async () => {
+    const pem = `-----BEGIN PRIVATE KEY-----\n${'MIIEvQIBADANBgkqhkiG9w0BAQEFAASC'.repeat(40)}\n-----END PRIVATE KEY-----`;
+    const key = `sk-ant-api03-${'aB3_xY-9'.repeat(12)}`;
+    await writeJsonl(dir, PROJECT_DIR, `${SESSION_ID}.jsonl`, [
+      typedPrompt('run it', at(1)),
+      assistantRecord({
+        msgId: 'm1',
+        ts: at(1, 1),
+        content: [
+          toolUseBlock('toolu_1', 'Bash', {
+            command: `${'echo hi; '.repeat(55)}export K=${key} && cat <<EOF\n${pem}\nEOF`,
+          }),
+        ],
+      }),
+      toolResultRecord('toolu_1', `${'x'.repeat(380)} ${pem}`, at(1, 2)),
+    ]);
+    const { sessions } = await readSessions({ projectsDir: dir });
+    const call = sessions[0]?.toolCalls[0];
+    const seen = `${call?.command ?? ''}\n${call?.result?.excerpt ?? ''}`;
+    expect(seen).not.toContain('MIIEvQ');
+    expect(seen).not.toContain('aB3_xY');
+    expect(seen).toContain('[REDACTED');
+  });
+
+  it('keeps the end of a long assistant message so a closing question is visible', async () => {
+    await writeJsonl(dir, PROJECT_DIR, `${SESSION_ID}.jsonl`, [
+      typedPrompt('go', at(1)),
+      assistantRecord({
+        msgId: 'm1',
+        ts: at(1, 1),
+        content: [textBlock(`${'blah '.repeat(300)}Shall I continue?`)],
+      }),
+    ]);
+    const { sessions } = await readSessions({ projectsDir: dir });
+    expect(sessions[0]?.turns[0]?.assistantExcerpt?.endsWith('continue?')).toBe(
+      true,
+    );
+  });
+
+  it('skips a file that cannot be read and reports it', async () => {
+    await writeJsonl(dir, PROJECT_DIR, `${SESSION_ID}.jsonl`, [
+      typedPrompt('hello', at(1)),
+      assistantRecord({
+        msgId: 'm1',
+        ts: at(1, 1),
+        content: [textBlock('hi')],
+      }),
+    ]);
+    const locked = await writeJsonl(dir, PROJECT_DIR, 'locked.jsonl', [
+      typedPrompt('secret', at(2)),
+    ]);
+    await chmod(locked, 0o000);
+    const { sessions, stats } = await readSessions({ projectsDir: dir });
+    await chmod(locked, 0o600);
+    // Root can read anything; elsewhere the locked file is counted, not fatal.
+    if (process.getuid?.() !== 0) {
+      expect(stats.filesFailed).toBe(1);
+      expect(stats.failedFiles[0]).toContain('locked.jsonl');
+      expect(sessions).toHaveLength(1);
+    }
+  });
+
+  it('leaves out sessions with no prompt, tool call or reply', async () => {
+    const other = 'cccccccc-0000-4000-8000-000000000003';
+    await writeJsonl(dir, PROJECT_DIR, `${SESSION_ID}.jsonl`, [
+      typedPrompt('hello', at(1)),
+      assistantRecord({
+        msgId: 'm1',
+        ts: at(1, 1),
+        content: [textBlock('hi')],
+      }),
+    ]);
+    await writeJsonl(dir, PROJECT_DIR, `${other}.jsonl`, [
+      {
+        ...userRecord(
+          '<command-name>/clear</command-name>\n<command-args></command-args>',
+          at(2),
+        ),
+        sessionId: other,
+      },
+    ]);
+    const { sessions, stats } = await readSessions({ projectsDir: dir });
+    expect(sessions).toHaveLength(1);
+    expect(stats.emptySessions).toBe(1);
   });
 });

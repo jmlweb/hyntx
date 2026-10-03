@@ -22,7 +22,9 @@ import {
   type Turn,
   TurnKind,
 } from '../types/index.js';
+import { pushTo } from '../utils/collections.js';
 import { diffMinutes, isoToDateKey } from '../utils/dates.js';
+import { hasTypedContent } from '../utils/text.js';
 import { isRealToolError } from './tool-errors.js';
 
 const IDLE_GAP_MINUTES = 10;
@@ -55,10 +57,12 @@ export function toTokenTotals(usage: TokenUsage): TokenTotals {
   };
 }
 
+/** A turn the user typed words for; image-only and paste-only turns do not count. */
 export function isTypedTurn(turn: Turn): boolean {
   return (
     turn.kind === TurnKind.TYPED &&
-    turn.prompt.source !== PromptSource.SUGGESTION
+    turn.prompt.source !== PromptSource.SUGGESTION &&
+    hasTypedContent(turn.prompt.text)
   );
 }
 
@@ -301,7 +305,7 @@ function groupBy<T>(
   const groups = new Map<string, T[]>();
   for (const item of items) {
     const key = keyOf(item);
-    groups.set(key, [...(groups.get(key) ?? []), item]);
+    pushTo(groups, key, item);
   }
   return groups;
 }

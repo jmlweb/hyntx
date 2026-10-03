@@ -12,15 +12,17 @@ import {
   type InsightAction,
   InsightKind,
   type Metrics,
-  type PromptTraitFinding,
   type Severity,
   Severity as SeverityValue,
 } from '../types/index.js';
+import { pushTo } from '../utils/collections.js';
 import { isoToDateKey } from '../utils/dates.js';
-import { excerpt, wordCount } from '../utils/text.js';
+import { excerpt, plural, wordCount } from '../utils/text.js';
+import { SAFE_RULE_KEYS } from './friction.js';
 import {
   type AllowedRules,
   isAlreadyAllowed,
+  isRestricted,
   NO_ALLOWED_RULES,
   toPermissionRule,
 } from './permissions.js';
@@ -29,7 +31,6 @@ import { type ErrorClass } from './tool-errors.js';
 export type InsightInput = {
   readonly metrics: Metrics;
   readonly episodes: readonly Episode[];
-  readonly promptTraits: readonly PromptTraitFinding[];
   /** Existing permission rules, so allowlist suggestions skip allowed ones. */
   readonly allowedRules?: AllowedRules;
 };
@@ -172,7 +173,7 @@ function interruptionInsight({
     kind: InsightKind.INTERRUPTIONS,
     title: 'You often stop Claude mid-task',
     severity: severityByCount(list.length, 5, 3),
-    finding: `You interrupted Claude ${String(list.length)} times in ${String(distinct(list.map((e) => e.sessionId)).length)} sessions (${pct(list.length, typed)} of ${String(typed)} typed prompts).`,
+    finding: `You interrupted Claude ${plural(list.length, 'time')} in ${plural(distinct(list.map((e) => e.sessionId)).length, 'session')} (${pct(list.length, typed)} of ${String(typed)} typed prompts).`,
     evidence: evidenceOf(
       list,
       list.map((e) =>
@@ -256,7 +257,7 @@ function groupEpisodes(
   const groups = new Map<string, Episode[]>();
   for (const episode of episodes) {
     const key = keyOf(episode);
-    groups.set(key, [...(groups.get(key) ?? []), episode]);
+    pushTo(groups, key, episode);
   }
   return groups;
 }
@@ -358,7 +359,7 @@ function toolErrorInsights({ episodes }: InsightInput): readonly Insight[] {
         severity: advice.rule
           ? severityByCount(errors, 8, 5)
           : SeverityValue.LOW,
-        finding: `${String(errors)} failed tool calls in ${String(group.length)} streak(s) across ${String(sessions)} session(s)${tools.length > 0 ? ` (${tools.join(', ')})` : ''}${firstError ? `; typical error: "${firstError}"` : ''}.`,
+        finding: `${plural(errors, 'failed tool call')} in ${plural(group.length, 'streak')} across ${plural(sessions, 'session')}${tools.length > 0 ? ` (${tools.join(', ')})` : ''}${firstError ? `; typical error: "${firstError}"` : ''}.`,
         evidence: evidenceOf(
           group,
           group.map((e) =>
@@ -436,7 +437,18 @@ function denialInsights({ episodes }: InsightInput): readonly Insight[] {
         file: wide ? '~/.claude/CLAUDE.md' : 'CLAUDE.md',
       };
       const examples = group.map((e) =>
-        toExample(e, detailString(e, 'command') ?? e.prompt, reason || null),
+        toExample(
+          e,
+          detailString(e, 'command') ?? e.prompt,
+          [
+            reason || null,
+            e.context.detail['triggerVisible'] === false
+              ? 'the part of the command that triggered this is not visible in the log'
+              : null,
+          ]
+            .filter((part): part is string => part !== null)
+            .join(' | ') || null,
+        ),
       );
       const make = (
         slug: string,
@@ -457,13 +469,13 @@ function denialInsights({ episodes }: InsightInput): readonly Insight[] {
           episodes: group,
         }),
       ];
-      const where = `${String(sessions)} session(s) in ${projects.join(', ')}`;
+      const where = `${plural(sessions, 'session')} in ${projects.join(', ')}`;
 
       if (denial === 'hook' && reason) {
         return make(
           `hook:${reason.slice(0, 40)}`,
           `A hook keeps blocking Bash: "${excerpt(reason, 80)}"`,
-          `A PreToolUse hook blocked ${String(count)} call(s) with the same message in ${where}.`,
+          `A PreToolUse hook blocked ${plural(count, 'call')} with the same message in ${where}.`,
           severityByCount(count, 6, 3),
           {
             kind: 'claude-md-rule',
@@ -476,7 +488,7 @@ function denialInsights({ episodes }: InsightInput): readonly Insight[] {
         return make(
           `classifier:${reason.slice(0, 40)}`,
           `Auto mode blocks "${excerpt(reason, 60)}" actions`,
-          `The auto-mode classifier blocked ${String(count)} call(s) in the category "${reason}" in ${where}.`,
+          `The auto-mode classifier blocked ${plural(count, 'call')} in the category "${reason}" in ${where}.`,
           severityByCount(count, 6, 3),
           {
             kind: 'claude-md-rule',
@@ -492,7 +504,7 @@ function denialInsights({ episodes }: InsightInput): readonly Insight[] {
           specific
             ? `You keep rejecting \`${signature}\``
             : 'You keep rejecting tool calls',
-          `${String(count)} ${specific ? `\`${signature}\` ` : ''}tool call(s) were rejected by you in ${where}.`,
+          `${plural(count, `${specific ? `\`${signature}\` ` : ''}tool call`, `${specific ? `\`${signature}\` ` : ''}tool calls`)} ${count === 1 ? 'was' : 'were'} rejected by you in ${where}.`,
           severityByCount(count, 5, 3),
           specific
             ? {
@@ -516,7 +528,7 @@ function denialInsights({ episodes }: InsightInput): readonly Insight[] {
           ? make(
               `rule:${signature}`,
               'A permission rule keeps denying the same call',
-              `${String(count)} call(s) were denied by a settings rule in ${where}.`,
+              `${plural(count, 'call')} ${count === 1 ? 'was' : 'were'} denied by a settings rule in ${where}.`,
               severityByCount(count, 6, 3),
               {
                 kind: 'claude-md-rule',
@@ -540,6 +552,9 @@ function reworkInsights({ episodes }: InsightInput): readonly Insight[] {
       const file = detailString(episode, 'file') ?? 'a file';
       const planUsed = episode.context.detail['planModeUsed'] === true;
       const turns = Number(episode.context.detail['turns'] ?? 1);
+      const interleaved = Number(
+        episode.context.detail['interleavedFailures'] ?? 0,
+      );
       return buildInsight({
         id: `rework:${episode.sessionId.slice(0, 8)}:${file}`.replace(
           /\s+/g,
@@ -548,7 +563,7 @@ function reworkInsights({ episodes }: InsightInput): readonly Insight[] {
         kind: InsightKind.REWORK,
         title: `\`${file}\` was reworked repeatedly`,
         severity: severityByCount(episode.count, 10, 7),
-        finding: `\`${file}\` was edited ${String(episode.count)} times in one session across ${String(turns)} turn(s)${planUsed ? ' (plan mode was used)' : ' (plan mode was not used)'}.`,
+        finding: `\`${file}\` was edited ${String(episode.count)} times across ${plural(turns, 'of your prompts', 'of your prompts')}${interleaved > 0 ? `, with ${plural(interleaved, 'tool failure')} in between` : ''}${planUsed ? ' (plan mode was used)' : ' (plan mode was not used)'}.`,
         evidence: evidenceOf(
           [episode],
           [
@@ -593,6 +608,9 @@ function contextPressureInsight({ episodes }: InsightInput): Insight | null {
     (n, e) => n + Number(e.context.detail['compactions'] ?? 0),
     0,
   );
+  const longestMessages = Math.max(
+    ...list.map((e) => Number(e.context.detail['assistantMessages'] ?? 0)),
+  );
   const longest = Math.max(
     ...list.map((e) => Number(e.context.detail['turns'] ?? 0)),
   );
@@ -601,7 +619,7 @@ function contextPressureInsight({ episodes }: InsightInput): Insight | null {
     kind: InsightKind.CONTEXT_PRESSURE,
     title: 'Sessions are running out of context',
     severity: severityByCount(compactions, 3, 1),
-    finding: `${String(list.length)} session(s) hit context pressure: ${String(compactions)} compaction(s), longest session ${String(longest)} turns.`,
+    finding: `${plural(list.length, 'session')} hit context pressure: ${plural(compactions, 'compaction')}, longest session ${plural(longest, 'turn')} and ${plural(longestMessages, 'assistant message')}.`,
     evidence: evidenceOf(
       list,
       list.map((e) =>
@@ -629,9 +647,60 @@ function contextPressureInsight({ episodes }: InsightInput): Insight | null {
   });
 }
 
+/** Names Claude Code already uses for built-in commands; a file with one of them would be shadowed or shadow. */
+const BUILTIN_COMMAND_NAMES: ReadonlySet<string> = new Set([
+  'add-dir',
+  'agents',
+  'bashes',
+  'bug',
+  'clear',
+  'compact',
+  'config',
+  'context',
+  'cost',
+  'doctor',
+  'exit',
+  'export',
+  'feedback',
+  'help',
+  'hooks',
+  'ide',
+  'init',
+  'install-github-app',
+  'login',
+  'logout',
+  'mcp',
+  'memory',
+  'model',
+  'output-style',
+  'permissions',
+  'plan',
+  'plugin',
+  'pr-comments',
+  'privacy-settings',
+  'quit',
+  'release-notes',
+  'resume',
+  'review',
+  'rewind',
+  'sandbox',
+  'security-review',
+  'skills',
+  'status',
+  'statusline',
+  'terminal-setup',
+  'theme',
+  'todos',
+  'upgrade',
+  'usage',
+  'vim',
+]);
+
 function slugify(text: string): string {
   return text
     .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
     .split('-')
@@ -639,9 +708,89 @@ function slugify(text: string): string {
     .join('-');
 }
 
+/** A command name that is neither empty, too short nor a built-in. */
+export function commandName(prompt: string): string {
+  const slug = slugify(prompt);
+  if (slug.length < 3) {
+    return 'repeated-task';
+  }
+  return BUILTIN_COMMAND_NAMES.has(slug) ? `my-${slug}` : slug;
+}
+
+/** Prompts that state a standing preference rather than ask for a task. */
+const STANDING_PREFERENCE =
+  /^(always|never|don'?t|do not|make sure|remember|prefer|use|keep|avoid|siempre|nunca|no |usa|recuerda|asegurate|evita|mant[eé]n)\b/i;
+
+const MAX_FULL_PROMPT_CHARS = 2000;
+
+function isIntact(prompt: string): boolean {
+  return !prompt.endsWith('…') && !prompt.includes('[REDACTED_');
+}
+
+function sentence(text: string): string {
+  const line = oneLine(text);
+  return `${line.charAt(0).toUpperCase()}${line.slice(1)}.`;
+}
+
+/**
+ * Action for a repeated prompt, usable exactly as emitted or not offered. The
+ * full prompt text must be intact (not shortened, not redacted); otherwise the
+ * user is told how to save it themselves instead of handed a broken file.
+ */
+function repeatedInstructionAction(
+  episode: Episode,
+  fullPrompt: string | null,
+  projects: number,
+  takenNames: Set<string>,
+): InsightAction {
+  const text = fullPrompt ?? '';
+  const intact =
+    text !== '' &&
+    text.length <= MAX_FULL_PROMPT_CHARS &&
+    isIntact(text) &&
+    (episode.prompt === null || isIntact(episode.prompt));
+  if (!intact) {
+    return {
+      kind: 'workflow',
+      suggestion:
+        'Save the instruction you repeat as a custom command or a CLAUDE.md line.',
+      steps: [
+        'Open one of the sessions where you typed it and copy the wording you like best (it is not reproduced here because it was shortened or contained redacted values).',
+        'If it states a preference ("always use pnpm"), add it to CLAUDE.md. If it asks for a task, save it as .claude/commands/<name>.md and run it as /<name>.',
+      ],
+    };
+  }
+  if (
+    wordCount(text) >= 4 &&
+    !text.includes('\n') &&
+    STANDING_PREFERENCE.test(text)
+  ) {
+    return {
+      kind: 'claude-md-rule',
+      scope: projects > 1 ? 'user' : 'project',
+      project: projects > 1 ? null : episode.project,
+      file: projects > 1 ? '~/.claude/CLAUDE.md' : 'CLAUDE.md',
+      text: `- ${sentence(text)}`,
+    };
+  }
+  const base = commandName(text);
+  let name = base;
+  for (let i = 2; takenNames.has(name); i++) {
+    name = `${base}-${String(i)}`;
+  }
+  takenNames.add(name);
+  return {
+    kind: 'slash-command',
+    name,
+    file: projects > 1 ? '~/.claude/commands/' : '.claude/commands/',
+    content: `---\ndescription: ${JSON.stringify(excerpt(text, 80))}\n---\n\n${text.trim()}\n`,
+  };
+}
+
 function repeatedInstructionInsights({
   episodes,
 }: InsightInput): readonly Insight[] {
+  const takenNames = new Set<string>();
   return episodes
     .filter((e) => e.type === EpisodeType.REPEATED_INSTRUCTION)
     .sort((a, b) => b.count - a.count)
@@ -650,27 +799,18 @@ function repeatedInstructionInsights({
       const prompt = episode.prompt ?? '';
       const projects = Number(episode.context.detail['projects'] ?? 1);
       const sessions = Number(episode.context.detail['sessions'] ?? 1);
-      const isLong = wordCount(prompt) >= 12;
-      const action: InsightAction = isLong
-        ? {
-            kind: 'slash-command',
-            name: slugify(prompt) || 'repeated-task',
-            file: projects > 1 ? '~/.claude/commands/' : '.claude/commands/',
-            content: `---\ndescription: ${excerpt(prompt, 80)}\n---\n\n${prompt}\n`,
-          }
-        : {
-            kind: 'claude-md-rule',
-            scope: projects > 1 ? 'user' : 'project',
-            project: projects > 1 ? null : episode.project,
-            file: projects > 1 ? '~/.claude/CLAUDE.md' : 'CLAUDE.md',
-            text: `- ${oneLine(prompt)}.`,
-          };
+      const action = repeatedInstructionAction(
+        episode,
+        detailString(episode, 'fullPrompt'),
+        projects,
+        takenNames,
+      );
       return buildInsight({
         id: `repeated-instruction:${episode.id}`.replace(/\s+/g, '_'),
         kind: InsightKind.REPEATED_INSTRUCTION,
         title: 'You repeat the same instruction',
         severity: severityByCount(episode.count, 6, 4),
-        finding: `A near-identical instruction was typed ${String(episode.count)} times across ${String(sessions)} sessions: "${excerpt(prompt, 80)}".`,
+        finding: `A near-identical instruction was typed ${plural(episode.count, 'time')} across ${plural(sessions, 'session')}: "${excerpt(prompt, 80)}".`,
         evidence: evidenceOf(
           [episode],
           [
@@ -693,44 +833,45 @@ function repeatedInstructionInsights({
     });
 }
 
-export const toPermissionPattern = toPermissionRule;
-
 function readonlyCommandInsight({
   episodes,
   allowedRules = NO_ALLOWED_RULES,
 }: InsightInput): Insight | null {
   const list = episodes
-    .filter(
-      (e) =>
+    .filter((e) => {
+      const key = detailString(e, 'key') ?? '';
+      const projects = (detailString(e, 'projectNames') ?? e.project).split(
+        ', ',
+      );
+      return (
         e.type === EpisodeType.READONLY_COMMAND &&
-        !isAlreadyAllowed(
-          detailString(e, 'key') ?? '',
-          (detailString(e, 'projectNames') ?? e.project).split(', '),
-          allowedRules,
-        ),
-    )
+        SAFE_RULE_KEYS.has(key) &&
+        !isAlreadyAllowed(key, projects, allowedRules) &&
+        !isRestricted(key, projects, allowedRules)
+      );
+    })
     .sort((a, b) => b.count - a.count)
     .slice(0, 8);
   if (list.length === 0) {
     return null;
   }
   const patterns = list.map((e) =>
-    toPermissionPattern(detailString(e, 'key') ?? 'unknown'),
+    toPermissionRule(detailString(e, 'key') ?? 'unknown'),
   );
   const runs = list.reduce((n, e) => n + e.count, 0);
   return buildInsight({
     id: 'readonly-commands',
     kind: InsightKind.READONLY_COMMANDS,
-    title: 'Read-only commands you approve over and over',
+    title: 'Read-only commands that may be worth allowing',
     severity: severityByCount(runs, 60, 25),
-    finding: `${String(list.length)} read-only command(s) ran ${String(runs)} times with permission prompts on (top: ${patterns.slice(0, 3).join(', ')}).`,
+    finding: `${plural(list.length, 'read-only command')} ran ${plural(runs, 'time')} in permission modes that can prompt (top: ${patterns.slice(0, 3).join(', ')}). Claude Code logs do not record approvals, so this counts runs, not prompts you actually answered.`,
     evidence: evidenceOf(
       list,
       list.map((e) =>
         toExample(
           e,
           detailString(e, 'example'),
-          `${String(e.count)} runs in ${String(e.context.detail['sessions'] ?? 1)} sessions`,
+          `${plural(e.count, 'run')} in ${plural(Number(e.context.detail['sessions'] ?? 1), 'session')}`,
         ),
       ),
       runs,
@@ -766,7 +907,7 @@ function modelSwitchInsight({ episodes }: InsightInput): Insight | null {
     kind: InsightKind.MODEL_SWITCHES,
     title: 'Switching model mid-session re-pays the whole context',
     severity: severityByCount(cacheWrite, 5_000_000, 1_500_000),
-    finding: `${String(switches)} mid-session model switches in ${String(list.length)} session(s) re-wrote ${mega} cache tokens (the prompt cache is per model).`,
+    finding: `${plural(switches, 'mid-session model switch', 'mid-session model switches')} in ${plural(list.length, 'session')} re-wrote ${mega} cache tokens (the prompt cache is per model).`,
     evidence: evidenceOf(
       list,
       list.map((e) => toExample(e, e.prompt, detailString(e, 'path'))),
@@ -787,38 +928,6 @@ function modelSwitchInsight({ episodes }: InsightInput): Insight | null {
   });
 }
 
-function promptTraitInsights({
-  promptTraits,
-}: InsightInput): readonly Insight[] {
-  return promptTraits
-    .filter((t) => t.significant)
-    .slice(0, 2)
-    .map((trait) =>
-      buildInsight({
-        id: `prompt-trait:${trait.trait}:${trait.outcome}`.replace(/\s+/g, '_'),
-        kind: InsightKind.PROMPT_TRAIT,
-        title: `Prompt trait correlates with outcome: ${trait.trait}`,
-        severity: SeverityValue.LOW,
-        finding: `${trait.description}. Correlation, not proof; smallest group n=${String(trait.sampleSize)}.`,
-        evidence: {
-          count: trait.withTrait.n,
-          sessions: 0,
-          projects: [],
-          outOf: trait.withTrait.n + trait.withoutTrait.n,
-          examples: [],
-        },
-        action: {
-          kind: 'prompt-habit',
-          habit: `Watch "${trait.trait}" when the outcome matters (${trait.outcome}).`,
-          before: null,
-          after: null,
-        },
-        confidence: 0.5,
-        episodes: [],
-      }),
-    );
-}
-
 export function generateInsights(input: InsightInput): readonly Insight[] {
   return [
     interruptionInsight(input),
@@ -830,7 +939,6 @@ export function generateInsights(input: InsightInput): readonly Insight[] {
     ...repeatedInstructionInsights(input),
     readonlyCommandInsight(input),
     modelSwitchInsight(input),
-    ...promptTraitInsights(input),
   ]
     .filter((insight): insight is Insight => insight !== null)
     .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
