@@ -1,3 +1,28 @@
+## [3.1.0](https://github.com/jmlweb/hyntx/compare/v3.0.2...v3.1.0) (2026-07-13)
+
+### Features
+
+- add benchmark calibration, semantic validation, and improved prompts ([ecb084c](https://github.com/jmlweb/hyntx/commit/ecb084c17250934aadceb1627d4239aada1fd4b4))
+- analysis-improvements ([b77a600](https://github.com/jmlweb/hyntx/commit/b77a6002499702a8ab45a8b75c7f897910454a1c))
+- **log-reader:** detect and filter confirmation messages via parentUuid ([648f61f](https://github.com/jmlweb/hyntx/commit/648f61f8c687c7421bb2212798a9540f2fd8e524))
+- **ollama:** set gemma4:e4b as default model and promote small strategy to full schema ([d10ed17](https://github.com/jmlweb/hyntx/commit/d10ed1715675b1eba86172d7d08c6a8869c3cafc))
+
+### Bug Fixes
+
+- **analyzer:** sum pattern frequencies across batches instead of averaging ([a782ac7](https://github.com/jmlweb/hyntx/commit/a782ac7404a25b9eb71742bc4474dddd74200c41))
+- resolve lint errors in semantic-validator and ollama provider ([08ca069](https://github.com/jmlweb/hyntx/commit/08ca0695c6c8afc1d07171760c11223a5bbeebaa))
+- **security:** remove ajv override that broke ESLint (ajv v6/v8 incompatibility) ([d3839c4](https://github.com/jmlweb/hyntx/commit/d3839c4678d6b580b518aa6c6e2e96a8a3635e83))
+- **security:** update semantic-release and add dependency overrides ([1396743](https://github.com/jmlweb/hyntx/commit/139674389b3de3342dee6fe1927eb8dfd7be21c3))
+- test ([59a70d3](https://github.com/jmlweb/hyntx/commit/59a70d315b6d5cfd0189e898cfcec5a7c6066252))
+- update dependency overrides to resolve security vulnerabilities ([4d10e0b](https://github.com/jmlweb/hyntx/commit/4d10e0bafcc29895c1398bce40622ef030f36269))
+- update ollama tests for temperature retry behavior ([13ac8f2](https://github.com/jmlweb/hyntx/commit/13ac8f27f541efb6e94a8c1bac96b729be31e576))
+- **validator:** resolve eslint and typescript errors in semantic-validator ([df13a1b](https://github.com/jmlweb/hyntx/commit/df13a1bc5d142f877bd725ee8f2923f8eb23db24))
+- **validator:** use guard clause for metadata instead of type assertion ([b10f1ab](https://github.com/jmlweb/hyntx/commit/b10f1abcc0c74525fe26f959b9a605235d27a20f))
+
+### Documentation
+
+- add heuristics analysis report ([756ca5d](https://github.com/jmlweb/hyntx/commit/756ca5d769438e8d3a9e494fd7b96086c87a5253))
+
 ## [3.0.2](https://github.com/jmlweb/hyntx/compare/v3.0.1...v3.0.2) (2026-03-22)
 
 ### Bug Fixes
