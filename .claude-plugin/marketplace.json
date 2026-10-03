@@ -1,0 +1,17 @@
+{
+  "name": "hyntx",
+  "description": "Hyntx: evidence-backed insights from your Claude Code session logs",
+  "owner": {
+    "name": "José Manuel Lucas",
+    "url": "https://github.com/jmlweb"
+  },
+  "plugins": [
+    {
+      "name": "hyntx",
+      "source": "./",
+      "description": "Adds the /hyntx:hyntx command: finds where your Claude Code sessions cost you time and offers to apply the fix.",
+      "category": "productivity",
+      "tags": ["sessions", "insights", "workflow"]
+    }
+  ]
+}

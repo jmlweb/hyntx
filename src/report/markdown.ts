@@ -1,0 +1,181 @@
+/**
+ * Markdown renderer: the full report, suited for sharing or committing.
+ */
+
+import { type Report } from '../types/index.js';
+import { plural } from '../utils/text.js';
+import { describeCoverage, judgeInsights } from './interpretation.js';
+import {
+  describeAction,
+  formatMinutes,
+  formatNumber,
+  formatPercent,
+  formatTokens,
+  periodLabel,
+} from './shared.js';
+
+/** A fence longer than any backtick run inside, so content cannot close it early. */
+function fence(lines: readonly string[]): string[] {
+  if (lines.length === 0) {
+    return [];
+  }
+  const longestRun = Math.max(
+    0,
+    ...lines.flatMap((line) =>
+      [...line.matchAll(/`+/g)].map((match) => match[0].length),
+    ),
+  );
+  const mark = '`'.repeat(Math.max(3, longestRun + 1));
+  return [mark, ...lines, mark];
+}
+
+function escapeCell(text: string): string {
+  return text.replace(/\|/g, '\\|').replace(/\n/g, ' ');
+}
+
+function renderInterpretation(report: Report): string[] {
+  const interpretation = report.interpretation;
+  if (!interpretation) {
+    return [];
+  }
+  return [
+    `## Interpretation (${interpretation.engine}${interpretation.model ? `, ${interpretation.model}` : ''})`,
+    '',
+    interpretation.summary,
+    '',
+    ...(interpretation.recommendations.length > 0
+      ? [
+          '### Recommendations',
+          '',
+          ...interpretation.recommendations.flatMap((rec, i) => [
+            `${String(i + 1)}. **${rec.title}** - ${rec.body} _(based on: ${rec.basedOn.map((id) => `\`${id}\``).join(', ')})_`,
+          ]),
+          '',
+        ]
+      : []),
+    ...(interpretation.episodeVerdicts.length > 0
+      ? [
+          '### Episode verdicts',
+          '',
+          ...interpretation.episodeVerdicts.map(
+            (v) => `- \`${v.episodeId}\`: **${v.verdict}** - ${v.note}`,
+          ),
+          '',
+        ]
+      : []),
+  ];
+}
+
+export function renderMarkdown(report: Report): string {
+  const { overall } = report.metrics;
+  const out: string[] = [
+    '# Hyntx report',
+    '',
+    `_${periodLabel(report)} - generated ${report.generatedAt}_`,
+    '',
+    '## Summary',
+    '',
+    `- **${formatNumber(overall.sessions)}** sessions, **${formatNumber(overall.typedPrompts)}** typed prompts, **${formatNumber(overall.turns)}** turns`,
+    `- **${formatNumber(overall.toolCalls)}** tool calls, ${formatPercent(overall.toolErrorRate, 1)} errors, ${formatNumber(overall.toolDenied)} denied`,
+    `- **${formatTokens(overall.tokens.total)}** tokens (${formatTokens(overall.tokens.output)} output, ${formatPercent(overall.tokens.cacheHitRatio)} cache hit ratio)`,
+    `- ${String(overall.interruptions)} interruptions, ${String(overall.compactions)} compactions, ${String(overall.subagents.invocations)} subagent calls`,
+    '',
+    ...renderInterpretation(report),
+    '## Insights',
+    '',
+  ];
+
+  const { kept, dismissed } = judgeInsights(report);
+  if (kept.length === 0) {
+    out.push(
+      report.dataQuality.enoughData
+        ? 'No recurring friction found in this period.'
+        : 'Not enough data for findings yet.',
+      '',
+    );
+  }
+  kept.forEach(({ insight, state, notes, review }, i) => {
+    const coverage = describeCoverage(review);
+    const action = describeAction(insight.action);
+    out.push(
+      `### ${String(i + 1)}. ${insight.title} (${insight.severity})${state === 'confirmed' ? ' - confirmed' : ''}`,
+      '',
+      insight.finding,
+      '',
+      ...(coverage ? [`_${coverage}_`, ''] : []),
+      ...(notes[0]
+        ? [`_Interpretation: ${notes[0].verdict} - ${notes[0].note}_`, '']
+        : []),
+      `**Evidence:** ${String(insight.evidence.count)}${insight.evidence.outOf ? ` of ${String(insight.evidence.outOf)}` : ''}` +
+        (insight.evidence.sessions > 0
+          ? ` in ${plural(insight.evidence.sessions, 'session')}`
+          : ''),
+      '',
+      ...insight.evidence.examples.map(
+        (e) =>
+          `- "${e.quote}" - ${e.project}, ${e.date}${e.note ? ` (${e.note})` : ''}`,
+      ),
+      '',
+      `**Action:** ${action.label}`,
+      '',
+      ...action.lines.map((line) => line),
+      ...fence(action.verbatim),
+      '',
+    );
+  });
+
+  out.push(
+    '## Metrics',
+    '',
+    '| Project | Sessions | Typed prompts | Tool calls | Tokens |',
+    '| --- | ---: | ---: | ---: | ---: |',
+    ...report.metrics.byProject.map(
+      (p) =>
+        `| ${escapeCell(p.project)} | ${String(p.sessions)} | ${String(p.typedPrompts)} | ${String(p.toolCalls)} | ${formatTokens(p.tokens.total)} |`,
+    ),
+    '',
+    '| Tool | Calls | Errors | Denied |',
+    '| --- | ---: | ---: | ---: |',
+    ...overall.tools
+      .slice(0, 10)
+      .map(
+        (t) =>
+          `| ${escapeCell(t.name)} | ${String(t.calls)} | ${String(t.errors)} | ${String(t.denied)} |`,
+      ),
+    '',
+    `Models: ${overall.models.map((m) => `${m.model} ${formatPercent(m.share)}`).join(', ') || '-'}`,
+    '',
+    `Session length: median ${formatMinutes(overall.sessionMinutes.median)}, p90 ${formatMinutes(overall.sessionMinutes.p90)}; ${String(overall.sessionTurns.median)} turns median.`,
+    '',
+    '## Daily trend',
+    '',
+    '| Date | Sessions | Prompts | Tool errors | Interruptions | Corrections | Tokens |',
+    '| --- | ---: | ---: | ---: | ---: | ---: | ---: |',
+    ...report.daily.map(
+      (d) =>
+        `| ${d.date} | ${String(d.sessions)} | ${String(d.typedPrompts)} | ${String(d.toolErrors)} | ${String(d.interruptions)} | ${String(d.corrections)} | ${formatTokens(d.tokens.input + d.tokens.output + d.tokens.cacheRead + d.tokens.cacheCreation)} |`,
+    ),
+    '',
+  );
+
+  if (dismissed.length > 0) {
+    out.push(
+      '## Dismissed by the interpretation',
+      '',
+      ...dismissed.map(
+        (d) =>
+          `- ${d.insight.title}${d.notes[0] ? `: ${d.notes[0].note}` : ''}`,
+      ),
+      '',
+    );
+  }
+  out.push(
+    '## Data quality',
+    '',
+    `Files read: ${String(report.dataQuality.filesRead)} (${String(report.dataQuality.subagentFilesRead)} subagent), records: ${formatNumber(report.dataQuality.recordsRead)}, skipped: ${String(report.dataQuality.recordsSkipped)}.`,
+    '',
+    ...report.dataQuality.notes.map((n) => `- ${n}`),
+    '',
+  );
+  return out.join('\n');
+}

@@ -188,8 +188,8 @@ jobs:
           path: dist
           key: dist-${{ github.sha }}
 
-  e2e-test:
-    name: E2E Test
+  smoke-test:
+    name: Smoke Test
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -219,10 +219,7 @@ jobs:
           key: dist-${{ github.sha }}
 
       - name: Smoke test - CLI help
-        run: node dist/index.js --help
+        run: node dist/cli.js --help
 
       - name: Smoke test - CLI version
-        run: node dist/index.js --version
-
-      - name: Run E2E tests
-        run: pnpm test:e2e
+        run: node dist/cli.js --version

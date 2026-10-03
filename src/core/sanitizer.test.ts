@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { sanitize, sanitizePrompts } from './sanitizer.js';
+import { sanitize } from './sanitizer.js';
 
 describe('sanitize', () => {
   describe('OpenAI API keys', () => {
@@ -734,71 +734,176 @@ Connect to https://user:pass@api.example.com`;
   });
 });
 
-describe('sanitizePrompts', () => {
-  it('sanitizes array of prompts', () => {
-    const prompts = [
-      'Use key sk-abc123def456ghi789jkl012mno345pqr678stu901vwx234',
-      'Email me at user@example.com',
-      'Regular text without secrets',
-    ];
-
-    const result = sanitizePrompts(prompts);
-
-    expect(result.prompts).toHaveLength(3);
-    expect(result.prompts[0]).toContain('[REDACTED_OPENAI_KEY]');
-    expect(result.prompts[1]).toContain('[REDACTED_EMAIL]');
-    expect(result.prompts[2]).toBe('Regular text without secrets');
-    expect(result.totalRedacted).toBe(2);
+describe('provider tokens and secret assignments', () => {
+  it('redacts GitHub, Slack, Google, Stripe and JWT tokens', () => {
+    const input = [
+      `ghp_${'a1B2c3'.repeat(6)}`,
+      'xoxb-1234567890-abcdefghij',
+      `AIza${'a1B2c3D4e5'.repeat(3)}Zx9Yw`,
+      `sk_live_${'abcd1234'.repeat(3)}`,
+      'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcDEF123456',
+    ].join(' ');
+    const { text } = sanitize(input);
+    expect(text).toContain('[REDACTED_GITHUB_TOKEN]');
+    expect(text).toContain('[REDACTED_SLACK_TOKEN]');
+    expect(text).toContain('[REDACTED_GOOGLE_KEY]');
+    expect(text).toContain('[REDACTED_STRIPE_KEY]');
+    expect(text).toContain('[REDACTED_JWT]');
   });
 
-  it('returns empty array for empty input', () => {
-    const result = sanitizePrompts([]);
+  it('redacts values assigned to secret-looking names but not variable references', () => {
+    expect(sanitize('API_KEY=abcdef123456789').text).toBe(
+      'API_KEY=[REDACTED_SECRET]',
+    );
+    expect(sanitize('{"password": "hunter2hunter2"}').text).toContain(
+      '[REDACTED_SECRET]',
+    );
+    expect(sanitize('curl -H "X-Token: $TOKEN"').text).toBe(
+      'curl -H "X-Token: $TOKEN"',
+    );
+  });
+});
 
-    expect(result.prompts).toEqual([]);
-    expect(result.totalRedacted).toBe(0);
+describe('opaque identifiers and over-redaction', () => {
+  it('redacts long hex and base64-looking identifiers in quoted commands', () => {
+    const text = sanitize(
+      'Z=fce85d5e792410fcef1a6cedbfccf30b curl api/zones/$Z sha 3b18e512dba79e4c8300dd08aeb37f8e728b8dad',
+    ).text;
+    expect(text).toBe('Z=[REDACTED_ID] curl api/zones/$Z sha [REDACTED_ID]');
+    expect(
+      sanitize('blob dGhpcyBpcyBhIHZlcnkgbG9uZyBzZWNyZXQ=').text,
+    ).toContain('[REDACTED_ID]');
+    expect(sanitize('id aB3dE5gH7jK9mN1pQ3sT5vX7zA9cD1fG3hJ5').text).toContain(
+      '[REDACTED_ID]',
+    );
   });
 
-  it('counts total redactions across all prompts', () => {
-    const prompts = [
-      'Key1: sk-abc123def456ghi789jkl012mno345pqr678stu901vwx234',
-      'Key2: sk-xyz789abc123def456ghi789jkl012mno345pqr678stu901',
-      'Email: user@example.com',
-    ];
-
-    const result = sanitizePrompts(prompts);
-
-    expect(result.totalRedacted).toBe(3);
+  it('keeps readable slugs, paths, uuids, short shas and plain words', () => {
+    for (const keep of [
+      'LRN-048-storefront-404-has-no-hooks-and-grid-recipe-is-home-archive-scoped',
+      '/Users/someone/projects/hyntx/src/core/sanitizer.test.ts',
+      '5c891b41-c7e2-49b4-b505-581fdaaaba44',
+      'commit 3edcc93 and 193d36b',
+      'internationalizationconfigurationmanager',
+    ]) {
+      expect(sanitize(keep).text).toBe(keep);
+    }
   });
 
-  it('handles prompts with multiple secrets each', () => {
-    const prompts = [
-      'Key: sk-abc123def456ghi789jkl012mno345pqr678stu901vwx234 Email: user@test.com',
-      'AWS: AKIAIOSFODNN7EXAMPLE Bearer token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ',
-    ];
-
-    const result = sanitizePrompts(prompts);
-
-    expect(result.totalRedacted).toBe(4);
+  it('leaves ordinary numbers alone', () => {
+    for (const keep of [
+      'output tokens per turn: 12010 vs 7824',
+      'epoch 1727959200 and 1727959200000',
+      'port 54321 listening, 123456789 rows, 12345678900 bytes',
+      'order 4111111111111112 failed',
+      'build 2026 10 03',
+    ]) {
+      expect(sanitize(keep).text).toBe(keep);
+    }
   });
 
-  it('preserves prompt order', () => {
-    const prompts = ['First prompt', 'Second prompt', 'Third prompt'];
-
-    const result = sanitizePrompts(prompts);
-
-    expect(result.prompts[0]).toBe('First prompt');
-    expect(result.prompts[1]).toBe('Second prompt');
-    expect(result.prompts[2]).toBe('Third prompt');
+  it('still redacts labelled or separated personal numbers', () => {
+    expect(sanitize('tel: 5551234567').text).toContain('[REDACTED_PHONE]');
+    expect(sanitize('+34612345678').text).toContain('[REDACTED_PHONE]');
+    expect(sanitize('ssn 123456789').text).toContain('[REDACTED_SSN]');
+    expect(sanitize('Springfield, IL 62704').text).toContain(
+      '[REDACTED_ZIP_CODE]',
+    );
+    expect(sanitize('zip code 90210').text).toContain('[REDACTED_ZIP_CODE]');
+    expect(sanitize('card 4111111111111111').text).toContain(
+      '[REDACTED_CREDIT_CARD]',
+    );
   });
 
-  it('handles single prompt array', () => {
-    const prompts = [
-      'Single prompt with key sk-abc123def456ghi789jkl012mno345pqr678stu901vwx234',
-    ];
+  it('does not treat code words as names or documents', () => {
+    expect(sanitize('hello world and hey there').text).toBe(
+      'hello world and hey there',
+    );
+    expect(sanitize('passport strategy and driver license checker').text).toBe(
+      'passport strategy and driver license checker',
+    );
+  });
+});
 
-    const result = sanitizePrompts(prompts);
+describe('sanitize: review findings', () => {
+  const realAnthropicKey = `sk-ant-api03-${'aB3_xY-9'.repeat(12)}_tail-END_marker`;
 
-    expect(result.prompts).toHaveLength(1);
-    expect(result.totalRedacted).toBe(1);
+  it('redacts a whole Anthropic key including underscores', () => {
+    const { text } = sanitize(`export KEY=${realAnthropicKey} && run`);
+    expect(text).not.toContain('tail');
+    expect(text).not.toContain('marker');
+    expect(text).not.toContain('aB3_');
+    expect(text).toContain('&& run');
+  });
+
+  it.each([
+    ['sk-proj-' + 'Ab1_cD2-'.repeat(8)],
+    ['hf_' + 'abcDEF1234'.repeat(4)],
+    ['npm_' + 'abcDEF1234'.repeat(4)],
+  ])('redacts provider token %s', (token) => {
+    const { text } = sanitize(`use ${token} now`);
+    expect(text).not.toContain(token.slice(4, 20));
+    expect(text).toContain('[REDACTED_');
+  });
+
+  it.each([
+    ['postgres://admin:hunter2@localhost/app', 'hunter2'],
+    ['redis://:s3cretpw@cache:6379', 's3cretpw'],
+    ['amqp://user:p@ss@broker/vhost', 'p@ss'],
+    ['mysql -u root -pSuperSecret db', 'SuperSecret'],
+    ['tool --password hunter22 --x', 'hunter22'],
+    ['tool --password=hunter22', 'hunter22'],
+    ['curl -u deploy:pa55word https://x.test', 'pa55word'],
+    ['password: "two words"', 'two words'],
+    ['PASSWORD=hunter2', 'hunter2'],
+    ["curl -H 'Cookie: session=abcdef123456; theme=dark' x", 'abcdef123456'],
+    ['Authorization: Basic dXNlcjpwYXNz', 'dXNlcjpwYXNz'],
+  ])('does not leak the secret in %s', (input, secret) => {
+    expect(sanitize(input).text).not.toContain(secret);
+  });
+
+  it('redacts a PEM block cut off before its END line', () => {
+    const body = 'MIIEvQIBADANBgkqhkiG9w0BAQEFAASC'.repeat(5);
+    const { text } = sanitize(
+      `-----BEGIN PRIVATE KEY-----\n${body}\n${body.slice(0, 20)}`,
+    );
+    expect(text).toBe('[REDACTED_PEM_KEY]');
+  });
+
+  it.each(['Hey Claude, fix this', 'Hello World program', 'Hi there team'])(
+    'keeps %s readable',
+    (input) => {
+      expect(sanitize(input).text).toBe(input);
+    },
+  );
+
+  it('still redacts a greeted person name', () => {
+    expect(sanitize('Hi John Smith, thanks').text).toContain('[REDACTED_NAME]');
+  });
+
+  it('keeps version numbers and git commit ids', () => {
+    expect(sanitize('upgrade to version 1.2.3.4 today').text).toContain(
+      '1.2.3.4',
+    );
+    expect(sanitize('pkg@2.0.1.5').text).toContain('2.0.1.5');
+    const sha = 'a'.repeat(20) + 'b1c2d3e4f5'.repeat(2);
+    expect(sanitize(`git cherry-pick ${sha}`).text).toContain(sha);
+    expect(sanitize('server at 10.20.30.40 failed').text).toContain(
+      '[REDACTED_IPV4]',
+    );
+  });
+
+  it('redacts a bare 40-hex string outside git context', () => {
+    const hex = 'c0ffee'.repeat(6) + 'abcd';
+    expect(sanitize(`token ${hex}`).text).toContain('[REDACTED_ID]');
+  });
+
+  it('keeps remote targets readable but hides the account', () => {
+    expect(sanitize('ssh deploy@build.example.com uptime').text).toBe(
+      'ssh [REDACTED_USER]@build.example.com uptime',
+    );
+    expect(sanitize('mail me at ana@example.com').text).toContain(
+      '[REDACTED_EMAIL]',
+    );
   });
 });

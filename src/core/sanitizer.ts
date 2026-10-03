@@ -5,8 +5,6 @@
  * information from prompts before sending them to AI providers.
  */
 
-import { logger } from '../utils/logger-base.js';
-
 /**
  * Result of sanitizing a single text.
  */
@@ -16,23 +14,20 @@ export type SanitizeResult = {
 };
 
 /**
- * Result of sanitizing multiple prompts.
- */
-export type SanitizePromptsResult = {
-  readonly prompts: readonly string[];
-  readonly totalRedacted: number;
-};
-
-/**
  * Redacts OpenAI API keys (sk-*).
  *
  * @param text - Text to process
  * @returns Text with OpenAI API keys redacted
  */
 function redactOpenAIKeys(text: string): string {
-  // OpenAI API keys start with sk- and are typically 51 characters long
-  // Pattern: sk-[alphanumeric]{48}
-  return text.replace(/sk-[a-zA-Z0-9]{48,}/g, '[REDACTED_OPENAI_KEY]');
+  // Legacy keys are sk-<48 alnum>; project/service-account keys are
+  // sk-proj-... with dashes and underscores in the body.
+  return text
+    .replace(/(?<![A-Za-z0-9])sk-[a-zA-Z0-9]{48,}/g, '[REDACTED_OPENAI_KEY]')
+    .replace(
+      /(?<![A-Za-z0-9])sk-(?:proj|svcacct|admin)-[A-Za-z0-9_-]{20,}/g,
+      '[REDACTED_OPENAI_KEY]',
+    );
 }
 
 /**
@@ -42,9 +37,9 @@ function redactOpenAIKeys(text: string): string {
  * @returns Text with Anthropic API keys redacted
  */
 function redactAnthropicKeys(text: string): string {
-  // Anthropic API keys start with sk-ant- and are typically longer
-  // Pattern: sk-ant-[alphanumeric and hyphens]
-  return text.replace(/sk-ant-[a-zA-Z0-9-]+/g, '[REDACTED_ANTHROPIC_KEY]');
+  // Real keys are sk-ant-api03-<~93 chars of [A-Za-z0-9_-]>; the underscore
+  // is part of the key body, so stopping at it would leak the tail.
+  return text.replace(/sk-ant-[a-zA-Z0-9_-]+/g, '[REDACTED_ANTHROPIC_KEY]');
 }
 
 /**
@@ -80,20 +75,159 @@ function redactBearerTokens(text: string): string {
 }
 
 /**
+ * Redacts well-known provider tokens (GitHub, Slack, Google, Stripe, JWT).
+ * Shell commands and error output shown in reports often carry these.
+ *
+ * @param text - Text to process
+ * @returns Text with provider tokens redacted
+ */
+function redactProviderTokens(text: string): string {
+  return text
+    .replace(/\bgh[pousr]_[A-Za-z0-9]{36,}\b/g, '[REDACTED_GITHUB_TOKEN]')
+    .replace(/\bgithub_pat_[A-Za-z0-9_]{22,}\b/g, '[REDACTED_GITHUB_TOKEN]')
+    .replace(/\bhf_[A-Za-z0-9]{30,}\b/g, '[REDACTED_HF_TOKEN]')
+    .replace(/\bnpm_[A-Za-z0-9]{30,}\b/g, '[REDACTED_NPM_TOKEN]')
+    .replace(/\bglpat-[A-Za-z0-9_-]{20,}/g, '[REDACTED_GITLAB_TOKEN]')
+    .replace(/\bxox[abprs]-[A-Za-z0-9-]{10,}/g, '[REDACTED_SLACK_TOKEN]')
+    .replace(/\bAIza[0-9A-Za-z_-]{35}\b/g, '[REDACTED_GOOGLE_KEY]')
+    .replace(
+      /\b[sr]k_(?:live|test)_[A-Za-z0-9]{16,}\b/g,
+      '[REDACTED_STRIPE_KEY]',
+    )
+    .replace(
+      /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g,
+      '[REDACTED_JWT]',
+    );
+}
+
+/**
+ * Redacts values assigned to secret-looking names (TOKEN=..., "password": ...).
+ * Variable references such as $TOKEN are left alone.
+ *
+ * @param text - Text to process
+ * @returns Text with assigned secret values redacted
+ */
+function redactSecretAssignments(text: string): string {
+  const passwordName =
+    '[A-Za-z0-9_-]*(?:password|passwd|passphrase|pwd)[A-Za-z0-9_-]*';
+  const otherName =
+    '[A-Za-z0-9_-]*(?:token|secret|api[_-]?key|apikey|access[_-]?key|private[_-]?key|credential)[A-Za-z0-9_-]*';
+  // Words that follow "password:" in prose or type annotations, not secrets.
+  const notAValue =
+    '(?!\\$|\\[REDACTED|(?:string|number|boolean|str|int|any|null|none|true|false|undefined|required|optional|hash|hashed|field|input|here|is|was|for|to|and|or|the|a|an)\\b)';
+  return (
+    text
+      // Quoted values may hold spaces ("two words"); the quotes stay.
+      .replace(
+        new RegExp(
+          `\\b((?:${passwordName}|${otherName})["']?\\s*[=:]\\s*)(["'])(?!\\$|\\[REDACTED)[^"'\\n]{4,200}\\2`,
+          'gi',
+        ),
+        '$1$2[REDACTED_SECRET]$2',
+      )
+      .replace(
+        new RegExp(
+          `\\b(${passwordName}["']?\\s*[=:]\\s*["']?)${notAValue}[^\\s"'&,;)]{3,}`,
+          'gi',
+        ),
+        '$1[REDACTED_SECRET]',
+      )
+      .replace(
+        new RegExp(
+          `\\b(${otherName}["']?\\s*[=:]\\s*["']?)${notAValue}[^\\s"'&,;)]{8,}`,
+          'gi',
+        ),
+        '$1[REDACTED_SECRET]',
+      )
+  );
+}
+
+/**
+ * Redacts secrets passed on command lines and in HTTP headers: `--password x`,
+ * `mysql -pSECRET`, `curl -u user:pass`, `Authorization: Basic ...`,
+ * `Cookie: ...`.
+ *
+ * @param text - Text to process
+ * @returns Text with command-line and header secrets redacted
+ */
+function redactCommandLineSecrets(text: string): string {
+  return text
+    .replace(
+      /(--?(?:password|passwd|pass|token|secret|api[-_]?key|access[-_]?token|auth[-_]?token|client[-_]?secret|private[-_]?key)(?:=|\s+))(?!\$|\[REDACTED|-)("[^"\n]*"|'[^'\n]*'|[^\s"']+)/gi,
+      '$1[REDACTED_SECRET]',
+    )
+    .replace(
+      /(\bmysql(?:dump|admin)?\b[^|;&\n]*?\s)-p(?!\s|\$|\[REDACTED)("[^"\n]*"|'[^'\n]*'|\S+)/g,
+      '$1-p[REDACTED_SECRET]',
+    )
+    .replace(
+      /(\bcurl\b[^|;&\n]*?\s(?:-u|--user)[=\s]+)(?!\$|\[REDACTED)("[^"\n]*"|'[^'\n]*'|\S+)/g,
+      '$1[REDACTED_SECRET]',
+    )
+    .replace(
+      /(\bAuthorization:\s*)(?!Bearer\b|\[REDACTED)\w+\s+[^\s"']+/gi,
+      '$1[REDACTED_AUTH]',
+    )
+    .replace(
+      /(\b(?:Set-)?Cookie:\s*)(?!\[REDACTED)[^\n"']+/gi,
+      '$1[REDACTED_COOKIE]',
+    );
+}
+
+/** A 40-hex string next to these words is a commit id, not a credential. */
+const GIT_CONTEXT =
+  /(?:\bgit\b|\b(?:commit|revert|cherry-pick|rebase|merge|checkout|reset|HEAD)\b|\.\.\.?)[^\n]{0,40}$/i;
+
+/**
+ * Redacts long opaque identifiers (hex digests, zone/account ids, base64
+ * blobs). Quoted shell commands carry them and reports get shared. Slugs with
+ * dashes, paths and UUIDs are left alone so quotes stay readable.
+ *
+ * @param text - Text to process
+ * @returns Text with opaque identifiers redacted
+ */
+function redactOpaqueIds(text: string): string {
+  return text
+    .replace(
+      /(?<![A-Za-z0-9])[0-9a-fA-F]{32,}(?![A-Za-z0-9])/g,
+      (match: string, offset: number, whole: string) =>
+        match.length === 40 &&
+        GIT_CONTEXT.test(whole.slice(Math.max(0, offset - 60), offset))
+          ? match
+          : '[REDACTED_ID]',
+    )
+    .replace(
+      /(?<![A-Za-z0-9+/=])[A-Za-z0-9+/]{24,}={1,2}(?![A-Za-z0-9])/g,
+      '[REDACTED_ID]',
+    )
+    .replace(
+      /(?<![A-Za-z0-9])[A-Za-z0-9]{32,}(?![A-Za-z0-9])/g,
+      (match: string) =>
+        /[a-z]/.test(match) && /[A-Z]/.test(match) && /\d/.test(match)
+          ? '[REDACTED_ID]'
+          : match,
+    );
+}
+
+/**
  * Redacts credentials in URLs (https://user:pass@example.com).
  *
  * @param text - Text to process
  * @returns Text with URL credentials redacted
  */
 function redactURLCredentials(text: string): string {
-  // URL credentials: https://user:pass@host or http://user:pass@host
-  // Pattern: protocol://[user[:pass]@]host
-  return text.replace(
-    /(https?:\/\/)([^:\s@]+)(?::([^\s@]+))?@/g,
-    (match: string, protocol: string, _user: string, _pass?: string) => {
-      return `${protocol}[REDACTED_URL_CREDENTIAL]@`;
-    },
-  );
+  // Any scheme (postgres://, redis://, amqp://...) and any host: a colon in
+  // the userinfo means there is a password. The greedy class runs to the last
+  // "@" before the path, so passwords containing "@" are covered too.
+  return text
+    .replace(
+      /(\b[a-z][a-z0-9+.-]*:\/\/)[^\s/?#@:]*:[^\s/?#]*@/gi,
+      '$1[REDACTED_URL_CREDENTIAL]@',
+    )
+    .replace(
+      /(\b(?:https?|ftp):\/\/)[^\s/?#@:[\]]+@/gi,
+      '$1[REDACTED_URL_CREDENTIAL]@',
+    );
 }
 
 /**
@@ -103,11 +237,20 @@ function redactURLCredentials(text: string): string {
  * @returns Text with email addresses redacted
  */
 function redactEmails(text: string): string {
-  // Email pattern: local@domain
-  // Pattern: [word chars, dots, hyphens, plus]@[domain with dots]
   return text.replace(
-    /[a-zA-Z0-9._+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
-    '[REDACTED_EMAIL]',
+    /[a-zA-Z0-9._+-]+@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g,
+    (match: string, host: string, offset: number, whole: string) => {
+      // `ssh user@host` and `git@github.com` are connection targets, not
+      // mail addresses: keep the host readable, hide the account name.
+      const before = whole.slice(Math.max(0, offset - 160), offset);
+      const isRemoteTarget = /\b(?:ssh|scp|sftp|rsync|mosh)\b[^\n|;&]*$/.test(
+        before,
+      );
+      if (isRemoteTarget) {
+        return `[REDACTED_USER]@${host}`;
+      }
+      return match.startsWith('git@') ? match : '[REDACTED_EMAIL]';
+    },
   );
 }
 
@@ -118,12 +261,17 @@ function redactEmails(text: string): string {
  * @returns Text with PEM private keys redacted
  */
 function redactPEMKeys(text: string): string {
-  // PEM format: -----BEGIN ... PRIVATE KEY----- ... -----END ... PRIVATE KEY-----
-  // This pattern matches multi-line PEM keys
-  return text.replace(
-    /-----BEGIN\s+[A-Z\s]+PRIVATE\s+KEY-----[\s\S]*?-----END\s+[A-Z\s]+PRIVATE\s+KEY-----/g,
-    '[REDACTED_PEM_KEY]',
-  );
+  // A block cut off by truncation has no END line; everything after the
+  // BEGIN marker is key material then.
+  return text
+    .replace(
+      /-----BEGIN\s+[A-Z\s]*PRIVATE\s+KEY-----[\s\S]*?-----END\s+[A-Z\s]*PRIVATE\s+KEY-----/g,
+      '[REDACTED_PEM_KEY]',
+    )
+    .replace(
+      /-----BEGIN\s+[A-Z\s]*PRIVATE\s+KEY-----[\s\S]*$/,
+      '[REDACTED_PEM_KEY]',
+    );
 }
 
 /**
@@ -137,18 +285,44 @@ function redactPEMKeys(text: string): string {
  * @returns Text with names redacted
  */
 function redactNames(text: string): string {
-  // Pattern: Common greetings followed by a capitalized name (2-20 chars)
-  // Greetings: Hi, Hello, Hey, Dear, Greetings, etc.
-  // Name: Capital letter followed by lowercase letters, may include hyphens/apostrophes
+  // Greeting + capitalized word is also "Hey Claude" or "Hello World", so
+  // product names and common greeting targets are not names.
+  const notNames = new Set([
+    'claude',
+    'world',
+    'anthropic',
+    'openai',
+    'chatgpt',
+    'gpt',
+    'gemini',
+    'copilot',
+    'cursor',
+    'codex',
+    'assistant',
+    'bot',
+    'friend',
+    'buddy',
+    'mate',
+    'sir',
+    'madam',
+    'again',
+    'back',
+    'there',
+    'everyone',
+    'all',
+    'team',
+    'guys',
+    'folks',
+    'people',
+    'hyntx',
+  ]);
   return text.replace(
-    /\b(?:Hi|Hello|Hey|Dear|Greetings|Good\s+(?:morning|afternoon|evening))\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?(?:\s+[A-Z][a-z]+)?)\b/gi,
+    /\b(?:[Hh]i|[Hh]ello|[Hh]ey|[Dd]ear|[Gg]reetings|[Gg]ood\s+(?:morning|afternoon|evening))\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?(?:\s+[A-Z][a-z]+)?)\b/g,
     (match: string, name: string) => {
-      // Only redact if the name part looks like a real name (2+ chars, not common words)
-      const commonWords = /\b(?:there|everyone|all|team|guys|folks|people)\b/i;
-      if (name && name.length >= 2 && !commonWords.test(name)) {
-        return match.replace(name, '[REDACTED_NAME]');
-      }
-      return match;
+      const first = name.split(/\s+/)[0] ?? '';
+      return name.length >= 2 && !notNames.has(first.toLowerCase())
+        ? match.replace(name, '[REDACTED_NAME]')
+        : match;
     },
   );
 }
@@ -168,16 +342,18 @@ function redactNames(text: string): string {
  * @returns Text with phone numbers redacted
  */
 function redactPhoneNumbers(text: string): string {
-  // US phone number patterns:
-  // - With area code in parentheses: (555) 123-4567
-  // - With dashes: 555-123-4567
-  // - With dots: 555.123.4567
-  // - Plain: 5551234567 (10 digits)
-  // - With country code: +1 555 123 4567 or 1-555-123-4567
-  return text.replace(
-    /(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})\b/g,
-    '[REDACTED_PHONE]',
-  );
+  // Separated forms are distinctive enough on their own. A bare run of digits
+  // (epoch timestamps, counters) is only a phone number next to a label.
+  return text
+    .replace(
+      /(?:\+?1[-.\s])?\(?[0-9]{3}\)?[-.\s][0-9]{3}[-.\s][0-9]{4}\b/g,
+      '[REDACTED_PHONE]',
+    )
+    .replace(/(?<![\w.])\+[0-9]{9,14}\b/g, '[REDACTED_PHONE]')
+    .replace(
+      /\b((?:phone|tel|telephone|tel[eé]fono|mobile|m[oó]vil|movil|cell|celular|fax|whatsapp)\s*(?:number|n[uú]mero|no\.?)?[\s:#-]*)([0-9]{10})\b/gi,
+      '$1[REDACTED_PHONE]',
+    );
 }
 
 /**
@@ -193,15 +369,27 @@ function redactPhoneNumbers(text: string): string {
  * @returns Text with credit card numbers redacted
  */
 function redactCreditCards(text: string): string {
-  // Credit card patterns with optional spaces/dashes:
-  // Visa: 4XXX XXXX XXXX XXXX or 4XXX-XXXX-XXXX-XXXX (13 or 16 digits)
-  // Mastercard: 5[1-5]XX XXXX XXXX XXXX (16 digits)
-  // Amex: 3[47]XX XXXXXX XXXXX (15 digits)
-  // Diners Club: 3[068]X XXXX XXXX XXXX (14 digits)
+  // Issuer-shaped digit runs are only cards when the Luhn checksum holds;
+  // that keeps timestamps and counters readable.
   return text.replace(
     /\b(?:(?:4\d{3}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{1,4})|(?:5[1-5]\d{2}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4})|(?:3[47]\d{2}[\s-]?\d{6}[\s-]?\d{5})|(?:3[068]\d[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}))\b/g,
-    '[REDACTED_CREDIT_CARD]',
+    (match: string) =>
+      passesLuhn(match.replace(/[\s-]/g, ''))
+        ? '[REDACTED_CREDIT_CARD]'
+        : match,
   );
+}
+
+function passesLuhn(digits: string): boolean {
+  const sum = digits
+    .split('')
+    .reverse()
+    .reduce((acc, char, i) => {
+      const n = Number(char);
+      const doubled = i % 2 === 1 ? n * 2 : n;
+      return acc + (doubled > 9 ? doubled - 9 : doubled);
+    }, 0);
+  return digits.length >= 13 && sum % 10 === 0;
 }
 
 /**
@@ -213,15 +401,17 @@ function redactCreditCards(text: string): string {
  * @returns Text with SSNs redacted
  */
 function redactSSN(text: string): string {
-  // SSN pattern: XXX-XX-XXXX or XXX XX XXXX or XXXXXXXXX
-  // First 3 digits cannot be 000, 666, or 900-999
-  // Middle 2 digits cannot be 00
-  // Last 4 digits cannot be 0000
-  // We'll match the pattern and validate basic constraints
-  return text.replace(
-    /\b(?!000|666|9\d{2})([0-9]{3})[-.\s]?(?!00)([0-9]{2})[-.\s]?(?!0000)([0-9]{4})\b/g,
-    '[REDACTED_SSN]',
-  );
+  // First 3 digits cannot be 000, 666, or 900-999; middle cannot be 00; last
+  // four cannot be 0000. Plain nine-digit runs need an SSN label.
+  return text
+    .replace(
+      /\b(?!000|666|9\d{2})([0-9]{3})[-.\s](?!00)([0-9]{2})[-.\s](?!0000)([0-9]{4})\b/g,
+      '[REDACTED_SSN]',
+    )
+    .replace(
+      /\b((?:ssn|social\s+security(?:\s+number)?|seguro\s+social)[\s:#-]*)(?!000|666|9\d{2})[0-9]{3}(?!00)[0-9]{2}(?!0000)[0-9]{4}\b/gi,
+      '$1[REDACTED_SSN]',
+    );
 }
 
 /**
@@ -275,11 +465,10 @@ function redactMexicanCURP(text: string): string {
  * @returns Text with Brazilian CPF redacted
  */
 function redactBrazilianCPF(text: string): string {
-  // CPF: 11 digits with optional dots and dash (XXX.XXX.XXX-XX) or plain (XXXXXXXXXXX)
-  return text.replace(
-    /\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g,
-    '[REDACTED_BRAZILIAN_CPF]',
-  );
+  // The formatted shape is distinctive; eleven bare digits need a CPF label.
+  return text
+    .replace(/\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g, '[REDACTED_BRAZILIAN_CPF]')
+    .replace(/\b(cpf[\s:#-]*)\d{11}\b/gi, '$1[REDACTED_BRAZILIAN_CPF]');
 }
 
 /**
@@ -348,10 +537,10 @@ function redactArgentineDNI(text: string): string {
  * @returns Text with IPv4 addresses redacted
  */
 function redactIPv4(text: string): string {
-  // IPv4: 4 groups of 1-3 digits (0-255) separated by dots
-  // Exclude common non-sensitive IPs like 127.0.0.1, 0.0.0.0
+  // Dotted quads preceded by "version", "v", "@", "^", "~" or "=" are package
+  // versions; digits or dots on either side make it part of a longer number.
   return text.replace(
-    /\b(?!(?:127\.0\.0\.1|0\.0\.0\.0|255\.255\.255\.255))(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/g,
+    /(?<![\d.])(?<!(?:version|ver|v|@|\^|~|=|>|<)\s?)(?!(?:127\.0\.0\.1|0\.0\.0\.0|255\.255\.255\.255)(?![\d.]))(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?![\d]|\.\d)/gi,
     '[REDACTED_IPV4]',
   );
 }
@@ -410,7 +599,10 @@ function redactPassportNumbers(text: string): string {
   return text.replace(
     /\b(?:passport|pasaporte)[\s:]*([A-Z0-9]{6,9})\b/gi,
     (match: string, passport: string) => {
-      return match.replace(passport, '[REDACTED_PASSPORT]');
+      // "passport strategy" is code talk; real numbers contain digits.
+      return /\d/.test(passport)
+        ? match.replace(passport, '[REDACTED_PASSPORT]')
+        : match;
     },
   );
 }
@@ -432,7 +624,9 @@ function redactDriverLicenseNumbers(text: string): string {
   return text.replace(
     /\b(?:driver\s*license|licencia\s*de\s*conducir|DL|D\.L\.)[\s:]*([A-Z0-9]{8,16})\b/gi,
     (match: string, license: string) => {
-      return match.replace(license, '[REDACTED_DRIVER_LICENSE]');
+      return /\d/.test(license)
+        ? match.replace(license, '[REDACTED_DRIVER_LICENSE]')
+        : match;
     },
   );
 }
@@ -456,18 +650,25 @@ function redactAddresses(text: string): string {
   // - Street address: Number + street name (when in context)
   let sanitized = text;
 
-  // US ZIP codes
-  sanitized = sanitized.replace(/\b\d{5}(?:-\d{4})?\b/g, '[REDACTED_ZIP_CODE]');
+  // US ZIP codes: only with a label, after "City, ST", or in ZIP+4 form;
+  // any five-digit number would otherwise be eaten (ports, counts, years+).
+  sanitized = sanitized
+    .replace(
+      /\b(zip(?:\s*code)?|postal(?:\s*code)?|c[oó]digo\s+postal|c\.?p\.?)([\s:#-]*)\d{5}(?:-\d{4})?\b/gi,
+      '$1$2[REDACTED_ZIP_CODE]',
+    )
+    .replace(/(,\s*[A-Z]{2}\s+)\d{5}(?:-\d{4})?\b/g, '$1[REDACTED_ZIP_CODE]')
+    .replace(/\b\d{5}-\d{4}\b/g, '[REDACTED_ZIP_CODE]');
 
-  // UK postcodes
+  // UK postcodes (uppercase only: "e2e 4ab" style tokens are not postcodes)
   sanitized = sanitized.replace(
-    /\b[A-Z]{1,2}\d{1,2}[A-Z]?\s?\d[A-Z]{2}\b/gi,
+    /\b[A-Z]{1,2}\d{1,2}[A-Z]?\s?\d[A-Z]{2}\b/g,
     '[REDACTED_POSTCODE]',
   );
 
   // Canadian postal codes
   sanitized = sanitized.replace(
-    /\b[A-Z]\d[A-Z]\s?\d[A-Z]\d\b/gi,
+    /\b[A-Z]\d[A-Z]\s?\d[A-Z]\d\b/g,
     '[REDACTED_POSTAL_CODE]',
   );
 
@@ -540,12 +741,17 @@ export function sanitize(text: string): SanitizeResult {
 
   // Apply all redaction functions
   // Order matters: more specific patterns first, then general PII
+  // PEM first: its body must not be chewed by the opaque-id matchers.
+  sanitized = redactPEMKeys(sanitized);
   sanitized = redactOpenAIKeys(sanitized);
   sanitized = redactAnthropicKeys(sanitized);
   sanitized = redactAWSCredentials(sanitized);
   sanitized = redactBearerTokens(sanitized);
+  sanitized = redactProviderTokens(sanitized);
+  sanitized = redactCommandLineSecrets(sanitized);
+  sanitized = redactSecretAssignments(sanitized);
   sanitized = redactURLCredentials(sanitized);
-  sanitized = redactPEMKeys(sanitized);
+  sanitized = redactOpaqueIds(sanitized);
   // PII redaction (specific patterns before broad numeric matchers)
   sanitized = redactEmails(sanitized);
   sanitized = redactCreditCards(sanitized);
@@ -577,60 +783,5 @@ export function sanitize(text: string): SanitizeResult {
   return {
     text: sanitized,
     redacted,
-  };
-}
-
-/**
- * Sanitizes an array of prompts and returns sanitized prompts with total redaction count.
- *
- * @param prompts - Array of prompts to sanitize
- * @returns Sanitized prompts and total number of redactions across all prompts
- *
- * @example
- * ```typescript
- * const prompts = [
- *   'My key is sk-123...',
- *   'Email me at user@example.com'
- * ];
- * const result = sanitizePrompts(prompts);
- * // {
- * //   prompts: ['My key is [REDACTED_OPENAI_KEY]', 'Email me at [REDACTED_EMAIL]'],
- * //   totalRedacted: 2
- * // }
- * ```
- */
-export function sanitizePrompts(
-  prompts: readonly string[],
-): SanitizePromptsResult {
-  if (prompts.length === 0) {
-    return { prompts: [], totalRedacted: 0 };
-  }
-
-  logger.debug(
-    `Sanitizing ${String(prompts.length)} prompts for secrets`,
-    'sanitizer',
-  );
-
-  const sanitizedPrompts: string[] = [];
-  let totalRedacted = 0;
-
-  for (const prompt of prompts) {
-    const result = sanitize(prompt);
-    sanitizedPrompts.push(result.text);
-    totalRedacted += result.redacted;
-  }
-
-  if (totalRedacted > 0) {
-    logger.debug(
-      `Redacted ${String(totalRedacted)} secret(s) from prompts`,
-      'sanitizer',
-    );
-  } else {
-    logger.debug('No secrets found to redact', 'sanitizer');
-  }
-
-  return {
-    prompts: sanitizedPrompts,
-    totalRedacted,
   };
 }

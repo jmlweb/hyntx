@@ -1,0 +1,13 @@
+{
+  "name": "hyntx",
+  "displayName": "Hyntx",
+  "description": "Adds the /hyntx:hyntx command: finds where your Claude Code sessions cost you time (corrections, tool-error loops, denied tools, repeated instructions) and offers to apply the fix to CLAUDE.md, settings.json or a slash command.",
+  "author": {
+    "name": "José Manuel Lucas",
+    "url": "https://github.com/jmlweb"
+  },
+  "homepage": "https://github.com/jmlweb/hyntx#claude-code-plugin",
+  "repository": "https://github.com/jmlweb/hyntx",
+  "license": "MIT",
+  "keywords": ["claude-code", "sessions", "insights", "friction", "workflow"]
+}

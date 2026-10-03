@@ -390,7 +390,7 @@ Is it a breaking change?
 - Adding new public APIs
 - Adding new configuration options
 - Performance improvements (non-breaking)
-- New provider support
+- New detectors or insight kinds
 
 ✅ **Bug Fixes** (PATCH):
 
@@ -408,7 +408,7 @@ Is it a breaking change?
 | Add `--json` output format | MINOR        | 0.1.0 → 0.2.0 |
 | Fix date parsing bug       | PATCH        | 0.1.0 → 0.1.1 |
 | Change default model       | MAJOR        | 0.1.0 → 1.0.0 |
-| Add Google provider        | MINOR        | 0.1.0 → 0.2.0 |
+| Add a friction detector    | MINOR        | 0.1.0 → 0.2.0 |
 | Fix typo in error message  | PATCH        | 0.1.0 → 0.1.1 |
 
 ---
@@ -427,17 +427,17 @@ Is it a breaking change?
 
 #### Commit Types → Version Bumps
 
-| Commit Type        | Version Bump | Example                                 |
-| ------------------ | ------------ | --------------------------------------- |
-| `feat:`            | MINOR        | `feat(cli): add --json output`          |
-| `fix:`             | PATCH        | `fix(reader): handle empty logs`        |
-| `perf:`            | PATCH        | `perf(analyzer): optimize batching`     |
-| `refactor:`        | PATCH        | `refactor(providers): simplify factory` |
-| `docs:`            | PATCH        | `docs: update README installation`      |
-| `style:`           | PATCH        | `style: format code with prettier`      |
-| `test:`            | PATCH        | `test: add coverage for sanitizer`      |
-| `chore:`           | PATCH        | `chore: update dependencies`            |
-| `BREAKING CHANGE:` | MAJOR        | `feat!: remove deprecated API`          |
+| Commit Type        | Version Bump | Example                                |
+| ------------------ | ------------ | -------------------------------------- |
+| `feat:`            | MINOR        | `feat(cli): add --json output`         |
+| `fix:`             | PATCH        | `fix(reader): handle empty logs`       |
+| `perf:`            | PATCH        | `perf(reader): stream large logs`      |
+| `refactor:`        | PATCH        | `refactor(engines): simplify fallback` |
+| `docs:`            | PATCH        | `docs: update README installation`     |
+| `style:`           | PATCH        | `style: format code with prettier`     |
+| `test:`            | PATCH        | `test: add coverage for sanitizer`     |
+| `chore:`           | PATCH        | `chore: update dependencies`           |
+| `BREAKING CHANGE:` | MAJOR        | `feat!: remove deprecated API`         |
 
 #### Breaking Change Indicators
 
@@ -678,7 +678,7 @@ Automatically generates `CHANGELOG.md` from commits:
 ### Features
 
 - **cli**: add --json output format ([abc123](https://github.com/user/hyntx/commit/abc123))
-- **providers**: add Google Gemini support ([def456](https://github.com/user/hyntx/commit/def456))
+- **engines**: add Ollama engine ([def456](https://github.com/user/hyntx/commit/def456))
 
 ### Bug Fixes
 
@@ -734,7 +734,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 - CLI with basic analysis
-- Ollama provider support
+- Deterministic session analysis
 ```
 
 ---
@@ -773,10 +773,10 @@ git commit -m "feat: ..."
 **Approach**: Release when milestone is complete
 
 ```bash
-# Milestone: "Multi-provider support"
-git commit -m "feat(providers): add Anthropic"
-git commit -m "feat(providers): add Google"
-git commit -m "docs: update provider docs"
+# Milestone: "Interpretation engines"
+git commit -m "feat(engines): add claude engine"
+git commit -m "feat(engines): add ollama engine"
+git commit -m "docs: update engine docs"
 # Release: 0.1.0 → 0.2.0 (milestone complete)
 ```
 
@@ -974,13 +974,13 @@ Here's how a real project might evolve:
 0.0.3  Fix: Date parsing bug
 0.1.0  Feat: Add --project filter
 0.1.1  Fix: Project filter edge case
-0.1.2  Fix: Memory leak in analyzer
-0.2.0  Feat: Add Google provider
-0.2.1  Fix: Google API error handling
+0.1.2  Fix: Memory leak in session reader
+0.2.0  Feat: Add Ollama engine
+0.2.1  Fix: Ollama error handling
 0.3.0  Feat: Add --json output format
 1.0.0  BREAKING: Remove deprecated --verbose flag
 1.0.1  Fix: JSON output formatting
-1.1.0  Feat: Add --dry-run mode
+1.1.0  Feat: Add --html report
 ```
 
 Notice:
@@ -1059,9 +1059,7 @@ tsup.config.ts
 # Documentation (keep README.md and LICENSE)
 docs/
 CHANGELOG.md
-docs/ROADMAP.md
 AGENTS.md
-backlog/
 
 # CI/CD
 .github/
@@ -1174,13 +1172,13 @@ banner: {
 }
 ```
 
-This adds the shebang to `dist/index.js` automatically.
+This adds the shebang to `dist/cli.js` automatically.
 
 **Verification**:
 
 ```bash
 pnpm build
-head -1 dist/index.js
+head -1 dist/cli.js
 # Should output: #!/usr/bin/env node
 ```
 
@@ -1191,12 +1189,12 @@ head -1 dist/index.js
 ```json
 {
   "bin": {
-    "hyntx": "./dist/index.js"
+    "hyntx": "./dist/cli.js"
   }
 }
 ```
 
-This tells npm to create a `hyntx` executable that points to `dist/index.js`.
+This tells npm to create a `hyntx` executable that points to `dist/cli.js`.
 
 ### 3. Executable Permissions
 
@@ -1206,11 +1204,11 @@ npm automatically sets executable permissions during installation.
 
 ```bash
 # Check permissions
-ls -l dist/index.js
+ls -l dist/cli.js
 # Should show: -rwxr-xr-x (executable)
 
 # If not executable, fix:
-chmod +x dist/index.js
+chmod +x dist/cli.js
 ```
 
 **Note**: The shebang (`#!/usr/bin/env node`) is what makes it executable, not file permissions. npm handles permissions during `npm install -g`.
@@ -1274,7 +1272,7 @@ npm uninstall -g hyntx
 
 Since Hyntx uses ESM (`"type": "module"`), ensure:
 
-- ✅ **Entry point**: `dist/index.js` is ESM
+- ✅ **Entry point**: `dist/cli.js` is ESM
 - ✅ **Shebang**: Must come before any imports
 - ✅ **Node.js version**: `>=22.0.0` (specified in `engines`)
 
@@ -1355,7 +1353,7 @@ git tag v1.0.0
 ### "Executable not found after install"
 
 - Verify `bin` field in `package.json`
-- Check shebang in `dist/index.js`
+- Check shebang in `dist/cli.js`
 - Verify Node.js version: `node --version` (must be >=22.0.0)
 
 ### "GitHub Actions release failed"

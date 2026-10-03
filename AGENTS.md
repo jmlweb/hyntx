@@ -2,26 +2,32 @@
 
 ## Overview
 
-**Hyntx** is a Node.js CLI that analyzes Claude Code prompts and generates improvement suggestions with "Before/After" rewrites.
+**Hyntx** is a Node.js CLI and Claude Code plugin that turns Claude Code session logs into evidence-backed insights. It parses full sessions (`~/.claude/projects/**/*.jsonl`), computes deterministic metrics and friction episodes, and produces ranked insights, each with evidence and an apply-ready action (CLAUDE.md rule, settings.json permission, slash command, prompt habit or workflow change). An optional LLM step confirms heuristic episodes and adds a summary.
 
-**Core Principles**: Zero config, Privacy-first (Ollama default), Non-intrusive (read-only), Actionable output.
+**Core Principles**:
+
+- **Deterministic core**: parsing, metrics, friction detection and ranking are plain code and work with no model
+- **Evidence or silence**: an insight needs counts and examples that clear a minimum bar; too little data produces no findings
+- **Apply-ready**: every insight ends in one concrete action
+- **Local and read-only**: the CLI never modifies Claude Code files or the user's projects
+- **Sanitized by contract**: every string in a `Report` is redacted before it is rendered, sent or stored
+- **Zero config**: no setup step, no config file
 
 ---
 
 ## Documentation
 
-All detailed specifications are in `docs/`:
+| Document                                | Purpose                                           |
+| --------------------------------------- | ------------------------------------------------- |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Pipeline, module boundaries, design decisions     |
+| [SPECS.md](docs/SPECS.md)               | The `Report` contract, detectors, thresholds      |
+| [CLI.md](docs/CLI.md)                   | Flags, output formats, exit codes, environment    |
+| [CODE-STYLE.md](docs/CODE-STYLE.md)     | TypeScript conventions, naming, patterns          |
+| [DEVELOPMENT.md](docs/DEVELOPMENT.md)   | Setup, build, tooling, testing the plugin locally |
+| [TESTING.md](docs/TESTING.md)           | Test layout, helpers, what to test                |
+| [RELEASE.md](docs/RELEASE.md)           | Versioning and release automation                 |
 
-| Document                                | Purpose                                          |
-| --------------------------------------- | ------------------------------------------------ |
-| [SPECS.md](docs/SPECS.md)               | Technical specifications, types, module details  |
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, data flow, design patterns        |
-| [CLI.md](docs/CLI.md)                   | CLI flags, environment variables, output formats |
-| [CODE-STYLE.md](docs/CODE-STYLE.md)     | TypeScript conventions, naming, patterns         |
-| [DEVELOPMENT.md](docs/DEVELOPMENT.md)   | Setup, build, configs (tsconfig, eslint, vitest) |
-| [TESTING.md](docs/TESTING.md)           | Test strategy, mocking, fixtures, coverage       |
-
-**Read relevant docs before implementing features.**
+**Read the relevant doc before implementing a feature. `src/types/index.ts` is the source of truth for data shapes.**
 
 ---
 
@@ -30,17 +36,17 @@ All detailed specifications are in `docs/`:
 ### Module Organization
 
 ```typescript
-// ✅ Use provider factory, not concrete implementations
-import { createProvider } from './providers/index.js'
+// ✅ Go through the engine entry point, not a concrete engine
+import { interpretReport } from './engines/index.js';
 
 // ✅ ESM requires .js extension
-import { readLogs } from './core/log-reader.js'
+import { readSessions } from './core/session-reader.js';
 
 // ✅ Named exports only (no default exports)
-export function analyzePrompts(...): Promise<AnalysisResult>
+export function buildReport(options: BuildReportOptions): Report;
 
-// ✅ All types in src/types/index.ts
-import { type AnalysisResult } from './types/index.js'
+// ✅ All shared types in src/types/index.ts
+import { type Report } from './types/index.js';
 ```
 
 ### TypeScript
@@ -54,170 +60,158 @@ import { type AnalysisResult } from './types/index.js'
 ### Functional Style
 
 - Pure functions, immutability, composition
-- Classes only for stateful providers
+- IO at the edges: `cli.ts`, `session-reader.ts`, `history.ts`, `permissions.ts` and the engines do IO; metrics, friction, insights, report building and renderers are pure
+- No classes for stateless logic (custom errors are the exception; the logger is a plain factory function)
 - Early returns over nested conditionals
+- Local mutation is acceptable only where copying would be quadratic (the streaming session reader), and must be commented
 
-### Event-Based Modules
+### Tolerant Parsing
 
-For real-time features, use EventEmitter pattern:
+The Claude Code log format changes between versions and is not a public contract:
 
 ```typescript
-// ✅ Factory function returning event-based interface
-export function createLogWatcher(options?: WatcherOptions): LogWatcher {
-  const emitter = new EventEmitter();
-  return {
-    start: () => {
-      /* ... */
-    },
-    stop: () => {
-      /* ... */
-    },
-    on: (event, callback) => emitter.on(event, callback),
-  };
-}
-
-// ✅ Support AbortSignal for graceful shutdown
-if (signal?.aborted) {
-  await stop();
+// ✅ Read every field defensively; count and skip what is unknown
+if (typeof record['type'] !== 'string') {
+  stats.recordsSkipped += 1;
   return;
 }
+
+// ❌ Never throw on an unknown record type or a malformed line
 ```
 
-### File Persistence
+Unknown record types and skipped lines are surfaced in `Report.dataQuality`, not hidden.
 
-For atomic file operations:
+### File Persistence
 
 ```typescript
 // ✅ Use temp file + rename for atomic writes
 const tmpFile = `${filePath}.tmp`;
 await writeFile(tmpFile, content, 'utf-8');
 await rename(tmpFile, filePath);
-
-// ✅ Always sanitize before persisting
-const sanitizedResult = {
-  ...result,
-  patterns: result.patterns.map((p) => ({
-    ...p,
-    examples: p.examples.map((e) => sanitize(e).text),
-  })),
-};
 ```
+
+Only aggregate numbers are persisted under `~/.hyntx/` (`daily.json`). Never persist prompt text, commands or file names there.
 
 ### CLI Output
 
 ```typescript
-// ✅ Use chalk + ora for user-facing output
-import chalk from 'chalk';
-import ora from 'ora';
+// ✅ Data on stdout, progress and logs on stderr
+process.stdout.write(output);
+const spinner = ora({ text: 'Analyzing...', stream: process.stderr }).start();
 
-const spinner = ora('Analyzing...').start();
-spinner.succeed(chalk.green('Done!'));
-
-// ❌ Avoid plain console.log for UX messages
+// ✅ chalk + ora for user-facing output; logger for warnings and errors
+// ❌ No console.log; `--format json` must print nothing but the Report
 ```
 
 ### Error Handling
 
-| Exit Code | Scenario                     |
-| --------- | ---------------------------- |
-| 0         | Success                      |
-| 1         | General error (API, network) |
-| 2         | No logs/prompts found        |
-| 3         | All providers unavailable    |
+| Exit Code | Scenario                               |
+| --------- | -------------------------------------- |
+| 0         | Success                                |
+| 1         | General error (bad arguments, IO)      |
+| 2         | No logs, or no sessions for the period |
 
 ```typescript
 // ✅ Custom errors with context
-class ProviderError extends Error {
-  constructor(provider: string, message: string) {
-    super(`[${provider}] ${message}`);
-    this.name = 'ProviderError';
+export class UsageError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'UsageError';
   }
 }
 ```
+
+A failing or unavailable interpretation engine is never an error: the deterministic report is still returned, with a note in `dataQuality.notes`.
 
 ---
 
 ## Module Overview
 
+### Entry points (src/)
+
+- `cli.ts` - Argument parsing, orchestration, exit codes
+- `cli-args.ts` - Argument helpers (period resolution, enum parsing), unit tested
+- `index.ts` - Public library API
+- `types/index.ts` - Raw session model and the serializable `Report` contract
+
 ### Core Modules (src/core/)
 
-- `analyzer.ts` - Analysis orchestration with batching and Map-Reduce
-- `history.ts` - Analysis history management (save, load, compare)
-- `log-reader.ts` - Claude Code log parsing with date/project filtering
-- `reminder.ts` - Periodic reminder system with configurable frequency
-- `reporter.ts` - Output formatting (terminal, markdown, JSON)
-- `sanitizer.ts` - Secret redaction for privacy
-- `schema-validator.ts` - Log schema validation with graceful degradation
-- `setup.ts` - Interactive first-run configuration
-- `watcher.ts` - Real-time log file monitoring for watch mode
+- `session-reader.ts` - Streams JSONL logs (including subagent sidechains) into `Session` objects; tolerant of format changes
+- `metrics.ts` - Deterministic metrics: overall, per project, per day, per session
+- `friction.ts` - Friction detectors producing `Episode`s, plus exploratory prompt-trait correlations (never insights); `SAFE_RULE_KEYS` is the short list of commands a permission rule may be suggested for
+- `tool-errors.ts` - Tool error classification used by the detectors
+- `insights.ts` - Episodes and metrics to ranked `Insight`s with evidence and actions
+- `permissions.ts` - Reads existing Claude Code `allow`, `deny` and `ask` rules (read-only) so a suggested rule is never a duplicate and never meets a deny or ask rule
+- `insight-review.ts` - Applies interpretation verdicts to insights (`confirmed`, `dismissed`, `unverified`, with coverage); the one source renderers and the JSON use
+- `report.ts` - Builds the `Report`; `sanitizeReport` is the final pass (redaction plus removal of terminal escape sequences)
+- `sanitizer.ts` - Secret and personal-data redaction
+- `history.ts` - Daily aggregate history under `~/.hyntx/daily.json`
 
-### Provider Modules (src/providers/)
+### Engine Modules (src/engines/)
 
-- `base.ts` - Provider interface and shared utilities
-- `ollama.ts` - Local Ollama provider (privacy-first)
-- `anthropic.ts` - Anthropic Claude provider
-- `google.ts` - Google Gemini provider
-- `index.ts` - Provider factory with automatic fallback
+- `index.ts` - `interpretReport`: runs the chosen engine, degrades to a note on failure
+- `claude.ts` - Default engine, shells out to `claude -p` with the user's login
+- `disclosure.ts` - The stderr notice, printed before the call, about where data goes
+- `ollama.ts` - Local engine (opt-in)
+
+### Report Modules (src/report/)
+
+- `terminal.ts`, `markdown.ts` - Text renderers
+- `html.ts`, `html/` - Self-contained HTML report
+- `shared.ts` - Formatting helpers shared by renderers
 
 ### Utility Modules (src/utils/)
 
-- `env.ts` - Environment configuration parsing and validation
-- `paths.ts` - System path constants
-- `terminal.ts` - Terminal output helpers
-- `shell-config.ts` - Shell configuration file management
-- `logger.ts` - Centralized logging utilities
-- `retry.ts` - Retry logic for transient failures
-- `rate-limiter.ts` - Rate limiting for API calls
-- `config-validator.ts` - Configuration health check utilities
-- `project-config.ts` - Project-specific configuration file support (`.hyntxrc`)
+- `paths.ts` - Path constants and their environment overrides
+- `dates.ts`, `text.ts` - Date and text helpers
+- `logger.ts` - Minimal stderr logger (`createLogger`)
+- `atomic-write.ts` - Temp-file-and-rename writes with unique temp names
+- `collections.ts` - Linear `pushTo` for grouping into Maps
+
+### Plugin (outside src/)
+
+- `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` - Claude Code plugin manifest; the repo is its own marketplace
+- `skills/hyntx/SKILL.md` - The `/hyntx:hyntx` skill: a prompt for the session's Claude, which acts as the interpretation layer
+- `skills/hyntx/scripts/run-analyzer.mjs` - Locates a v4 analyzer, runs it without a shell with validated arguments and `--format json --no-llm`, prints a digest and deletes its temp directory; helpers in `analyzer-lib.mjs`
 
 ---
 
 ## Security Rules
 
-**Privacy is critical** - Always sanitize sensitive data:
+**Privacy is critical.** Session logs contain prompts, commands, file contents and tool output.
 
-- Redact API keys (`sk-*`, `claude-*`, `AKIA*`)
-- Redact Bearer tokens, HTTP credentials in URLs
-- Redact email addresses, PEM private keys
-- Pattern: `[REDACTED_<TYPE>]`
+- The session reader sanitizes prompt, command, tool-result and assistant text before truncating them, so the in-memory session model is already redacted for those fields; other fields (titles, file paths, cwd) are not. It is never serialized as is, logged or sent.
+- Everything in a `Report` is sanitized. Detectors sanitize what they put in an episode, and `sanitizeReport` runs over every free-text string again as a safety net, including engine output.
+- Redaction pattern: `[REDACTED_<TYPE>]` (API keys, tokens, URL credentials, PEM keys, emails, personal identifiers). See `src/core/sanitizer.ts`.
+- Engines receive the sanitized `Report`, never sessions.
+- Only aggregate numbers go to `~/.hyntx/`.
+- The CLI never writes to `~/.claude/` or to a project. Applying an action is done by the plugin skill, one change at a time, after the user confirms.
 
-**When to sanitize**:
-
-- Before sending to AI providers
-- Before persisting to disk (history, logs)
-- Before displaying in verbose/debug output
-
-See `src/core/sanitizer.ts` for implementation.
+**What leaves the machine**: nothing with `--no-llm`; with `--engine ollama`, sanitized excerpts go to `OLLAMA_HOST`, which is this machine by default and not necessarily so if the variable is set; with the default `claude` engine, sanitized excerpts go to Anthropic. The CLI prints a notice on stderr before any engine call. Keep README and docs accurate about this when engines change.
 
 ---
 
-## Provider Rules
+## Engine Rules
 
-All providers implement `AnalysisProvider` interface:
+An engine is a function, not a class:
 
 ```typescript
-type AnalysisProvider = {
-  name: string;
-  isAvailable(): Promise<boolean>;
-  analyze(prompts: string[], date: string): Promise<AnalysisResult>;
-};
+type EngineFn = (
+  report: Report,
+  options: InterpretOptions,
+) => Promise<Interpretation | null>;
 ```
 
 **Requirements**:
 
-- Max 5 patterns per analysis
-- Each pattern **must** include `beforeAfter` rewrite example
-- Handle errors gracefully (use fallback chain)
-- Use streaming where available
+- Input is the sanitized `Report`; send only the excerpts needed to judge episodes
+- Output is an `Interpretation`: a verdict per episode (`confirmed`, `rejected`, `unclear`), a summary, optional recommendations that cite the episodes they are based on
+- Engines confirm or reject what the detectors found; they do not invent findings without evidence
+- Return `null` when the engine is unavailable and throw on failure; `interpretReport` turns both into a `dataQuality` note
+- No API keys: the `claude` engine uses the user's Claude Code login, Ollama is local
+- Honour `options.signal`
 
-**Context limits** (for batching):
-
-| Provider  | Tokens/Batch |
-| --------- | ------------ |
-| Ollama    | 30,000       |
-| Anthropic | 100,000      |
-| Google    | 500,000      |
+**Report contract**: `schemaVersion` changes only for breaking changes. Adding fields is not breaking, and consumers (HTML report, plugin skill) must tolerate fields they do not know. When the `Report` shape changes, update `skills/hyntx/SKILL.md` and `docs/SPECS.md`.
 
 ---
 
@@ -308,7 +302,7 @@ All tasks and ideas are managed via **GitHub Issues**. No local files are used f
 
 ## Notes
 
-- **Read `docs/SPECS.md`** before implementing features
-- **Offline-first**: Default to Ollama, fallback to cloud
-- **Actionable**: Always include Before/After rewrites
+- **Read `docs/SPECS.md`** before changing detectors, insights or the `Report`
+- **Deterministic first**: a finding must stand without a model; the LLM step only confirms and phrases
+- **Actionable**: every insight carries evidence and one apply-ready action
 - **This file overrides** global `~/.claude/CLAUDE.md` when conflicts arise

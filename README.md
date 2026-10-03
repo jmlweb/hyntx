@@ -1,1042 +1,197 @@
 # Hyntx
 
-**Hyntx** is a CLI tool that analyzes your Claude Code prompts and helps you become a better prompt engineer through retrospective analysis and actionable feedback.
-
 [![npm version](https://img.shields.io/npm/v/hyntx.svg)](https://www.npmjs.com/package/hyntx)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22.0.0-brightgreen.svg)](https://nodejs.org/)
 
-> 🧪 **BETA**: This project is functional but still evolving. Feedback and contributions welcome!
+Hyntx reads your Claude Code session logs and tells you where your sessions cost you time, with the evidence and a fix you can apply.
 
-## What is Hyntx?
+It looks at what actually happened in each session, not at how your prompts are worded: the times you corrected Claude, interrupted it, watched the same command fail in a loop, hit a blocked tool, re-explained the same thing in three sessions, or ran the same read-only command again and again in a mode that can prompt. Each finding comes with counts, quoted examples and one concrete action: a rule for `CLAUDE.md`, a permission entry for `settings.json`, a slash command file, a prompting habit or a workflow change.
 
-Hyntx reads your Claude Code conversation logs and uses AI to detect common prompt engineering anti-patterns. It provides you with:
+> Hyntx 4 is a rewrite. Versions up to 3 sent the text of your prompts to a model and returned prompt-writing advice. If you are upgrading, read [Migrating from v3](#migrating-from-v3).
 
-- **Pattern detection**: Identifies recurring issues in your prompts (missing context, vague instructions, etc.)
-- **Actionable suggestions**: Specific recommendations with concrete "Before/After" rewrites
-- **Privacy-first**: Automatically redacts secrets and defaults to local AI (Ollama)
-- **Zero configuration**: Interactive setup on first run with auto-save to shell config
+## How it differs
 
-Think of it as a **retrospective code review for your prompts**.
+**From prompt linting.** A prompt linter judges the text of a prompt. Hyntx judges outcomes: a short prompt that worked is fine, and a careful prompt that led to four corrections is a finding.
 
-## Features
+**From Claude Code's `/insights`.** Claude Code has a built-in [`/insights`](https://code.claude.com/docs/en/costs#analyze-your-usage-patterns) command that has a model read your recent sessions and writes a narrative HTML report. Hyntx overlaps with it and is built differently:
 
-- **Offline-first analysis** with local Ollama (privacy-friendly, cost-free)
-- **Multi-provider support**: Ollama (local), Anthropic Claude, Google Gemini with automatic fallback
-- **Before/After rewrites**: Concrete examples showing how to improve your prompts
-- **Automatic secret redaction**: API keys, emails, tokens, credentials
-- **Flexible date filtering**: Analyze today, yesterday, specific dates, or date ranges
-- **Project filtering**: Focus on specific Claude Code projects
-- **Multiple output formats**: Beautiful terminal output or markdown reports
-- **Watch mode**: Real-time monitoring and analysis of prompts as you work
-- **Smart reminders**: Oh-my-zsh style periodic reminders (configurable)
-- **Auto-configuration**: Saves settings to your shell config automatically
-- **Dry-run mode**: Preview what will be analyzed before sending to AI
+- The core is deterministic. Parsing, metrics, friction detection and ranking are plain code; the same logs give the same findings, and the whole analysis runs with no model at all (`--no-llm`).
+- Every finding carries its evidence: how many times, in how many sessions, in which projects, with quoted examples.
+- Every finding ends in an action that is ready to apply (review it first: suggestions are heuristics, and a permission rule in particular should be checked before you paste it), and the [plugin](#claude-code-plugin) applies it for you after you confirm.
+- Output is also available as JSON and markdown, for scripts and for other tools.
+- Daily totals are kept in `~/.hyntx/`, so trends remain after Claude Code deletes old session logs (30 days by default).
 
-## Installation
+## Install and run
 
-### NPM (Global)
+Requires Node.js 22 or later and Claude Code session logs in `~/.claude/projects/`.
 
 ```bash
-npm install -g hyntx
+npx hyntx                 # last 7 days, all projects
+npm install -g hyntx      # or install it
 ```
-
-### NPX (No installation)
 
 ```bash
-npx hyntx
+hyntx --days 30                     # a longer period
+hyntx --project my-app              # one project (substring match)
+hyntx --from 2026-09-01 --to 2026-09-30
+hyntx --no-llm                      # deterministic analysis only
+hyntx --html                        # also write hyntx-report.html
+hyntx --format json > report.json   # machine-readable
 ```
 
-### PNPM
+## Example output
 
-```bash
-pnpm add -g hyntx
-```
-
-## Quick Start
-
-Run Hyntx with a single command:
-
-```bash
-hyntx
-```
-
-On first run, Hyntx will guide you through an interactive setup:
-
-1. Select one or more AI providers (Ollama recommended for privacy)
-2. Configure models and API keys for selected providers
-3. Set reminder preferences
-4. **Auto-save** configuration to your shell (or get manual instructions)
-
-That's it! Hyntx will analyze today's prompts and show you improvement suggestions with concrete "Before/After" examples.
-
-## Usage
-
-### Basic Commands
-
-```bash
-# Analyze today's prompts
-hyntx
-
-# Analyze yesterday
-hyntx --date yesterday
-
-# Analyze a specific date
-hyntx --date 2025-01-20
-
-# Analyze a date range
-hyntx --from 2025-01-15 --to 2025-01-20
-
-# Filter by project name
-hyntx --project my-awesome-app
-
-# Save report to file
-hyntx --output report.md
-
-# Preview without sending to AI
-hyntx --dry-run
-
-# Check reminder status
-hyntx --check-reminder
-
-# Watch mode - real-time analysis
-hyntx --watch
-
-# Watch specific project only
-hyntx --watch --project my-app
-
-# Analysis modes - control speed vs accuracy trade-off
-hyntx --analysis-mode batch      # Fast (default): ~300-400ms/prompt
-hyntx --analysis-mode individual # Accurate: ~1000-1500ms/prompt
-hyntx -m individual              # Short form
-```
-
-### Combining Options
-
-```bash
-# Analyze last week for a specific project
-hyntx --from 2025-01-15 --to 2025-01-22 --project backend-api
-
-# Generate markdown report for yesterday
-hyntx --date yesterday --output yesterday-analysis.md
-
-# Deep analysis with individual mode for critical project
-hyntx -m individual --project production-api --date today
-
-# Fast batch analysis across date range
-hyntx --from 2025-01-15 --to 2025-01-20 --analysis-mode batch -o report.md
-
-# Watch mode with individual analysis (slower but detailed)
-hyntx --watch -m individual --project critical-app
-```
-
-## Configuration
-
-### Analysis Modes
-
-Hyntx offers two analysis modes to balance speed and accuracy based on your needs:
-
-#### Batch Mode (Default)
-
-- **Speed**: ~300-400ms per prompt
-- **Best for**: Daily analysis, quick feedback, large prompt batches
-- **Accuracy**: Good categorization for most use cases
-- **When to use**: Regular check-ins, monitoring prompt quality over time
-
-```bash
-hyntx                          # Uses batch mode by default
-hyntx --analysis-mode batch    # Explicit batch mode
-```
-
-#### Individual Mode
-
-- **Speed**: ~1000-1500ms per prompt
-- **Best for**: Deep analysis, quality-focused reviews, important prompts
-- **Accuracy**: Better categorization and more nuanced pattern detection
-- **When to use**: Learning sessions, preparing critical prompts, detailed audits
-
-```bash
-hyntx --analysis-mode individual  # Use individual mode
-hyntx -m individual               # Short form
-```
-
-#### Quick Mode Comparison
-
-| Mode       | Speed/Prompt | Use Case                   | Accuracy | When to Use                               |
-| ---------- | ------------ | -------------------------- | -------- | ----------------------------------------- |
-| Batch      | ~300-400ms   | Daily analysis, monitoring | Good     | Quick feedback, large datasets            |
-| Individual | ~1-1.5s      | Deep analysis, learning    | Better   | Quality-focused reviews, critical prompts |
-
-**Speedup**: Batch mode is 3-4x faster than individual mode.
-
-**Recommendation**: Use batch mode (default) for daily analysis to get fast feedback. Switch to individual mode when:
-
-- You need detailed, nuanced feedback on each prompt
-- You're learning prompt engineering patterns
-- Analyzing high-stakes or complex prompts
-- Conducting quality audits or teaching sessions
-
-**Performance Note**: Numbers based on `gemma4:e4b` on CPU. Actual speed varies by hardware, model size, and prompt complexity.
-
-**Detailed Guide**: See [Analysis Modes Documentation](./docs/ANALYSIS_MODES.md) for comprehensive comparison, examples, and decision guidelines.
-
-### Rules Configuration
-
-Hyntx allows you to customize which analysis rules are enabled and their severity levels through a `.hyntxrc.json` file in your project root.
-
-#### Available Pattern IDs
-
-- `vague` - Detects vague requests lacking specificity
-- `no-context` - Detects missing background information
-- `too-broad` - Detects overly broad requests that should be broken down
-- `no-goal` - Detects prompts without a clear outcome
-- `imperative` - Detects commands without explanation
-
-#### Configuration Options
-
-For each pattern, you can:
-
-- **Disable**: Set `enabled: false` to skip detection
-- **Override severity**: Set `severity` to `"low"`, `"medium"`, or `"high"`
-
-#### Example Configuration
-
-Create `.hyntxrc.json` in your project root:
-
-```json
-{
-  "rules": {
-    "imperative": {
-      "enabled": false
-    },
-    "vague": {
-      "severity": "high"
-    },
-    "no-context": {
-      "severity": "high"
-    },
-    "too-broad": {
-      "severity": "medium"
-    }
-  }
-}
-```
-
-#### What Happens When Patterns Are Disabled
-
-- **Filtered out**: Disabled patterns are completely excluded from analysis results
-- **No detection**: The AI will not look for those specific issues
-- **Updated stats**: Pattern counts and frequency calculations exclude disabled patterns
-- **Warning**: If all patterns are disabled, you'll see a warning that no analysis will occur
-
-#### How Severity Overrides Work
-
-- **Changed priority**: Patterns are sorted by severity (high → medium → low), then by frequency
-- **Updated display**: The reporter shows severity badges based on your configuration
-- **No effect on detection**: Severity only affects sorting and display, not whether the pattern is detected
-
-#### Configuration Warnings
-
-Hyntx will warn you about:
-
-- **Invalid pattern IDs**: If you specify a pattern ID that doesn't exist
-- **All patterns disabled**: If your configuration disables every pattern
-
-These warnings appear immediately when the configuration is loaded.
-
-### Environment Variables
-
-Hyntx uses environment variables for configuration. The interactive setup can **auto-save** these to your shell config (`~/.zshrc`, `~/.bashrc`).
-
-#### Multi-Provider Configuration
-
-Configure one or more providers in priority order. Hyntx will try each provider in order and fall back to the next if unavailable.
-
-```bash
-# Single provider (Ollama only)
-export HYNTX_SERVICES=ollama
-export HYNTX_OLLAMA_MODEL=gemma4:e4b
-
-# Multi-provider with fallback (tries Ollama first, then Anthropic)
-export HYNTX_SERVICES=ollama,anthropic
-export HYNTX_OLLAMA_MODEL=gemma4:e4b
-export HYNTX_ANTHROPIC_KEY=sk-ant-your-key-here
-
-# Cloud-first with local fallback
-export HYNTX_SERVICES=anthropic,ollama
-export HYNTX_ANTHROPIC_KEY=sk-ant-your-key-here
-export HYNTX_OLLAMA_MODEL=gemma4:e4b
-```
-
-#### Provider-Specific Variables
-
-**Ollama:**
-
-| Variable             | Default                  | Description       |
-| -------------------- | ------------------------ | ----------------- |
-| `HYNTX_OLLAMA_MODEL` | `gemma4:e4b`             | Model to use      |
-| `HYNTX_OLLAMA_HOST`  | `http://localhost:11434` | Ollama server URL |
-
-**Anthropic:**
-
-| Variable                | Default                   | Description        |
-| ----------------------- | ------------------------- | ------------------ |
-| `HYNTX_ANTHROPIC_MODEL` | `claude-3-5-haiku-latest` | Model to use       |
-| `HYNTX_ANTHROPIC_KEY`   | -                         | API key (required) |
-
-**Google:**
-
-| Variable             | Default                | Description        |
-| -------------------- | ---------------------- | ------------------ |
-| `HYNTX_GOOGLE_MODEL` | `gemini-2.0-flash-exp` | Model to use       |
-| `HYNTX_GOOGLE_KEY`   | -                      | API key (required) |
-
-#### Reminder Settings
-
-```bash
-# Set reminder frequency (7d, 14d, 30d, or never)
-export HYNTX_REMINDER=7d
-```
-
-#### Complete Example
-
-```bash
-# Add to ~/.zshrc or ~/.bashrc (or let Hyntx auto-save it)
-export HYNTX_SERVICES=ollama,anthropic
-export HYNTX_OLLAMA_MODEL=gemma4:e4b
-export HYNTX_ANTHROPIC_KEY=sk-ant-your-key-here
-export HYNTX_REMINDER=14d
-
-# Optional: Enable periodic reminders
-hyntx --check-reminder 2>/dev/null
-```
-
-Then reload your shell:
-
-```bash
-source ~/.zshrc  # or source ~/.bashrc
-```
-
-## AI Provider Setup
-
-### Ollama (Recommended)
-
-Ollama runs AI models locally for **privacy and cost savings**.
-
-1. Install Ollama: [ollama.ai](https://ollama.ai)
-2. Pull a model:
-
-   ```bash
-   ollama pull gemma4:e4b
-   ```
-
-3. Verify it's running:
-
-   ```bash
-   ollama list
-   ```
-
-4. Run Hyntx (it will auto-configure on first run):
-
-   ```bash
-   hyntx
-   ```
-
-### Anthropic Claude
-
-1. Get API key from [console.anthropic.com](https://console.anthropic.com/)
-2. Run Hyntx and select Anthropic during setup, or set manually:
-
-   ```bash
-   export HYNTX_SERVICES=anthropic
-   export HYNTX_ANTHROPIC_KEY=sk-ant-your-key-here
-   ```
-
-### Google Gemini
-
-1. Get API key from [ai.google.dev](https://ai.google.dev)
-2. Run Hyntx and select Google during setup, or set manually:
-
-   ```bash
-   export HYNTX_SERVICES=google
-   export HYNTX_GOOGLE_KEY=your-google-api-key
-   ```
-
-### Using Multiple Providers
-
-Configure multiple providers for automatic fallback:
-
-```bash
-# If Ollama is down, automatically try Anthropic
-export HYNTX_SERVICES=ollama,anthropic
-export HYNTX_OLLAMA_MODEL=gemma4:e4b
-export HYNTX_ANTHROPIC_KEY=sk-ant-your-key-here
-```
-
-When running, Hyntx will show fallback behavior:
+An illustrative, shortened report in the shape `hyntx --days 30 --no-llm` prints (project and file names are made up):
 
 ```text
-⚠️  ollama unavailable, trying anthropic...
-✅ anthropic connected
+hyntx  2026-09-04 to 2026-10-03 (30 days) - all projects
+
+14 sessions  45 typed prompts  645 tool calls (1.6% errors)
+98.3M tokens (97% cache hits, 468.9k output)  0 interruptions  0 compactions
+
+Top insights (3 of 6)
+
+1. [MEDIUM] A hook keeps blocking Bash: "Use 'trash' instead of 'rm'"
+   A PreToolUse hook blocked 4 calls with the same message in 4 sessions in shop.
+   evidence: 4 in 4 sessions; e.g. "… touch /var/www/html/.t && cleanup /var/www/html/.t …" (shop, 2026-09-19)
+   do: Add to CLAUDE.md in project "shop"
+      - A hook blocks commands that break this rule: "Use 'trash' instead of 'rm'".
+        Follow it on the first attempt instead of retrying the blocked command.
+
+2. [LOW] Read-only commands that may be worth allowing
+   1 read-only command ran 6 times in permission modes that can prompt (top: Bash(gh pr view *)).
+   do: Allow in ~/.claude/settings.json
+      { "permissions": { "allow": ["Bash(gh pr view *)"] } }
+
+3. [LOW] `bin/sync` was reworked repeatedly
+   `bin/sync` was edited 6 times across 3 of your prompts, with 2 tool failures in between (plan mode was not used).
+   do: Plan before editing: agree on the exact changes first, then execute.
+
+Metrics
+  Projects shop 38, printing 3, hyntx 1
+  Tools    Bash 476 (8 err), Write 26, Edit 18, Read 14
+  Sessions median 4m, p90 38m
 ```
 
-## Example Output
+With too little data (fewer than 3 sessions or 10 typed prompts) Hyntx says so instead of producing findings.
 
-```text
-📊 Hyntx - 2025-01-20
-──────────────────────────────────────────────────
+## Claude Code plugin
 
-📈 Statistics
-   Prompts: 15
-   Projects: my-app, backend-api
-   Score: 6.5/10
-
-⚠️  Patterns (3)
-
-🔴 Missing Context (60%)
-   • "Fix the bug in auth"
-   • "Update the component"
-   💡 Include specific error messages, framework versions, and file paths
-
-   Before:
-   ❌ "Fix the bug in auth"
-   After:
-   ✅ "Fix authentication bug in src/auth/login.ts where users get
-      'Invalid token' error. Using Next.js 14.1.0 with next-auth 4.24.5."
-
-🟡 Vague Instructions (40%)
-   • "Make it better"
-   • "Improve this"
-   💡 Define specific success criteria and expected outcomes
-
-   Before:
-   ❌ "Make it better"
-   After:
-   ✅ "Optimize the database query to reduce response time from 500ms
-      to under 100ms. Focus on adding proper indexes."
-
-──────────────────────────────────────────────────
-💎 Top Suggestion
-   "Add error messages and stack traces to debugging requests for
-    10x faster resolution."
-──────────────────────────────────────────────────
-```
-
-## MCP Integration
-
-Hyntx can run as a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server, enabling real-time prompt analysis directly within MCP-compatible clients like Claude Code.
-
-### Quick Setup
-
-Add hyntx to your Claude Code MCP configuration. You have two options:
-
-#### Option 1: User-scoped (Recommended)
-
-Configuration visible only to you, stored in `~/.claude.json`:
+The plugin adds the `/hyntx:hyntx` command to Claude Code. It runs the same analyzer with `--no-llm` and lets the Claude in your session do the interpretation: it checks each detected episode against its context, discards the ones that are not real friction, shows you the few findings that matter and offers to apply the fixes. It shows the exact change and asks before every write, and it does not add a rule that is already there. The runner validates its arguments, never uses a shell, and deletes the temporary report it writes before it exits.
 
 ```bash
-# Add using Claude Code CLI
-claude mcp add hyntx
-
-# Or manually edit ~/.claude.json
+claude plugin marketplace add jmlweb/hyntx
+claude plugin install hyntx@hyntx
 ```
 
-```json
-{
-  "mcpServers": {
-    "hyntx": {
-      "command": "hyntx",
-      "args": ["--mcp-server"]
-    }
-  }
-}
-```
-
-#### Option 2: Project-scoped
-
-Configuration shared with your team via Git, stored in `.mcp.json` at your project root:
-
-```json
-{
-  "mcpServers": {
-    "hyntx": {
-      "command": "hyntx",
-      "args": ["--mcp-server"]
-    }
-  }
-}
-```
-
-After adding the configuration, restart your Claude Code session. The hyntx tools will be available in your conversations.
-
-### Prerequisites
-
-- **Hyntx installed globally**: `npm install -g hyntx`
-- **AI provider configured**: Set up Ollama (recommended) or cloud providers via environment variables
-
-If using Ollama (recommended for privacy):
-
-```bash
-# Ensure Ollama is running
-ollama serve
-
-# Pull a model if needed
-ollama pull gemma4:e4b
-
-# Set environment variables (add to ~/.zshrc or ~/.bashrc)
-export HYNTX_SERVICES=ollama
-export HYNTX_OLLAMA_MODEL=gemma4:e4b
-```
-
-### Available MCP Tools
-
-Hyntx exposes three tools through the MCP interface:
-
-#### analyze-prompt
-
-Analyze a prompt to detect anti-patterns, issues, and get improvement suggestions.
-
-**Input Schema:**
-
-| Parameter | Type   | Required | Description                                           |
-| --------- | ------ | -------- | ----------------------------------------------------- |
-| `prompt`  | string | Yes      | The prompt text to analyze                            |
-| `date`    | string | No       | Date context in ISO format. Defaults to current date. |
-
-**Example Output:**
-
-```json
-{
-  "patterns": [
-    {
-      "id": "no-context",
-      "name": "Missing Context",
-      "severity": "high",
-      "frequency": "100%",
-      "suggestion": "Include specific error messages and file paths",
-      "examples": ["Fix the bug in auth"]
-    }
-  ],
-  "stats": {
-    "promptCount": 1,
-    "overallScore": 4.5
-  },
-  "topSuggestion": "Add error messages and stack traces for faster resolution"
-}
-```
-
-#### suggest-improvements
-
-Get concrete before/after rewrites showing how to improve a prompt.
-
-**Input Schema:**
-
-| Parameter | Type   | Required | Description                                           |
-| --------- | ------ | -------- | ----------------------------------------------------- |
-| `prompt`  | string | Yes      | The prompt text to analyze for improvements           |
-| `date`    | string | No       | Date context in ISO format. Defaults to current date. |
-
-**Example Output:**
-
-```json
-{
-  "improvements": [
-    {
-      "issue": "Missing Context",
-      "before": "Fix the bug in auth",
-      "after": "Fix authentication bug in src/auth/login.ts where users get 'Invalid token' error. Using Next.js 14.1.0 with next-auth 4.24.5.",
-      "suggestion": "Include specific error messages, framework versions, and file paths"
-    }
-  ],
-  "summary": "Found 1 improvement(s)",
-  "topSuggestion": "Add error messages and stack traces for faster resolution"
-}
-```
-
-#### check-context
-
-Verify if a prompt has sufficient context for effective AI interaction.
-
-**Input Schema:**
-
-| Parameter | Type   | Required | Description                                           |
-| --------- | ------ | -------- | ----------------------------------------------------- |
-| `prompt`  | string | Yes      | The prompt text to check for context                  |
-| `date`    | string | No       | Date context in ISO format. Defaults to current date. |
-
-**Example Output:**
-
-```json
-{
-  "hasSufficientContext": false,
-  "score": 4.5,
-  "issues": ["Missing Context", "Vague Instructions"],
-  "suggestion": "Include specific error messages and file paths",
-  "details": "Prompt lacks sufficient context for effective AI interaction"
-}
-```
-
-### Usage Examples
-
-Once configured, you can use these tools in your Claude Code conversations:
-
-**Analyze a prompt before sending:**
+Then, in a session:
 
 ```text
-Use the analyze-prompt tool to check: "Fix the login bug"
+/hyntx:hyntx                     # last 30 days, all projects
+/hyntx:hyntx 14d                 # a period
+/hyntx:hyntx 60d my-app          # a period and a project
 ```
 
-**Get improvement suggestions:**
+The command is `/hyntx:hyntx` (plugin name, then skill name); Claude Code may also accept the short `/hyntx` when nothing else uses that name.
 
-```text
-Use suggest-improvements on: "Make the API faster"
-```
+The plugin needs a Hyntx 4 analyzer. It uses, in order: the path in `HYNTX_CLI`, a built checkout that contains the plugin, a globally installed `hyntx` (version 4 or later), and finally `npx hyntx@4`. To try the plugin from a checkout before installing it, see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#testing-the-plugin-locally).
 
-**Check if your prompt has enough context:**
+## Interpretation engines and privacy
 
-```text
-Use check-context to verify: "Update the component to handle errors"
-```
+Reading the logs, computing metrics, detecting friction and ranking insights all happen on your machine and never modify Claude Code's files. Hyntx reads `~/.claude/projects/**/*.jsonl` and, to avoid suggesting permissions you already have, the `permissions` in your Claude Code settings files.
 
-### MCP Server Troubleshooting
+After that, an optional interpretation step asks a model to confirm or reject the heuristic episodes (corrections in particular are guessed from phrasing) and to write a short summary. What leaves your machine depends on the engine:
 
-#### "Server failed to start"
+| Engine             | Flag              | What is sent, and where                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------------------ | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `claude` (default) | none              | Sanitized excerpts of the report (counts, up to 8 insights, and up to 16 flagged episodes with their summary and a 220-character excerpt of the prompt, the previous prompt and the assistant's last text) go to Anthropic through `claude -p`, using your existing Claude Code login. It uses your plan or API usage like any other Claude Code request. A bare run prints a notice about this on stderr before the call. |
+| `ollama`           | `--engine ollama` | A smaller selection (8 episodes, 140 characters each) goes to the Ollama server at `OLLAMA_HOST` (default `http://localhost:11434`). That stays on your machine unless you point `OLLAMA_HOST` elsewhere, in which case it leaves the machine and hyntx warns you.                                                                                                                                                         |
+| none               | `--no-llm`        | Nothing is sent anywhere. You get the deterministic findings, and heuristic ones are marked as unconfirmed.                                                                                                                                                                                                                                                                                                                |
 
-1. Verify hyntx is installed globally:
+Sanitized means that API keys, tokens, credentials in URLs and on command lines, private keys, email addresses and common personal identifiers are replaced with `[REDACTED_<TYPE>]` before text is put in a report, sent to an engine or written to disk, and that terminal escape sequences are removed. Redaction is pattern-based: it catches well-known formats, not every possible secret, and it can hide harmless text that looks like an identifier. Treat a report like any file that may mention your projects.
 
-   ```bash
-   which hyntx
-   # Should output: /usr/local/bin/hyntx or similar
-   ```
+If the engine is not available (no `claude` on the PATH, Ollama not running), Hyntx still prints the deterministic report and notes that interpretation was skipped. The model sees only some of the episodes, so a verdict covers part of an insight: an insight is hidden as dismissed only when every episode behind it was rejected, and otherwise it shows how many were reviewed.
 
-2. Test manual startup:
+The `/hyntx:hyntx` plugin always runs the analyzer with `--no-llm`. The findings it reads are then part of your Claude Code conversation, like any other tool output in that session.
 
-   ```bash
-   hyntx --mcp-server
-   # Should output: MCP server running on stdio
-   ```
+## Options
 
-3. Check environment variables are set (if using cloud providers):
+| Flag               | Description                                                   |
+| ------------------ | ------------------------------------------------------------- |
+| `--days <n>`       | Analyze the last n days (default: 7)                          |
+| `--from <date>`    | Start date: `YYYY-MM-DD`, `today` or `yesterday`              |
+| `--to <date>`      | End date, inclusive (default: now)                            |
+| `--project <name>` | Only projects whose name contains `<name>`                    |
+| `--format <fmt>`   | `terminal` (default), `json`, `markdown`                      |
+| `--output <file>`  | Write the report to a file instead of stdout                  |
+| `--html [path]`    | Also write a self-contained HTML report (`hyntx-report.html`) |
+| `--no-llm`         | Skip the interpretation step                                  |
+| `--engine <name>`  | `claude` (default) or `ollama`                                |
+| `--model <name>`   | Model for the interpretation engine                           |
+| `--verbose`        | Debug logging on stderr                                       |
+| `--help`, `-h`     | Show help                                                     |
+| `--version`, `-v`  | Show version                                                  |
 
-   ```bash
-   echo $HYNTX_SERVICES
-   echo $HYNTX_ANTHROPIC_KEY  # if using Anthropic
-   ```
+`--days` cannot be combined with `--from`/`--to`. With `--format json`, stdout contains only the report JSON; progress and logs go to stderr. Exit codes: `0` success, `1` error, `2` no logs or no sessions for the period.
 
-#### "Analysis failed: Provider not available"
+Full reference: [docs/CLI.md](docs/CLI.md).
 
-1. If using Ollama, ensure it's running:
+## What it writes to disk
 
-   ```bash
-   ollama list
-   # If no output, start Ollama:
-   ollama serve
-   ```
+- `~/.hyntx/daily.json`: one record per day with aggregate numbers only (sessions, prompts, tool calls, errors, tokens and similar). No prompt text, no file names. It is updated on every run that is not filtered by project (including plugin runs), and it is what keeps trends available after Claude Code prunes old logs.
+- The files you ask for: `--output <file>` and `--html [path]`.
+- Temporary files while writing (a uniquely named `*.tmp` next to the target, renamed into place). If `daily.json` cannot be parsed it is renamed to `daily.json.corrupt`.
+- The plugin runner writes the full report to a private temp directory and deletes it before it exits.
 
-2. If using cloud providers, verify API keys are set:
+Nothing else. Hyntx never writes to `~/.claude/` or to your projects. Only the plugin edits `CLAUDE.md`, settings or command files, one change at a time, after you approve each one.
 
-   ```bash
-   # Check if keys are configured
-   env | grep HYNTX_
-   ```
+Set `HYNTX_HOME` to move `~/.hyntx/`, and `HYNTX_CLAUDE_PROJECTS_DIR` to read logs from another location. `OLLAMA_HOST` selects the Ollama server for `--engine ollama`.
 
-#### "Tools not appearing in Claude Code"
+## Status and limits
 
-1. Restart Claude Code completely after config changes
-2. Verify the config file exists and is in the correct location:
-   - User-scoped: `~/.claude.json`
-   - Project-scoped: `.mcp.json` (in project root)
-3. Check JSON syntax in the config file:
+Hyntx 4 is new and has been exercised on a small set of real logs.
 
-   ```bash
-   # Verify user-scoped config
-   cat ~/.claude.json | jq .
+- Findings are heuristics. Corrections in particular are guessed from phrasing; without an interpretation step they are marked unconfirmed, and the detector prefers missing a correction to inventing one.
+- The log format is Claude Code's own and changes between versions. Unknown record types are counted and skipped, and `dataQuality.notes` in the report says what was not understood. Interruptions, user rejections and compactions are parsed from formats that the test fixtures model but that have not all been checked against real logs.
+- Permission suggestions are limited to a short list of read-only commands, so many users will see none.
+- With `--engine ollama` and a small model, verdicts are less reliable than with the default engine and can differ between runs.
+- No cost figures: tokens only.
 
-   # Or verify project-scoped config
-   cat .mcp.json | jq .
+Open items are tracked in [docs/TECHNICAL_DEBT.md](docs/TECHNICAL_DEBT.md).
 
-   # Or use Claude Code CLI to list MCP servers
-   claude mcp list
-   ```
+## Migrating from v3
 
-#### "Slow responses"
+Hyntx 4 does a different job, and most of v3 was removed rather than ported.
 
-- Local Ollama models are fastest but require GPU for best performance
-- Consider using a faster model: `export HYNTX_OLLAMA_MODEL=gemma4:e2b`
-- Cloud providers (Anthropic, Google) offer faster responses but require API keys
+Removed:
 
-## Privacy & Security
+- Prompt-quality analysis: anti-pattern detection, the rules engine and its issue taxonomy, Before/After prompt rewrites
+- Cloud providers called with API keys (Anthropic, Google Gemini), the provider fallback chain and rate limiting
+- The interactive setup wizard and all shell-config editing; there is nothing to configure
+- All `HYNTX_*` provider, model and API-key environment variables, and `.hyntxrc.json` project configuration
+- Watch mode (`--watch`), periodic reminders (`--check-reminder`), `--dry-run`, `--date` and `--analysis-mode`
+- The MCP server (`--mcp-server`)
+- The results cache and per-run history under `~/.hyntx/` (`results/` and `history/` can be deleted)
+- Exit code `3`
 
-Hyntx takes your privacy seriously:
+Changed:
 
-- **Local-first**: Defaults to Ollama for offline analysis
-- **Automatic redaction**: Removes API keys, credentials, emails, tokens before analysis
-- **Read-only**: Never modifies your Claude Code logs
-- **No telemetry**: Hyntx doesn't send usage data anywhere
-
-### What Gets Redacted?
-
-- OpenAI/Anthropic API keys (`sk-*`, `claude-*`)
-- AWS credentials (`AKIA*`, secret keys)
-- Bearer tokens
-- HTTP credentials in URLs
-- Email addresses
-- Private keys (PEM format)
-
-## How It Works
-
-1. **Read logs**: Parses Claude Code conversation logs from `~/.claude/projects/`
-2. **Extract prompts**: Filters user messages from conversations
-3. **Sanitize**: Redacts sensitive information automatically
-4. **Analyze**: Sends sanitized prompts to AI provider for pattern detection
-5. **Report**: Displays findings with examples and suggestions
-
-## Requirements
-
-- **Node.js**: 22.0.0 or higher
-- **Claude Code**: Must have Claude Code installed and at least one conversation
-- **AI Provider**: At least one of the following:
-  - **Ollama** (recommended for privacy and cost savings)
-  - **Anthropic Claude** API key
-  - **Google Gemini** API key
-
-### Ollama Model Requirements
-
-For local analysis with Ollama, you need to have a compatible model installed. See [docs/MINIMUM_VIABLE_MODEL.md](docs/MINIMUM_VIABLE_MODEL.md) for detailed recommendations and performance benchmarks.
-
-**Quick picks**:
-
-| Use Case            | Model         | Parameters | Disk Size | Speed (CPU)    | Quality   |
-| ------------------- | ------------- | ---------- | --------- | -------------- | --------- |
-| **Daily use**       | `gemma4:e4b`  | ~5GB Q4    | ~5GB      | ~3-7s/prompt   | Good      |
-| **Production**      | `mistral:7b`  | 7B         | ~4GB      | ~5-10s/prompt  | Better    |
-| **Maximum quality** | `qwen2.5:14b` | 14B        | ~9GB      | ~15-30s/prompt | Excellent |
-
-**Installation**:
-
-```bash
-# Install recommended model (gemma4:e4b)
-ollama pull gemma4:e4b
-
-# Or choose a different model
-ollama pull mistral:7b
-ollama pull qwen2.5:14b
-```
-
-For complete model comparison, compatibility info, and performance notes, see the [Model Requirements documentation](docs/MINIMUM_VIABLE_MODEL.md).
-
-## Troubleshooting
-
-### "No Claude Code logs found"
-
-Make sure you've used Claude Code at least once. Logs are stored in:
-
-```text
-~/.claude/projects/<project-hash>/logs.jsonl
-```
-
-### "Ollama connection failed"
-
-1. Check Ollama is running: `ollama list`
-2. Start Ollama: `ollama serve`
-3. Verify the host: `echo $HYNTX_OLLAMA_HOST` (default: `http://localhost:11434`)
-
-### "No prompts found for date range"
-
-- Check the date format: `YYYY-MM-DD`
-- Verify you used Claude Code on those dates
-- Try `--dry-run` to see what logs are being read
-
-## Programmatic API
-
-Hyntx can also be used as a library in your Node.js applications for custom integrations, CI/CD pipelines, or building tooling on top of the analysis engine.
-
-### Installation
-
-```bash
-npm install hyntx
-# or
-pnpm add hyntx
-```
-
-### Basic Usage
-
-```typescript
-import {
-  analyzePrompts,
-  sanitizePrompts,
-  readLogs,
-  createProvider,
-  getEnvConfig,
-  type AnalysisResult,
-  type ExtractedPrompt,
-} from 'hyntx';
-
-// Read Claude Code logs for a specific date
-const { prompts } = await readLogs({ date: 'today' });
-
-// Sanitize prompts to remove secrets
-const { prompts: sanitizedTexts } = sanitizePrompts(
-  prompts.map((p: ExtractedPrompt) => p.content),
-);
-
-// Get environment configuration
-const config = getEnvConfig();
-
-// Create an AI provider
-const provider = await createProvider('ollama', config);
-
-// Analyze the prompts
-const result: AnalysisResult = await analyzePrompts({
-  provider,
-  prompts: sanitizedTexts,
-  date: '2025-12-26',
-});
-
-// Use the results
-console.log(`Overall score: ${result.stats.overallScore}/10`);
-console.log(`Patterns detected: ${result.patterns.length}`);
-
-result.patterns.forEach((pattern) => {
-  console.log(`- ${pattern.name}: ${pattern.severity}`);
-  console.log(`  Suggestion: ${pattern.suggestion}`);
-});
-```
-
-### Advanced Examples
-
-**CI/CD Integration** - Fail builds when prompt quality drops below threshold:
-
-```typescript
-import { analyzePrompts, readLogs, createProvider, getEnvConfig } from 'hyntx';
-
-const config = getEnvConfig();
-const provider = await createProvider('ollama', config);
-const { prompts } = await readLogs({ date: 'today' });
-
-const result = await analyzePrompts({
-  provider,
-  prompts: prompts.map((p) => p.content),
-  date: new Date().toISOString().split('T')[0],
-});
-
-// Fail CI if quality score is too low
-const QUALITY_THRESHOLD = 7.0;
-if (result.stats.overallScore < QUALITY_THRESHOLD) {
-  console.error(
-    `Quality score ${result.stats.overallScore} below threshold ${QUALITY_THRESHOLD}`,
-  );
-  process.exit(1);
-}
-```
-
-**Custom Analysis** - Analyze specific prompts without reading logs:
-
-```typescript
-import { analyzePrompts, createProvider, getEnvConfig } from 'hyntx';
-
-const config = getEnvConfig();
-const provider = await createProvider('anthropic', config);
-
-const customPrompts = [
-  'Fix the bug',
-  'Make it better',
-  'Refactor the authentication module to use JWT tokens instead of sessions',
-];
-
-const result = await analyzePrompts({
-  provider,
-  prompts: customPrompts,
-  date: '2025-12-26',
-  context: {
-    role: 'developer',
-    techStack: ['TypeScript', 'React', 'Node.js'],
-  },
-});
-
-console.log(result.patterns);
-```
-
-**History Management** - Track analysis over time:
-
-```typescript
-import {
-  analyzePrompts,
-  saveAnalysisResult,
-  loadAnalysisResult,
-  compareResults,
-  type HistoryMetadata,
-} from 'hyntx';
-
-// Run analysis
-const result = await analyzePrompts({
-  /* ... */
-});
-
-// Save to history
-const metadata: HistoryMetadata = {
-  date: '2025-12-26',
-  promptCount: result.stats.promptCount,
-  score: result.stats.overallScore,
-  projectFilter: undefined,
-  provider: 'ollama',
-};
-await saveAnalysisResult(result, metadata);
-
-// Load previous analysis
-const previousResult = await loadAnalysisResult('2025-12-19');
-
-// Compare results
-const comparison = await compareResults('2025-12-19', '2025-12-26');
-console.log(
-  `Score change: ${comparison.scoreChange > 0 ? '+' : ''}${comparison.scoreChange}`,
-);
-```
-
-### API Reference
-
-#### Core Functions
-
-- **`analyzePrompts(options: AnalysisOptions): Promise<AnalysisResult>`** - Analyze prompts and detect anti-patterns
-- **`readLogs(options?: ReadLogsOptions): Promise<LogReadResult>`** - Read Claude Code conversation logs
-- **`sanitize(text: string): SanitizeResult`** - Remove secrets from a single text
-- **`sanitizePrompts(prompts: string[]): { prompts: string[]; totalRedacted: number }`** - Remove secrets from multiple prompts
-
-#### Provider Functions
-
-- **`createProvider(type: ProviderType, config: EnvConfig): Promise<AnalysisProvider>`** - Create an AI provider instance
-- **`getAvailableProvider(config: EnvConfig, onFallback?: Function): Promise<AnalysisProvider>`** - Get first available provider with fallback
-- **`getAllProviders(services: string[], config: EnvConfig): AnalysisProvider[]`** - Get all configured providers
-
-#### History Functions
-
-- **`saveAnalysisResult(result: AnalysisResult, metadata: HistoryMetadata): Promise<void>`** - Save analysis to history
-- **`loadAnalysisResult(date: string): Promise<HistoryEntry | null>`** - Load analysis from history
-- **`listAvailableDates(): Promise<string[]>`** - Get list of dates with saved analyses
-- **`compareResults(beforeDate: string, afterDate: string): Promise<ComparisonResult>`** - Compare two analyses
-
-#### Utility Functions
-
-- **`getEnvConfig(): EnvConfig`** - Get environment configuration
-- **`claudeProjectsExist(): boolean`** - Check if Claude projects directory exists
-- **`parseDate(dateStr: string): Date`** - Parse date string to Date object
-- **`groupByDay(prompts: ExtractedPrompt[]): DayGroup[]`** - Group prompts by day
-
-#### Cache Functions
-
-- **`generateCacheKey(config: CacheKeyConfig): string`** - Generate cache key for analysis
-- **`getCachedResult(cacheKey: string): Promise<AnalysisResult | null>`** - Get cached result
-- **`setCachedResult(cacheKey: string, result: AnalysisResult, ttlMinutes?: number): Promise<void>`** - Cache analysis result
-
-### TypeScript Support
-
-Hyntx is written in TypeScript and provides full type definitions. All types are exported:
-
-```typescript
-import type {
-  AnalysisResult,
-  AnalysisPattern,
-  AnalysisStats,
-  ExtractedPrompt,
-  ProviderType,
-  EnvConfig,
-  HistoryEntry,
-  ComparisonResult,
-} from 'hyntx';
-```
-
-See the TypeScript definitions for complete API documentation.
+- Input is the whole session (turns, tool calls, results, interruptions, compactions), not just prompt text
+- Ollama is opt-in (`--engine ollama`) instead of the default; the default engine is your own Claude Code login, and `--no-llm` needs no model
+- `--format json` now prints a versioned `Report` object (`schemaVersion: 1`); the v3 JSON shape is gone
+- The library entry point exports the v4 pipeline (`readSessions`, `buildReport`, `interpretReport`, renderers); the v3 API is gone
 
 ## Development
 
-### Setup
-
 ```bash
-# Clone the repository
-git clone https://github.com/jmlweb/hyntx.git
-cd hyntx
-
-# Install dependencies
 pnpm install
-
-# Run in development mode
-pnpm dev
-
-# Build
 pnpm build
-
-# Test the CLI
-pnpm start
+pnpm check && pnpm test
 ```
 
-### Project Structure
-
-```text
-hyntx/
-├── src/
-│   ├── index.ts              # Library entry point (re-exports api/)
-│   ├── cli.ts                # CLI entry point
-│   ├── api/
-│   │   └── index.ts          # Public API surface
-│   ├── core/                 # Core business logic
-│   │   ├── setup.ts         # Interactive setup (multi-provider)
-│   │   ├── reminder.ts      # Reminder system
-│   │   ├── log-reader.ts    # Log parsing
-│   │   ├── schema-validator.ts # Log schema validation
-│   │   ├── sanitizer.ts     # Secret redaction
-│   │   ├── analyzer.ts      # Analysis orchestration + batching
-│   │   ├── reporter.ts      # Output formatting (Before/After)
-│   │   ├── watcher.ts       # Real-time log file monitoring
-│   │   └── history.ts       # Analysis history management
-│   ├── providers/            # AI providers
-│   │   ├── base.ts          # Interface & prompts
-│   │   ├── ollama.ts        # Ollama integration
-│   │   ├── anthropic.ts     # Claude integration
-│   │   ├── google.ts        # Gemini integration
-│   │   └── index.ts         # Provider factory with fallback
-│   ├── utils/               # Utility functions
-│   │   ├── env.ts           # Environment config
-│   │   ├── shell-config.ts  # Shell auto-configuration
-│   │   ├── paths.ts         # System path constants
-│   │   ├── logger-base.ts   # Base logger (no CLI deps)
-│   │   ├── logger.ts        # CLI logger (with chalk)
-│   │   └── terminal.ts      # Terminal utilities
-│   └── types/
-│       └── index.ts         # TypeScript type definitions
-├── docs/
-│   └── SPECS.md             # Technical specifications
-└── package.json
-```
-
-## Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes using Conventional Commits
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## Roadmap
-
-For detailed development roadmap, planned features, and implementation status, see [GitHub Issues](https://github.com/jmlweb/hyntx/issues) and [GitHub Projects](https://github.com/jmlweb/hyntx/projects).
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [AGENTS.md](AGENTS.md).
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- Built for [Claude Code](https://claude.com/claude-code) users
-- Inspired by retrospective practices in Agile development
-- Privacy-first approach inspired by local-first software movement
-
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/jmlweb/hyntx/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/jmlweb/hyntx/discussions)
-
----
-
-**Made with ❤️ for better prompt engineering**
+MIT
