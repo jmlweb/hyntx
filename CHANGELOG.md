@@ -1,3 +1,9 @@
+## [3.1.1](https://github.com/jmlweb/hyntx/compare/v3.1.0...v3.1.1) (2026-10-03)
+
+### Bug Fixes
+
+- **log-reader:** broaden confirmation detection beyond trailing question mark ([193d36b](https://github.com/jmlweb/hyntx/commit/193d36b256d6507325d15d6218a735c9bb5f7a9c))
+
 ## [3.1.0](https://github.com/jmlweb/hyntx/compare/v3.0.2...v3.1.0) (2026-07-13)
 
 ### Features
