@@ -1,6 +1,6 @@
 {
   "name": "hyntx",
-  "version": "3.1.1",
+  "version": "4.0.0",
   "description": "CLI that turns Claude Code session logs into evidence-backed insights and apply-ready actions",
   "type": "module",
   "packageManager": "pnpm@9.15.4",
