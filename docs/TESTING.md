@@ -48,3 +48,5 @@ pnpm build && node dist/cli.js --days 30 --no-llm
 ```
 
 Look for findings you disagree with, text that should have been redacted, and `dataQuality.notes` about unknown record types.
+
+Formats that so far exist only as synthetic fixtures, and should be confirmed the first time real logs contain them: interruption markers, user-rejected tool calls, permission-rule denials and compaction records. The interpretation engines cost money or time to run, so check them deliberately (`--engine claude`, `--engine ollama`) rather than in the test suite. Open verification gaps are listed in [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md).

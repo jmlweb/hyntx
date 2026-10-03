@@ -42,7 +42,7 @@ hyntx --format json > report.json   # machine-readable
 
 ## Example output
 
-Shortened, from `hyntx --days 30 --no-llm`:
+An illustrative, shortened report in the shape `hyntx --days 30 --no-llm` prints (project and file names are made up):
 
 ```text
 hyntx  2026-09-04 to 2026-10-03 (30 days) - all projects
@@ -147,6 +147,18 @@ Full reference: [docs/CLI.md](docs/CLI.md).
 Nothing else. Hyntx never writes to `~/.claude/` or to your projects. Only the plugin edits `CLAUDE.md`, settings or command files, one change at a time, after you approve each one.
 
 Set `HYNTX_HOME` to move `~/.hyntx/`, and `HYNTX_CLAUDE_PROJECTS_DIR` to read logs from another location. `OLLAMA_HOST` selects the Ollama server for `--engine ollama`.
+
+## Status and limits
+
+Hyntx 4 is new and has been exercised on a small set of real logs.
+
+- Findings are heuristics. Corrections in particular are guessed from phrasing; without an interpretation step they are marked unconfirmed, and the detector prefers missing a correction to inventing one.
+- The log format is Claude Code's own and changes between versions. Unknown record types are counted and skipped, and `dataQuality.notes` in the report says what was not understood. Interruptions, user rejections and compactions are parsed from formats that the test fixtures model but that have not all been checked against real logs.
+- Permission suggestions are limited to a short list of read-only commands, so many users will see none.
+- With `--engine ollama` and a small model, verdicts are less reliable than with the default engine and can differ between runs.
+- No cost figures: tokens only.
+
+Open items are tracked in [docs/TECHNICAL_DEBT.md](docs/TECHNICAL_DEBT.md).
 
 ## Migrating from v3
 
