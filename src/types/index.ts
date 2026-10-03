@@ -316,6 +316,7 @@ export const EpisodeType = {
   CONTEXT_PRESSURE: 'context-pressure',
   REPEATED_INSTRUCTION: 'repeated-instruction',
   READONLY_COMMAND: 'frequent-readonly-command',
+  MODEL_SWITCH: 'model-switch',
 } as const;
 export type EpisodeType = (typeof EpisodeType)[keyof typeof EpisodeType];
 
@@ -387,6 +388,7 @@ export const InsightKind = {
   CONTEXT_PRESSURE: 'context-pressure',
   REPEATED_INSTRUCTION: 'repeated-instruction',
   READONLY_COMMANDS: 'readonly-commands',
+  MODEL_SWITCHES: 'model-switches',
   PROMPT_TRAIT: 'prompt-trait',
 } as const;
 export type InsightKind = (typeof InsightKind)[keyof typeof InsightKind];

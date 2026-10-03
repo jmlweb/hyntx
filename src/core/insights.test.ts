@@ -68,7 +68,39 @@ describe('generateInsights', () => {
     });
   });
 
-  it('suggests a CLAUDE.md rule with the failing command for tool error loops', () => {
+  it('writes a general CLAUDE.md rule for a recognised tool-error cause, not the command line', () => {
+    const globErr = (command: string): ReturnType<typeof makeCall> =>
+      makeCall('Bash', {
+        command,
+        error: true,
+        text: 'Exit code 1\n(eval):1: no matches found: docs/*.md',
+      });
+    const session = makeSession([
+      makeTurn(0, 'list the docs', {
+        calls: [
+          globErr('cat docs/*.md'),
+          globErr('ls docs/*.md'),
+          globErr('wc -l docs/*.md'),
+        ],
+      }),
+    ]);
+    const insight = insightsFor([session]).find(
+      (i) => i.kind === InsightKind.TOOL_ERROR_LOOPS,
+    );
+    expect(insight?.title).toContain('globs');
+    expect(insight?.action).toMatchObject({
+      kind: 'claude-md-rule',
+      scope: 'project',
+      project: 'app',
+    });
+    const action = insight?.action;
+    const text = action?.kind === 'claude-md-rule' ? action.text : '';
+    expect(text).toContain('zsh');
+    expect(text).not.toContain('docs/*.md');
+    expect(insight?.evidence.count).toBe(3);
+  });
+
+  it('falls back to a weak workflow suggestion when the failure cause is unknown', () => {
     const session = makeSession([
       makeTurn(0, 'start the stack', {
         calls: [
@@ -81,22 +113,12 @@ describe('generateInsights', () => {
     const insight = insightsFor([session]).find(
       (i) => i.kind === InsightKind.TOOL_ERROR_LOOPS,
     );
-    expect(insight?.action).toMatchObject({
-      kind: 'claude-md-rule',
-      scope: 'project',
-      project: 'app',
-    });
-    const action = insight?.action;
-    expect(action?.kind === 'claude-md-rule' && action.text).toContain(
-      'docker compose up',
-    );
-    expect(action?.kind === 'claude-md-rule' && action.text).toContain(
-      'connection refused',
-    );
-    expect(insight?.evidence.count).toBe(3);
+    expect(insight?.action.kind).toBe('workflow');
+    expect(insight?.severity).toBe('low');
+    expect(insight?.title).not.toContain('docker compose');
   });
 
-  it('turns repeated user denials into a rule, ignoring single denials', () => {
+  it('turns repeated rejections of a specific action into a rule, ignoring single ones', () => {
     const denied = (command: string): ReturnType<typeof makeCall> =>
       makeCall('Bash', {
         command,
@@ -104,20 +126,59 @@ describe('generateInsights', () => {
         text: "The user doesn't want to proceed",
       });
     const once = makeSession([
-      makeTurn(0, 'x', { calls: [denied('shred a')] }),
+      makeTurn(0, 'x', { calls: [denied('git push origin a')] }),
     ]);
     expect(
       insightsFor([once]).some((i) => i.kind === InsightKind.TOOL_DENIALS),
     ).toBe(false);
 
     const twice = makeSession([
-      makeTurn(0, 'x', { calls: [denied('shred a'), denied('shred b')] }),
+      makeTurn(0, 'x', {
+        calls: [denied('git push origin a'), denied('git push origin b')],
+      }),
     ]);
     const insight = insightsFor([twice]).find(
       (i) => i.kind === InsightKind.TOOL_DENIALS,
     );
     expect(insight?.action.kind).toBe('claude-md-rule');
     expect(insight?.finding).toContain('2');
+
+    const vague = makeSession([
+      makeTurn(0, 'x', { calls: [denied('shred a'), denied('shred b')] }),
+    ]);
+    expect(
+      insightsFor([vague]).find((i) => i.kind === InsightKind.TOOL_DENIALS)
+        ?.action.kind,
+    ).toBe('workflow');
+  });
+
+  it('builds a rule from a hook message and ignores generic or transient classifier blocks', () => {
+    const hook = (command: string): ReturnType<typeof makeCall> =>
+      makeCall('Bash', {
+        command,
+        error: true,
+        denial: DenialKind.HOOK,
+        text: "PreToolUse:Bash hook error: [/h/safety.sh]: BLOCKED: Use 'trash' instead of 'rm'",
+      });
+    const transient = makeCall('Bash', {
+      command: 'x',
+      error: true,
+      denial: DenialKind.CLASSIFIER,
+      text: 'denied by the Claude Code auto mode classifier. Reason: Stage 2 classifier error - blocking',
+    });
+    const session = makeSession([
+      makeTurn(0, 'clean up', {
+        calls: [hook('rm -rf a'), hook('rm b'), transient, transient],
+      }),
+    ]);
+    const denials = insightsFor([session]).filter(
+      (i) => i.kind === InsightKind.TOOL_DENIALS,
+    );
+    expect(denials).toHaveLength(1);
+    const action = denials[0]?.action;
+    expect(action?.kind === 'claude-md-rule' && action.text).toContain(
+      "Use 'trash' instead of 'rm'",
+    );
   });
 
   it('turns rework into a workflow suggestion that depends on plan mode usage', () => {
@@ -192,16 +253,16 @@ describe('generateInsights', () => {
     );
     expect(insight?.action).toEqual({
       kind: 'permission-allow',
-      patterns: ['Bash(git status:*)'],
+      patterns: ['Bash(git status *)'],
       file: '~/.claude/settings.json',
       snippet: JSON.stringify(
-        { permissions: { allow: ['Bash(git status:*)'] } },
+        { permissions: { allow: ['Bash(git status *)'] } },
         null,
         2,
       ),
     });
     expect(insight?.evidence.sessions).toBe(2);
-    expect(toPermissionPattern('ls')).toBe('Bash(ls:*)');
+    expect(toPermissionPattern('ls')).toBe('Bash(ls *)');
   });
 
   it('ranks by severity, confidence and volume and gives every insight evidence and an action', () => {
@@ -272,5 +333,65 @@ describe('episode shape', () => {
     });
     expect(episode?.confidence).toBeGreaterThan(0);
     expect(episode?.context).toHaveProperty('tools');
+  });
+});
+
+describe('permission allowlist suggestions', () => {
+  const sessions = [1, 2].map((d) =>
+    makeSession([
+      makeTurn(0, 'look', {
+        ts: at(d),
+        calls: Array.from({ length: 4 }, () =>
+          makeCall('Bash', { command: 'git status' }),
+        ),
+      }),
+    ]),
+  );
+
+  it('skips commands the user or the project already allows', () => {
+    const metrics = computeMetrics(sessions);
+    const { episodes, promptTraits } = detectFriction(sessions);
+    const base = { metrics, episodes, promptTraits };
+    const has = (allowedRules: {
+      user: string[];
+      byProject: Record<string, string[]>;
+    }): boolean =>
+      generateInsights({ ...base, allowedRules }).some(
+        (i) => i.kind === InsightKind.READONLY_COMMANDS,
+      );
+    expect(has({ user: [], byProject: {} })).toBe(true);
+    expect(has({ user: ['Bash(git status:*)'], byProject: {} })).toBe(false);
+    expect(has({ user: ['Bash(git *)'], byProject: {} })).toBe(false);
+    expect(has({ user: ['Bash(git status)'], byProject: {} })).toBe(true);
+    expect(has({ user: [], byProject: { app: ['Bash(git status *)'] } })).toBe(
+      false,
+    );
+  });
+});
+
+describe('model switch insight', () => {
+  it('fires only with enough switches and re-written cache, and gives a concrete workflow', () => {
+    const big = { input: 10, output: 50, cacheRead: 0, cacheCreation: 250_000 };
+    const switching = (d: number): Session =>
+      makeSession([
+        makeTurn(0, 'start', { ts: at(d), models: ['claude-opus-5'] }),
+        makeTurn(1, 'cheaper', {
+          ts: at(d, 2),
+          models: ['claude-sonnet-5'],
+          tokens: big,
+        }),
+        makeTurn(2, 'back', {
+          ts: at(d, 4),
+          models: ['claude-opus-5'],
+          tokens: big,
+        }),
+      ]);
+    const none = insightsFor([switching(1)]);
+    expect(none.some((i) => i.kind === InsightKind.MODEL_SWITCHES)).toBe(false);
+    const insight = insightsFor([switching(1), switching(2)]).find(
+      (i) => i.kind === InsightKind.MODEL_SWITCHES,
+    );
+    expect(insight?.finding).toContain('4 mid-session model switches');
+    expect(insight?.action.kind).toBe('workflow');
   });
 });

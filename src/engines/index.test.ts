@@ -1,45 +1,40 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildReport } from '../core/report.js';
-import { at, makeSession, makeTurn } from '../core/test-helpers.js';
-import { InterpretationEngine, type Report } from '../types/index.js';
+import { InterpretationEngine } from '../types/index.js';
 import { interpretReport } from './index.js';
+import { fixtureReport } from './test-fixtures.js';
 
-function baseReport(): Report {
-  return buildReport({
-    sessions: [makeSession([makeTurn(0, 'hello', { ts: at(1) })])],
-    stats: {
-      filesRead: 1,
-      subagentFilesRead: 0,
-      recordsRead: 1,
-      recordsSkipped: 0,
-      unknownRecordTypes: {},
-      duplicateRecords: 0,
-      orphanToolResults: 0,
-      claudeCodeVersions: [],
-    },
-    from: new Date(2026, 8, 1),
-    to: new Date(2026, 8, 7),
-    project: null,
-    version: '4.0.0',
-  });
-}
-
-describe('interpretReport (phase 1 stubs)', () => {
-  it.each([InterpretationEngine.CLAUDE, InterpretationEngine.OLLAMA])(
-    'returns the report unchanged plus a note for engine %s',
-    async (engine) => {
-      const report = baseReport();
-      const result = await interpretReport(report, { engine });
+describe('interpretReport', () => {
+  it('keeps the deterministic report and adds a fixable note when the engine is unavailable', async () => {
+    const original = process.env['OLLAMA_HOST'];
+    process.env['OLLAMA_HOST'] = '127.0.0.1:1';
+    try {
+      const report = fixtureReport();
+      const result = await interpretReport(report, {
+        engine: InterpretationEngine.OLLAMA,
+      });
       expect(result.interpretation).toBeNull();
-      expect(result.metrics).toEqual(report.metrics);
       expect(result.insights).toEqual(report.insights);
       const added = result.dataQuality.notes.slice(
         report.dataQuality.notes.length,
       );
       expect(added).toHaveLength(1);
-      expect(added[0]).toContain('not available yet');
-      expect(added[0]).toContain(engine);
-    },
-  );
+      expect(added[0]).toContain('ollama');
+      expect(added[0]).toContain('--no-llm');
+    } finally {
+      if (original === undefined) {
+        delete process.env['OLLAMA_HOST'];
+      } else {
+        process.env['OLLAMA_HOST'] = original;
+      }
+    }
+  });
+
+  it('notes when there is nothing to interpret', async () => {
+    const report = { ...fixtureReport(), episodes: [], insights: [] };
+    const result = await interpretReport(report, {
+      engine: InterpretationEngine.CLAUDE,
+    });
+    expect(result.dataQuality.notes.at(-1)).toContain('Nothing to interpret');
+  });
 });

@@ -1,562 +1,78 @@
 # Architecture
 
-## Overview
-
-Hyntx follows a layered architecture with clear separation of concerns:
+Hyntx is a pipeline from Claude Code session logs to a `Report`. Everything up to the report is deterministic; a model is only involved in one optional step at the end.
 
 ```text
-┌─────────────────────────────────────────────────────────┐
-│                      CLI Layer                          │
-│                    (src/index.ts)                       │
-│         Argument parsing, orchestration, output         │
-└─────────────────────────────────────────────────────────┘
-                            │
-        ┌───────────────────┼───────────────────┐
-        ▼                   ▼                   ▼
-┌───────────────┐   ┌───────────────┐   ┌───────────────┐
-│     Core      │   │   Providers   │   │    Utils      │
-│  (src/core/)  │   │(src/providers)│   │ (src/utils/)  │
-│               │   │               │   │               │
-│ • Log reading │   │ • Ollama      │   │ • Env config  │
-│ • Sanitizing  │   │ • Anthropic   │   │ • Shell config│
-│ • Analysis    │   │ • Google      │   │ • Paths       │
-│ • Reporting   │   │ • Factory     │   │ • Terminal    │
-│ • Setup       │   │               │   │ • Logger      │
-│ • Watcher     │   │               │   │ • Retry       │
-│ • History     │   │               │   │               │
-└───────────────┘   └───────────────┘   └───────────────┘
-        │                   │
-        └───────────────────┘
-                │
-        ┌───────────────┐
-        │    Types      │
-        │ (src/types/)  │
-        │               │
-        │ Shared type   │
-        │ definitions   │
-        └───────────────┘
+~/.claude/projects/**/*.jsonl
+        |
+        v
+  session-reader   streams JSONL into Session objects (raw, in memory)
+        |
+        +--> metrics     totals, per project, per day, per session
+        +--> friction    Episodes: moments that cost the user something
+        |        |
+        v        v
+      insights           ranked Insights with evidence and one action each
+        |
+        v
+      report             the Report, with every string sanitized
+        |
+        v
+  engines (optional)     claude -p or Ollama: verdicts per episode, summary
+        |
+        v
+  renderers              terminal, markdown, JSON, self-contained HTML
 ```
 
----
+The Claude Code plugin sits beside the last two steps: it runs the pipeline with `--format json --no-llm` and the Claude in the user's session does the interpretation and applies actions.
 
-## Design Principles
+## Two data layers
 
-### 1. Single Responsibility
+`src/types/index.ts` defines both and is the source of truth.
 
-Each module has one clear purpose:
+1. **Raw session model** (`Session`, `Turn`, `ToolCall`, ...). Produced by the session reader, held in memory, may contain unsanitized text. Never serialized.
+2. **`Report`**. Serializable and sanitized. Renderers, engines and the plugin only ever see this layer. It carries `schemaVersion`; fields are added without bumping it, and consumers must ignore fields they do not know.
 
-| Module          | Responsibility                        |
-| --------------- | ------------------------------------- |
-| `log-reader.ts` | Read and parse Claude Code JSONL logs |
-| `sanitizer.ts`  | Redact secrets from prompts           |
-| `analyzer.ts`   | Orchestrate analysis with batching    |
-| `reporter.ts`   | Format output for terminal/file       |
-| `setup.ts`      | Interactive first-run configuration   |
-| `watcher.ts`    | Real-time log file monitoring         |
-| `history.ts`    | Analysis history persistence          |
+## Modules
 
-### 2. Dependency Inversion
+| Path                         | Responsibility                                                           | IO                       |
+| ---------------------------- | ------------------------------------------------------------------------ | ------------------------ |
+| `src/cli.ts`                 | Parse arguments, orchestrate, write output, set the exit code            | yes                      |
+| `src/cli-args.ts`            | Period resolution and argument helpers                                   | no                       |
+| `src/core/session-reader.ts` | Stream logs and subagent sidechains into sessions; classify user records | reads logs               |
+| `src/core/metrics.ts`        | Aggregates and distributions                                             | no                       |
+| `src/core/friction.ts`       | Friction detectors and prompt-trait correlations                         | no                       |
+| `src/core/tool-errors.ts`    | Tool error classification for the detectors                              | no                       |
+| `src/core/insights.ts`       | Group episodes into insights, attach evidence and actions, rank          | no                       |
+| `src/core/permissions.ts`    | Existing allow rules, so they are not suggested again                    | reads settings           |
+| `src/core/report.ts`         | Assemble the `Report`, compute data quality, final sanitization          | no                       |
+| `src/core/sanitizer.ts`      | Redaction                                                                | no                       |
+| `src/core/history.ts`        | Daily aggregates that outlive log retention                              | `~/.hyntx/daily.json`    |
+| `src/engines/`               | Optional interpretation                                                  | subprocess or local HTTP |
+| `src/report/`                | Renderers                                                                | no                       |
+| `src/index.ts`               | Library API: the same functions the CLI composes                         | no                       |
+| `skills/hyntx/`              | Plugin skill and its analyzer runner                                     | runs the CLI             |
 
-High-level modules depend on abstractions, not concrete implementations:
+## Design decisions
 
-```typescript
-// ✅ Good: Core depends on interface
-type AnalysisProvider = {
-  name: string;
-  isAvailable(): Promise<boolean>;
-  analyze(prompts: string[], date: string): Promise<AnalysisResult>;
-};
+**Outcomes, not prompt text.** The unit of analysis is what happened in a session: tool results, interruptions, denials, edits, compactions and what the user typed next. Prompt wording is only used as a signal next to those.
 
-// Analyzer works with any provider
-function analyzePrompts(
-  prompts: string[],
-  provider: AnalysisProvider,
-): Promise<AnalysisResult>;
-```
+**Deterministic core.** The same logs produce the same report. An insight exists only if its evidence clears a minimum bar, and with little data the result is empty and says so (`dataQuality.enoughData`). There is no price table: token counts are reported, dollar figures are not, because prices go stale.
 
-### 3. Factory Pattern for Providers
+**Honest heuristics.** Detectors that guess (corrections are inferred from phrasing) carry a confidence below 1 and are labelled as unconfirmed until an interpretation step, or the plugin, confirms them.
 
-Provider creation is centralized in a factory:
+**Tolerant parsing.** The log format is not a public contract and changes between Claude Code versions. Unknown record types and malformed lines are counted and skipped, never fatal, and the counts are reported in `dataQuality`.
 
-```typescript
-// src/providers/index.ts
-async function getAvailableProvider(
-  config: EnvConfig,
-  onFallback?: (from: ProviderType, to: ProviderType) => void,
-): Promise<AnalysisProvider>;
-```
+**Interpretation is optional and cannot break the run.** An engine receives the sanitized report and returns verdicts and a summary. If it is missing or fails, the deterministic report is returned with a note.
 
-**Benefits**:
+**Sanitized by contract.** Detectors sanitize what they put in episodes, and `sanitizeReport` passes over every free-text string of the finished report, including engine output. See the security rules in [AGENTS.md](../AGENTS.md).
 
-- Single point of provider instantiation
-- Automatic fallback logic
-- Easy to add new providers
+**Read-only.** The CLI reads logs and settings and writes only `~/.hyntx/daily.json` and the files named by `--output` and `--html`. Applying an action is the plugin's job, with one confirmation per change.
 
-### 4. Fail-Fast at Boundaries
+**Trends beyond retention.** Claude Code deletes old session logs. Each unfiltered run merges per-day aggregates into `~/.hyntx/daily.json`; a stored day is only replaced by a fresh one that saw at least as much activity, so a partly pruned day does not overwrite a complete one. Project-filtered runs neither read nor write the history.
 
-Validate inputs at system boundaries, trust internal code:
+## Plugin
 
-```typescript
-// ✅ Validate at CLI boundary
-if (!claudeProjectsExist()) {
-  console.error('~/.claude/projects/ not found');
-  process.exit(2);
-}
+The repository is a Claude Code plugin and its own single-plugin marketplace (`.claude-plugin/`). The skill in `skills/hyntx/SKILL.md` is a prompt: it tells the session's Claude how to run the analyzer, how to judge episodes against their context, how to present findings and how to apply actions safely.
 
-// ✅ Internal functions can assume valid inputs
-function extractPrompts(messages: ClaudeMessage[]): ExtractedPrompt[] {
-  // No need to validate - already validated at boundary
-}
-```
-
----
-
-## Data Flow
-
-### Main Execution Flow
-
-```text
-1. CLI Entry (index.ts)
-   │
-   ├─► First Run? ──yes──► Interactive Setup (setup.ts)
-   │                              │
-   │                              ▼
-   │                       Save to shell config
-   │
-   ├─► Load Project Config (project-config.ts)
-   │        │
-   │        └─► Merge with global config
-   │
-   ├─► Validate Config (config-validator.ts)
-   │        │
-   │        └─► Check provider availability
-   │
-   ├─► Check Reminder? ──yes──► Reminder System (reminder.ts)
-   │
-   ├─► Read Logs (log-reader.ts)
-   │        │
-   │        ├─► Validate schema (schema-validator.ts)
-   │        └─► Extract user prompts
-   │
-   ├─► Sanitize Prompts (sanitizer.ts)
-   │        │
-   │        └─► Redact secrets
-   │
-   ├─► Get Provider (providers/index.ts)
-   │        │
-   │        ├─► Check availability with retry (retry.ts)
-   │        └─► Try each provider in order
-   │
-   ├─► Analyze (analyzer.ts)
-   │        │
-   │        ├─► Batch prompts if needed
-   │        ├─► Send to provider with rate limiting (rate-limiter.ts)
-   │        └─► Merge results (Map-Reduce)
-   │
-   └─► Report (reporter.ts)
-            │
-            ├─► Terminal output
-            └─► File output (if --output)
-
-   Throughout: Logging (logger.ts) for verbose mode and debugging
-```
-
----
-
-## Module Specifications
-
-### Core Modules
-
-#### log-reader.ts
-
-Reads Claude Code JSONL logs from `~/.claude/projects/`.
-
-```typescript
-type LogReadResult = {
-  prompts: ExtractedPrompt[];
-  warnings: string[];
-};
-
-function readLogs(options: ReadOptions): LogReadResult;
-function groupByDay(prompts: ExtractedPrompt[]): DayGroup[];
-```
-
-**Responsibilities**:
-
-- Locate project directories
-- Parse JSONL files
-- Filter by date range and project
-- Extract user messages only
-
-#### sanitizer.ts
-
-Redacts sensitive information before sending to AI.
-
-```typescript
-function sanitize(text: string): { text: string; redacted: number };
-function sanitizePrompts(prompts: string[]): {
-  prompts: string[];
-  totalRedacted: number;
-};
-```
-
-**Patterns Detected**:
-
-- API keys (OpenAI, Anthropic, AWS)
-- Bearer tokens
-- HTTP credentials in URLs
-- Email addresses
-- Private keys (PEM format)
-
-#### analyzer.ts
-
-Orchestrates analysis with smart batching.
-
-```typescript
-function batchPrompts(prompts: string[], limits: ProviderLimits): string[][];
-
-async function analyzePrompts(
-  prompts: string[],
-  provider: AnalysisProvider,
-  date: string,
-  onProgress?: (batch: number, total: number) => void,
-): Promise<AnalysisResult>;
-```
-
-**Batching Strategy**:
-
-1. Check token count against provider limits
-2. Split into batches if needed
-3. Analyze each batch (Map phase)
-4. Merge results (Reduce phase)
-
-#### reporter.ts
-
-Formats analysis results for output.
-
-```typescript
-function printReport(
-  result: AnalysisResult,
-  date: string,
-  projects: string[],
-): void;
-
-function formatMarkdown(
-  result: AnalysisResult,
-  date: string,
-  projects: string[],
-): string;
-```
-
-#### setup.ts
-
-Interactive first-run configuration system.
-
-```typescript
-async function runSetup(): Promise<EnvConfig>;
-function showManualInstructions(config: EnvConfig): void;
-```
-
-**Responsibilities**:
-
-- Guide users through provider selection
-- Collect provider-specific configuration
-- Save configuration to shell files
-- Provide manual instructions fallback
-
-**UI Libraries**:
-
-- `prompts` - Interactive menus and user input
-- `chalk` - Terminal colors and styling
-- `boxen` - Boxed sections for visual appeal
-
-#### watcher.ts
-
-Real-time file watcher for Claude Code logs.
-
-```typescript
-function createLogWatcher(options?: WatcherOptions): LogWatcher;
-```
-
-**Responsibilities**:
-
-- Monitor JSONL log files for changes
-- Detect new user prompts in real-time
-- Emit events for new prompts, errors, and ready state
-- Handle debouncing to prevent excessive reads
-- Graceful shutdown on signals (SIGINT, SIGTERM)
-
-**Events**:
-
-- `prompt` - Emitted when new prompt detected
-- `error` - Emitted on watcher errors
-- `ready` - Emitted when watcher is ready
-
-#### history.ts
-
-Analysis history persistence and comparison.
-
-```typescript
-async function saveAnalysisResult(
-  result: AnalysisResult,
-  metadata: HistoryMetadata,
-): Promise<void>;
-
-async function loadAnalysisResult(date: string): Promise<HistoryEntry | null>;
-
-async function listAvailableDates(
-  options?: ListHistoryOptions,
-): Promise<readonly string[]>;
-
-function compareResults(
-  before: AnalysisResult,
-  after: AnalysisResult,
-): ComparisonResult;
-```
-
-**Responsibilities**:
-
-- Save analysis results with atomic writes
-- Sanitize pattern examples before saving
-- Load historical analysis by date
-- List available history with optional filtering
-- Compare analyses to detect pattern changes
-
-### Utility Modules
-
-#### shell-config.ts
-
-Shell configuration file management.
-
-```typescript
-function detectShellConfigFile(): { shellType: ShellType; configFile: string };
-function generateEnvExports(config: EnvConfig): readonly string[];
-function updateShellConfig(
-  configFile: string,
-  exports: readonly string[],
-): ShellConfigResult;
-function saveConfigToShell(config: EnvConfig): ShellConfigResult;
-function getManualInstructions(config: EnvConfig): string;
-```
-
-**Responsibilities**:
-
-- Detect user's shell type (zsh, bash, fish)
-- Generate environment variable export statements
-- Update or create configuration blocks in shell files
-- Handle configuration block markers for safe updates
-
-**Configuration Block Format**:
-
-```bash
-# >>> hyntx config >>>
-  export HYNTX_SERVICES=ollama
-  export HYNTX_OLLAMA_MODEL=llama3.2
-
-  # Uncomment to enable periodic reminders:
-  # hyntx --check-reminder 2>/dev/null
-# <<< hyntx config <<<
-```
-
-#### logger.ts
-
-Centralized logging utilities for consistent logging across the application.
-
-```typescript
-function log(message: string, level?: 'info' | 'warn' | 'error'): void;
-function logVerbose(message: string): void; // Only logs if --verbose flag is set
-```
-
-**Responsibilities**:
-
-- Provide consistent logging interface
-- Support different log levels
-- Respect verbose mode flag
-
-#### retry.ts
-
-Retry logic for handling transient failures in API calls and network operations.
-
-```typescript
-function retry<T>(fn: () => Promise<T>, options?: RetryOptions): Promise<T>;
-```
-
-**Features**:
-
-- Configurable max retries
-- Exponential backoff strategy
-- Custom retry conditions
-- Timeout support
-
-#### rate-limiter.ts
-
-Rate limiting for API calls to prevent hitting provider limits.
-
-```typescript
-class RateLimiter {
-  constructor(requestsPerMinute: number);
-  async acquire(): Promise<void>;
-}
-```
-
-**Features**:
-
-- Token bucket algorithm
-- Per-provider rate limiting
-- Automatic request throttling
-
-#### config-validator.ts
-
-Configuration health check utilities.
-
-```typescript
-function validateConfig(config: EnvConfig): ValidationResult;
-function checkProviderAvailability(
-  config: EnvConfig,
-): Promise<ProviderStatus[]>;
-```
-
-**Features**:
-
-- Validates environment configuration
-- Checks provider connectivity
-- Reports configuration issues
-- Suggests fixes for common problems
-
-#### project-config.ts
-
-Project-specific configuration file support (`.hyntxrc`).
-
-```typescript
-function loadProjectConfig(cwd?: string): ProjectConfig | null;
-function mergeConfigs(global: EnvConfig, project: ProjectConfig): EnvConfig;
-```
-
-**Features**:
-
-- Loads `.hyntxrc` from project directory
-- Supports JSON and YAML formats
-- Merges with global configuration
-- Project-level provider preferences
-
-### Provider Modules
-
-All providers implement the same interface:
-
-```typescript
-type AnalysisProvider = {
-  name: string;
-  isAvailable(): Promise<boolean>;
-  analyze(prompts: string[], date: string): Promise<AnalysisResult>;
-};
-```
-
-#### Provider Limits
-
-| Provider  | Max Tokens/Batch | Prioritization |
-| --------- | ---------------- | -------------- |
-| Ollama    | 30,000           | Longest-first  |
-| Anthropic | 100,000          | Chronological  |
-| Google    | 500,000          | Chronological  |
-
----
-
-## Key Patterns
-
-### Map-Reduce for Large Volumes
-
-When prompts exceed provider context limits:
-
-```text
-┌─────────────────────────────────────────────────────────┐
-│                    All Prompts                          │
-└─────────────────────────────────────────────────────────┘
-                          │
-           ┌──────────────┼──────────────┐
-           ▼              ▼              ▼
-    ┌───────────┐  ┌───────────┐  ┌───────────┐
-    │  Batch 1  │  │  Batch 2  │  │  Batch 3  │
-    └───────────┘  └───────────┘  └───────────┘
-           │              │              │
-           ▼              ▼              ▼
-    ┌───────────┐  ┌───────────┐  ┌───────────┐
-    │ Result 1  │  │ Result 2  │  │ Result 3  │   ← MAP
-    └───────────┘  └───────────┘  └───────────┘
-           │              │              │
-           └──────────────┼──────────────┘
-                          ▼
-                  ┌───────────────┐
-                  │ Merged Result │                ← REDUCE
-                  └───────────────┘
-```
-
-### Multi-Provider Fallback
-
-```typescript
-// Tries providers in order until one succeeds
-const services = ['ollama', 'anthropic', 'google'];
-
-for (const service of services) {
-  const provider = createProvider(service);
-  if (await provider.isAvailable()) {
-    return provider;
-  }
-  // Log fallback and continue
-}
-```
-
-### Schema Validation (Graceful Degradation)
-
-```typescript
-// Detect schema version from message structure
-const version = detectSchemaVersion(message);
-
-if (!isSchemaSupported(version)) {
-  // Add warning but continue with best-effort extraction
-  warnings.push(getSchemaWarning(version));
-}
-```
-
----
-
-## Error Handling Strategy
-
-### Exit Codes
-
-| Code | Meaning              | Example                            |
-| ---- | -------------------- | ---------------------------------- |
-| 0    | Success              | Analysis completed                 |
-| 1    | General error        | Network failure, API error         |
-| 2    | No data              | No logs found, no prompts in range |
-| 3    | Provider unavailable | All providers failed               |
-
-### Error Categories
-
-1. **Fatal Errors** - Exit immediately with appropriate code
-2. **Warnings** - Log and continue (e.g., schema warnings)
-3. **Recoverable** - Try fallback (e.g., provider unavailable)
-
----
-
-## Extension Points
-
-### Adding a New Provider
-
-1. Create `src/providers/newprovider.ts` implementing `AnalysisProvider`
-2. Add to factory in `src/providers/index.ts`
-3. Add configuration to `src/utils/env.ts`
-4. Add limits to `PROVIDER_LIMITS` in `src/providers/base.ts`
-
-### Adding a New Secret Pattern
-
-Add regex to `PATTERNS` array in `src/core/sanitizer.ts`:
-
-```typescript
-{ regex: /pattern/, replacement: '[REDACTED_TYPE]' }
-```
-
-### Adding a New CLI Flag
-
-1. Add to `parseArgs` options in `src/index.ts`
-2. Handle in main flow
-3. Update help text
+`skills/hyntx/scripts/run-analyzer.mjs` finds an analyzer of the right major version (`HYNTX_CLI`, the checkout the skill lives in, a global `hyntx`, then `npx hyntx@4`), writes the full report to a temp file and prints a digest without the per-day and per-session series. The digest drops fields by name and passes everything else through, so new report fields reach the skill without changes to the script.

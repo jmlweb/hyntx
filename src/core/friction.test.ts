@@ -14,6 +14,7 @@ import {
   detectDenials,
   detectFriction,
   detectInterruptions,
+  detectModelSwitches,
   detectReadonlyCommands,
   detectRepeatedInstructions,
   detectRework,
@@ -222,7 +223,7 @@ describe('detectDenials', () => {
     const classifier = episodes.find(
       (e) => e.context.detail['denial'] === 'classifier',
     );
-    expect(classifier?.context.detail['reason']).toBe('[DNS Changes]');
+    expect(classifier?.context.detail['reason']).toBe('DNS Changes');
   });
 });
 
@@ -488,5 +489,24 @@ describe('detectFriction', () => {
       EpisodeType.INTERRUPTION,
       EpisodeType.CORRECTION,
     ]);
+  });
+});
+
+describe('detectModelSwitches', () => {
+  it('counts a switch only when the cache was re-written on the new model', () => {
+    const big = { input: 10, output: 50, cacheRead: 0, cacheCreation: 120_000 };
+    const session = makeSession([
+      makeTurn(0, 'start', { models: ['claude-opus-5'] }),
+      makeTurn(1, 'continue', { models: ['claude-opus-5'] }),
+      makeTurn(2, 'now cheaper', { models: ['claude-sonnet-5'], tokens: big }),
+      makeTurn(3, 'tiny switch back', {
+        models: ['claude-opus-5'],
+        tokens: { ...big, cacheCreation: 100 },
+      }),
+    ]);
+    const episodes = detectModelSwitches(session);
+    expect(episodes).toHaveLength(1);
+    expect(episodes[0]).toMatchObject({ count: 1 });
+    expect(episodes[0]?.context.detail['cacheWriteTokens']).toBe(120_000);
   });
 });

@@ -14,6 +14,7 @@ import {
 } from '../types/index.js';
 import { interpretWithClaude } from './claude.js';
 import { interpretWithOllama } from './ollama.js';
+import { EngineUnavailableError } from './shared.js';
 
 export { InterpretationEngine, type InterpretOptions };
 
@@ -46,7 +47,7 @@ export async function interpretReport(
     if (!interpretation) {
       return withNote(
         report,
-        `Interpretation is not available yet (engine "${options.engine}" is not implemented); showing deterministic findings only.`,
+        'Nothing to interpret: no findings or flagged episodes in this period.',
       );
     }
     return sanitizeReport({ ...report, interpretation });
@@ -55,7 +56,9 @@ export async function interpretReport(
     const reason = error instanceof Error ? error.message : String(error);
     return withNote(
       report,
-      `Interpretation with "${options.engine}" failed: ${reason}`,
+      error instanceof EngineUnavailableError
+        ? `Interpretation skipped (${options.engine}): ${reason}`
+        : `Interpretation with "${options.engine}" failed: ${reason}. Showing deterministic findings only; pass --no-llm to skip this step.`,
     );
   }
 }

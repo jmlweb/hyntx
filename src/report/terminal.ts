@@ -6,6 +6,7 @@
 import chalk, { Chalk, type ChalkInstance } from 'chalk';
 
 import { type Insight, type Report } from '../types/index.js';
+import { type JudgedInsight, judgeInsights } from './interpretation.js';
 import {
   describeAction,
   formatMinutes,
@@ -53,8 +54,32 @@ export function renderTerminal(
     '',
   );
 
+  const interpretation = report.interpretation;
+  if (interpretation) {
+    push(
+      c.bold('Interpretation') +
+        c.dim(
+          ` (${interpretation.engine}${interpretation.model ? `, ${interpretation.model}` : ''})`,
+        ),
+      ...wrap(interpretation.summary, 96).map((line) => `  ${line}`),
+      '',
+    );
+    if (interpretation.recommendations.length > 0) {
+      push(c.bold('Recommendations'));
+      interpretation.recommendations.forEach((rec, i) => {
+        push(
+          `${c.dim(`${String(i + 1)}.`)} ${c.bold(rec.title)}`,
+          ...wrap(rec.body, 93).map((line) => `   ${line}`),
+          c.dim(`   based on: ${rec.basedOn.join(', ')}`),
+        );
+      });
+      push('');
+    }
+  }
+
   const max = options.maxInsights ?? DEFAULT_MAX_INSIGHTS;
-  if (report.insights.length === 0) {
+  const { kept, dismissed } = judgeInsights(report);
+  if (kept.length === 0) {
     push(
       c.bold('Insights'),
       report.dataQuality.enoughData
@@ -65,13 +90,27 @@ export function renderTerminal(
   } else {
     push(
       c.bold(
-        `Top insights (${String(Math.min(max, report.insights.length))} of ${String(report.insights.length)})`,
+        `Top insights (${String(Math.min(max, kept.length))} of ${String(kept.length)})`,
       ),
       '',
     );
-    report.insights.slice(0, max).forEach((insight, i) => {
-      push(...renderInsight(insight, i + 1, c, severityColor));
+    kept.slice(0, max).forEach((judged, i) => {
+      push(...renderInsight(judged, i + 1, c, severityColor));
     });
+  }
+  if (dismissed.length > 0) {
+    push(
+      c.dim(
+        `Dismissed by the interpretation (${String(dismissed.length)}): ` +
+          dismissed
+            .map(
+              (d) =>
+                `${d.insight.title}${d.notes[0] ? ` - ${d.notes[0].note}` : ''}`,
+            )
+            .join('; '),
+      ),
+      '',
+    );
   }
 
   push(c.bold('Metrics'));
@@ -123,17 +162,31 @@ export function renderTerminal(
   return `${lines.join('\n')}\n`;
 }
 
+function wrap(text: string, width: number): string[] {
+  return text.split(/\s+/).reduce<string[]>((lines, word) => {
+    const last = lines.at(-1);
+    return last !== undefined && last.length + word.length + 1 <= width
+      ? [...lines.slice(0, -1), `${last} ${word}`]
+      : [...lines, word];
+  }, []);
+}
+
 function renderInsight(
-  insight: Insight,
+  judged: JudgedInsight,
   position: number,
   c: ChalkInstance,
   severityColor: Record<Insight['severity'], (text: string) => string>,
 ): string[] {
+  const { insight, state, notes } = judged;
   const out: string[] = [];
   out.push(
-    `${c.dim(`${String(position)}.`)} ${severityColor[insight.severity](`[${insight.severity.toUpperCase()}]`)} ${c.bold(insight.title)}`,
+    `${c.dim(`${String(position)}.`)} ${severityColor[insight.severity](`[${insight.severity.toUpperCase()}]`)} ${c.bold(insight.title)}${state === 'confirmed' ? c.green(' [confirmed]') : ''}`,
     `   ${insight.finding}`,
   );
+  const note = notes[0];
+  if (note) {
+    out.push(c.dim(`   ${note.verdict}: ${note.note}`));
+  }
   const evidence = insight.evidence;
   const example = evidence.examples[0];
   const scope =

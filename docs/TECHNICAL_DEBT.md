@@ -13,29 +13,19 @@ This document tracks technical debt issues in the codebase. Use `/analyze-debt` 
 | Testing      | 0     | -        |
 | Dependencies | 0     | -        |
 
-**Last analyzed**: 2025-12-25
+**Last analyzed**: not yet analyzed since the v4 rewrite. Earlier entries referred to code that no longer exists and were removed.
 
 ---
 
 ## Active Items
 
-_No outstanding technical debt items at this time._
+_No items recorded. Run `/analyze-debt` against the v4 codebase._
 
 ---
 
 ## Resolved Items
 
-### Phase 2.5 - Code Quality
-
-- ~~ESLint enforcement rules~~ - Added no-default-export, no-enums
-- ~~Shell config permissions~~ - 600 permissions on config files
-- ~~Type definitions location~~ - Moved @types/\* to devDependencies
-- ~~Pre-commit formatting~~ - Husky + lint-staged configured
-
-### Phase 4 - Refactoring
-
-- ~~Log reader type safety~~ - Runtime type guards added
-- ~~Shell config edge cases~~ - Simplified with marker validation
+_None since the v4 rewrite._
 
 ---
 

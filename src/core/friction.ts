@@ -28,6 +28,11 @@ import {
   stripDiacritics,
   wordCount,
 } from '../utils/text.js';
+import {
+  errorLine,
+  isRealToolError,
+  summarizeToolErrors,
+} from './tool-errors.js';
 
 const PROMPT_EXCERPT = 240;
 const CONTEXT_EXCERPT = 300;
@@ -69,20 +74,8 @@ function toolCounts(calls: readonly ToolCall[]): Record<string, number> {
   );
 }
 
-function isRealError(call: ToolCall): boolean {
-  return call.result?.isError === true && call.result.denial === null;
-}
-
-function firstLine(text: string): string {
-  return (
-    text
-      .split('\n')
-      .map((line) => line.trim())
-      .find(
-        (line) => !/^[-=_*#~\s]*$/.test(line) && !/^exit code \d+$/i.test(line),
-      ) ?? ''
-  );
-}
+const isRealError = isRealToolError;
+const firstLine = errorLine;
 
 /** Leading VAR=value or VAR=$(cmd); assignments before the real command. */
 const ASSIGNMENT_PREFIX =
@@ -112,8 +105,16 @@ function firstStatement(command: string): string {
 /** Command or tool signature used to recognise "the same thing" failing. */
 export function callSignature(call: ToolCall): string {
   if (call.name === 'Bash' && call.command) {
-    const firstLine = call.command.split('\n')[0] ?? '';
-    const words = firstLine.replace(ASSIGNMENT_PREFIX, '').trim().split(/\s+/);
+    const statement =
+      call.command
+        .split(/&&|\|\||;|\n/)
+        .map((part) => part.trim())
+        .find(
+          (part) =>
+            !/^(cd|set|export|pushd|popd|unset)\b/.test(part) &&
+            part.replace(ASSIGNMENT_PREFIX, '').trim() !== '',
+        ) ?? call.command;
+    const words = statement.replace(ASSIGNMENT_PREFIX, '').trim().split(/\s+/);
     const bin = (words[0] ?? '').replace(/^\$?\(+/, '');
     if (!/^[\w.~/-]+$/.test(bin)) {
       return 'shell script';
@@ -324,6 +325,13 @@ function mainThreadCalls(session: Session): readonly CallInTurn[] {
     .map((call) => ({ call, turn: turnByCall.get(call.id) ?? null }));
 }
 
+function errorSummaryDetail(
+  calls: readonly ToolCall[],
+): Record<string, string | null> {
+  const { id, param } = summarizeToolErrors(calls);
+  return { errorClass: id, errorParam: param };
+}
+
 export function detectToolErrorLoops(session: Session): readonly Episode[] {
   const calls = mainThreadCalls(session);
   const episodes: Episode[] = [];
@@ -369,6 +377,7 @@ export function detectToolErrorLoops(session: Session): readonly Episode[] {
                 160,
               ),
               signature: excerpt(callSignature(first.call), 80),
+              ...errorSummaryDetail(run.map(({ call }) => call)),
             },
           },
           related: [],
@@ -432,6 +441,7 @@ export function detectToolErrorLoops(session: Session): readonly Episode[] {
           errors: entries.length,
           firstError: excerpt(firstLine(first.call.result?.excerpt ?? ''), 160),
           signature: excerpt(signature, 80),
+          ...errorSummaryDetail(entries.map(({ call }) => call)),
         },
       },
       related: [],
@@ -447,9 +457,25 @@ const DENIAL_CONFIDENCE = {
   hook: 0.6,
 } as const;
 
-function denialReason(text: string): string {
+/**
+ * The part of a denial message that says why. Empty when the message is
+ * generic or a transient classifier failure, so no rule gets built on it.
+ */
+export function denialReason(text: string): string {
+  const hook = /hook error: \[[^\]]*\]:\s*([^\n]+)/.exec(text);
+  if (hook?.[1]) {
+    return excerpt(hook[1].replace(/^BLOCKED:\s*/i, '').trim(), 160);
+  }
   const classifier = /Reason:\s*(\[[^\]]+\]|[^.\n]+)/.exec(text);
-  return excerpt(classifier?.[1] ?? firstLine(text), 160);
+  if (classifier?.[1]) {
+    const reason = classifier[1].replace(/^\[|\]$/g, '').trim();
+    return /^blocked by classifier$|classifier error|transient/i.test(reason)
+      ? ''
+      : excerpt(reason, 160);
+  }
+  return /auto mode classifier/i.test(text)
+    ? ''
+    : excerpt(firstLine(text), 160);
 }
 
 export function detectDenials(session: Session): readonly Episode[] {
@@ -982,6 +1008,9 @@ export function detectReadonlyCommands(
             sessions: sessionIds.size,
             projects: new Set(hits.map((h) => h.session.project)).size,
             example: excerpt(first.call.command ?? key, 160),
+            projectNames: [...new Set(hits.map((h) => h.session.project))]
+              .slice(0, 6)
+              .join(', '),
             modesKnown: knownMode === hits.length,
           },
         },
@@ -989,6 +1018,70 @@ export function detectReadonlyCommands(
       },
     ];
   });
+}
+
+// ---------------------------------------------------------------------------
+// Mid-session model switches (the prompt cache is per model)
+// ---------------------------------------------------------------------------
+
+/** Cache writes below this are noise (a short context re-cached). */
+export const MODEL_SWITCH_MIN_CACHE_WRITE = 20_000;
+
+export function detectModelSwitches(session: Session): readonly Episode[] {
+  const switches = session.turns.flatMap((turn, i) => {
+    const previous = session.turns
+      .slice(0, i)
+      .reverse()
+      .find((t) => t.models.length > 0);
+    const changed =
+      previous !== undefined &&
+      turn.models.length > 0 &&
+      !turn.models.some((m) => previous.models.includes(m));
+    return changed && turn.tokens.cacheCreation >= MODEL_SWITCH_MIN_CACHE_WRITE
+      ? [
+          {
+            turn,
+            from: previous.models.at(-1) ?? '',
+            to: turn.models.at(-1) ?? '',
+          },
+        ]
+      : [];
+  });
+  const first = switches[0];
+  if (!first) {
+    return [];
+  }
+  const cacheWrite = switches.reduce(
+    (sum, s) => sum + s.turn.tokens.cacheCreation,
+    0,
+  );
+  return [
+    {
+      id: makeId(EpisodeType.MODEL_SWITCH, session, 'session'),
+      type: EpisodeType.MODEL_SWITCH,
+      sessionId: session.id,
+      project: session.project,
+      timestamp: first.turn.startedAt,
+      confidence: 0.85,
+      count: switches.length,
+      prompt: excerpt(first.turn.prompt.text, PROMPT_EXCERPT),
+      summary: `${String(switches.length)} model switch(es) mid-session re-wrote ${String(Math.round(cacheWrite / 1000))}k cache tokens`,
+      context: {
+        previousPrompt: null,
+        assistantExcerpt: null,
+        tools: {},
+        detail: {
+          switches: switches.length,
+          cacheWriteTokens: cacheWrite,
+          path: excerpt(
+            switches.map((s) => `${s.from} -> ${s.to}`).join('; '),
+            200,
+          ),
+        },
+      },
+      related: [],
+    },
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -1134,6 +1227,7 @@ export function detectFriction(sessions: readonly Session[]): FrictionResult {
     ...detectDenials(session),
     ...detectRework(session),
     ...detectContextPressure(session),
+    ...detectModelSwitches(session),
   ]);
   const episodes = [
     ...perSession,

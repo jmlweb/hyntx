@@ -832,3 +832,64 @@ describe('provider tokens and secret assignments', () => {
     );
   });
 });
+
+describe('opaque identifiers and over-redaction', () => {
+  it('redacts long hex and base64-looking identifiers in quoted commands', () => {
+    const text = sanitize(
+      'Z=fce85d5e792410fcef1a6cedbfccf30b curl api/zones/$Z sha 3b18e512dba79e4c8300dd08aeb37f8e728b8dad',
+    ).text;
+    expect(text).toBe('Z=[REDACTED_ID] curl api/zones/$Z sha [REDACTED_ID]');
+    expect(
+      sanitize('blob dGhpcyBpcyBhIHZlcnkgbG9uZyBzZWNyZXQ=').text,
+    ).toContain('[REDACTED_ID]');
+    expect(sanitize('id aB3dE5gH7jK9mN1pQ3sT5vX7zA9cD1fG3hJ5').text).toContain(
+      '[REDACTED_ID]',
+    );
+  });
+
+  it('keeps readable slugs, paths, uuids, short shas and plain words', () => {
+    for (const keep of [
+      'LRN-048-storefront-404-has-no-hooks-and-grid-recipe-is-home-archive-scoped',
+      '/Users/someone/projects/hyntx/src/core/sanitizer.test.ts',
+      '5c891b41-c7e2-49b4-b505-581fdaaaba44',
+      'commit 3edcc93 and 193d36b',
+      'internationalizationconfigurationmanager',
+    ]) {
+      expect(sanitize(keep).text).toBe(keep);
+    }
+  });
+
+  it('leaves ordinary numbers alone', () => {
+    for (const keep of [
+      'output tokens per turn: 12010 vs 7824',
+      'epoch 1727959200 and 1727959200000',
+      'port 54321 listening, 123456789 rows, 12345678900 bytes',
+      'order 4111111111111112 failed',
+      'build 2026 10 03',
+    ]) {
+      expect(sanitize(keep).text).toBe(keep);
+    }
+  });
+
+  it('still redacts labelled or separated personal numbers', () => {
+    expect(sanitize('tel: 5551234567').text).toContain('[REDACTED_PHONE]');
+    expect(sanitize('+34612345678').text).toContain('[REDACTED_PHONE]');
+    expect(sanitize('ssn 123456789').text).toContain('[REDACTED_SSN]');
+    expect(sanitize('Springfield, IL 62704').text).toContain(
+      '[REDACTED_ZIP_CODE]',
+    );
+    expect(sanitize('zip code 90210').text).toContain('[REDACTED_ZIP_CODE]');
+    expect(sanitize('card 4111111111111111').text).toContain(
+      '[REDACTED_CREDIT_CARD]',
+    );
+  });
+
+  it('does not treat code words as names or documents', () => {
+    expect(sanitize('hello world and hey there').text).toBe(
+      'hello world and hey there',
+    );
+    expect(sanitize('passport strategy and driver license checker').text).toBe(
+      'passport strategy and driver license checker',
+    );
+  });
+});

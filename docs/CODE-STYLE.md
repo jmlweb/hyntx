@@ -1,589 +1,124 @@
 # Code Style Guide
 
-## General Principles
+The rules that are enforced or expected in `src/`. [AGENTS.md](../AGENTS.md) has the short version; ESLint and Prettier enforce most of the mechanical parts.
 
-### Functional Approach
+## Functional approach
 
-Favor functions over classes. Use composition instead of inheritance.
+Favor functions over classes and build behaviour by composition.
 
 ```typescript
-// ✅ Good: Pure functions
-function sanitize(text: string): { text: string; redacted: number } {
-  let result = text;
-  let count = 0;
+// ✅ Pure function: sessions in, episodes out
+export function detectRework(session: Session): readonly Episode[] {
   // ...
-  return { text: result, redacted: count };
 }
 
-// ✅ Good: Composition
-const pipeline = compose(
-  readLogs,
-  sanitizePrompts,
-  analyzePrompts,
-  formatReport,
-);
-
-// ❌ Avoid: Classes for stateless operations
-class Sanitizer {
-  sanitize(text: string): string {
+// ❌ A class for stateless logic
+class ReworkDetector {
+  detect(session: Session): Episode[] {
     // ...
   }
 }
 ```
 
-**Exception**: Provider classes are acceptable because they encapsulate configuration state.
+Classes are used only for custom errors and the logger.
 
-### Immutability
+Keep IO at the edges. `cli.ts`, the session reader, history, permissions and the engines do IO. Metrics, detectors, insights, report building and renderers take data and return data, which is what makes them easy to test.
 
-Avoid mutations. Prefer spreading and mapping.
+## Immutability
 
-```typescript
-// ✅ Good: Create new object
-const updated = { ...config, model: 'gpt-4' };
-
-// ✅ Good: Map to new array
-const filtered = prompts.filter((p) => p.length > 0);
-
-// ❌ Avoid: Mutation
-config.model = 'gpt-4';
-prompts.push(newPrompt);
-```
-
-### Pure Functions
-
-Functions should be predictable - same input, same output.
+Do not mutate arguments or shared state. Types use `readonly` fields and `readonly T[]`.
 
 ```typescript
-// ✅ Good: Pure function
-function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
-}
-
-// ❌ Avoid: Side effects in pure-looking functions
-function estimateTokens(text: string): number {
-  console.log('Estimating tokens...'); // Side effect!
-  return Math.ceil(text.length / 4);
-}
-```
-
----
-
-## TypeScript Conventions
-
-### Strict Mode
-
-All projects use strict TypeScript. Never use `any`.
-
-```typescript
-// ✅ Good: Explicit types
-function parseResponse(text: string): AnalysisResult {
-  const data: unknown = JSON.parse(text);
-  // Validate and type-narrow
-}
-
-// ❌ Avoid: any
-function parseResponse(text: string): any {
-  return JSON.parse(text);
-}
-```
-
-### Type Definitions
-
-Use `type` over `interface` for consistency:
-
-```typescript
-// ✅ Preferred: type
-type AnalysisResult = {
-  patterns: AnalysisPattern[];
-  stats: AnalysisStats;
+// ✅ New object
+return {
+  ...report,
+  dataQuality: { ...report.dataQuality, notes: [...notes, note] },
 };
 
-// ❌ Avoid: interface (unless extending)
-interface AnalysisResult {
-  patterns: AnalysisPattern[];
-  stats: AnalysisStats;
-}
+// ❌ Mutation
+report.dataQuality.notes.push(note);
 ```
 
-### Const Maps Over Enums
+The one exception is the streaming session reader, which mutates per-session accumulators because copying them per record would be quadratic. Such exceptions carry a comment that says why.
+
+## TypeScript
+
+- Strict mode. No `any`; use `unknown` at boundaries and narrow it.
+- `type`, not `interface`.
+- Const maps instead of enums:
 
 ```typescript
-// ✅ Good: Const map with type derivation
-const Severity = {
-  LOW: 'low',
-  MEDIUM: 'medium',
+export const Severity = {
   HIGH: 'high',
+  MEDIUM: 'medium',
+  LOW: 'low',
 } as const;
-
-type Severity = (typeof Severity)[keyof typeof Severity];
-
-// ❌ Avoid: enum
-enum Severity {
-  LOW = 'low',
-  MEDIUM = 'medium',
-  HIGH = 'high',
-}
+export type Severity = (typeof Severity)[keyof typeof Severity];
 ```
 
-### Type-Only Imports
+- Explicit return types on exported functions.
+- Inline type imports: `import { type Report, Severity } from './types/index.js';`
+- Shared types live in `src/types/index.ts`. A type used by one module stays in that module.
+- Parsed JSON is `unknown` until checked. Log records are read field by field, defensively.
 
-Use inline type imports:
+## Naming
+
+| Kind                 | Convention                       | Example                          |
+| -------------------- | -------------------------------- | -------------------------------- |
+| Variables, functions | `camelCase`, verbs for functions | `detectFriction`, `readOnlyKeys` |
+| Booleans             | auxiliary verb                   | `isError`, `hasEnoughData`       |
+| Types                | `PascalCase`                     | `EpisodeContext`                 |
+| Constants            | `UPPER_SNAKE_CASE`               | `REWORK_MIN_EDITS`               |
+| Files and folders    | `kebab-case`                     | `session-reader.ts`              |
+
+Thresholds are named, exported constants so tests and docs can refer to them.
+
+## Modules
+
+- Named exports only. No default exports.
+- ESM: relative imports include the `.js` extension.
+- Import order is enforced by `eslint-plugin-simple-import-sort`: Node built-ins, packages, then relative imports.
+- Tests sit next to the code: `friction.ts` and `friction.test.ts`.
+
+## Error handling
+
+- Custom error classes that extend `Error`; never throw strings.
+- Fail fast inside the pipeline. Be defensive at the boundaries: log parsing, file reads, engine calls.
+- Errors are handled once, at the CLI level, where they become a message on stderr and an exit code (`0` ok, `1` error, `2` no data).
+- Some failures are expected and are not errors: an unknown log record is counted and skipped, a missing history file means an empty history, an unavailable engine becomes a note in the report. Say so in a comment when a `catch` is intentionally quiet.
 
 ```typescript
-// ✅ Good: Inline type import
-import { type AnalysisResult, parseResponse } from './base.js';
-
-// ❌ Avoid: Separate type import lines
-import type { AnalysisResult } from './base.js';
-import { parseResponse } from './base.js';
-```
-
-### Explicit Return Types
-
-Always declare return types for exported functions:
-
-```typescript
-// ✅ Good: Explicit return type
-export function sanitize(text: string): { text: string; redacted: number } {
-  // ...
-}
-
-// ❌ Avoid: Inferred return type for exports
-export function sanitize(text: string) {
-  // ...
-}
-```
-
----
-
-## Naming Conventions
-
-### Variables and Functions
-
-Use `camelCase` with descriptive names:
-
-```typescript
-// ✅ Good: Descriptive with auxiliary verbs
-const isLoading = true;
-const hasError = false;
-const canSubmit = !isLoading && !hasError;
-
-function readLogs(options: ReadOptions): LogReadResult;
-function sanitizePrompts(prompts: string[]): SanitizeResult;
-```
-
-### Types and Interfaces
-
-Use `PascalCase`:
-
-```typescript
-type AnalysisResult = { ... };
-type ProviderType = 'ollama' | 'anthropic' | 'google';
-type ClaudeMessage = { ... };
-```
-
-### Constants
-
-Use `UPPER_SNAKE_CASE` for true constants:
-
-```typescript
-const PROJECTS_DIR = join(homedir(), '.claude', 'projects');
-const MAX_PATTERNS = 5;
-const DEFAULT_TIMEOUT = 3000;
-```
-
-### Files and Folders
-
-Use `kebab-case`:
-
-```text
-src/
-├── core/
-│   ├── log-reader.ts
-│   ├── schema-validator.ts
-│   └── analyzer.ts
-├── providers/
-│   ├── ollama.ts
-│   └── anthropic.ts
-└── utils/
-    └── shell-config.ts
-```
-
----
-
-## Module Organization
-
-### Export Style
-
-Use named exports only. No default exports.
-
-```typescript
-// ✅ Good: Named exports
-export function readLogs(options: ReadOptions): LogReadResult;
-export function groupByDay(prompts: ExtractedPrompt[]): DayGroup[];
-export type { LogReadResult, ReadOptions };
-
-// ❌ Avoid: Default exports
-export default function readLogs() {}
-```
-
-### Import Order
-
-1. Node.js built-ins
-2. External packages
-3. Internal modules (relative imports)
-
-```typescript
-// 1. Node.js built-ins
-import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
-import { homedir } from 'os';
-
-// 2. External packages
-import chalk from 'chalk';
-import ora from 'ora';
-import { parseISO, isWithinInterval } from 'date-fns';
-
-// 3. Internal modules
-import { type AnalysisResult, parseResponse } from './base.js';
-import { getEnvConfig } from '../utils/env.js';
-```
-
-### File Extensions
-
-Always include `.js` extension in imports (ESM requirement):
-
-```typescript
-// ✅ Good: Include .js extension
-import { readLogs } from './core/log-reader.js';
-import { sanitize } from './core/sanitizer.js';
-
-// ❌ Avoid: Missing extension
-import { readLogs } from './core/log-reader';
-```
-
----
-
-## Error Handling
-
-### Custom Error Classes
-
-Create specific error types:
-
-```typescript
-class ProviderError extends Error {
-  constructor(
-    public readonly provider: string,
-    message: string,
-  ) {
-    super(`[${provider}] ${message}`);
-    this.name = 'ProviderError';
-  }
-}
-
-class ConfigurationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ConfigurationError';
-  }
-}
-```
-
-### Exit Codes
-
-Use consistent exit codes for CLI errors:
-
-```typescript
-// Define exit codes as constants
-const EXIT_SUCCESS = 0;
-const EXIT_ERROR = 1;
-const EXIT_NO_DATA = 2;
-const EXIT_PROVIDER_UNAVAILABLE = 3;
-
-// Use consistently
-if (!prompts.length) {
-  console.error('No prompts found');
-  process.exit(EXIT_NO_DATA);
-}
-```
-
-### Try-Catch Boundaries
-
-Handle errors at appropriate boundaries:
-
-```typescript
-// ✅ Good: Error boundary at CLI level
-async function main(): Promise<void> {
-  try {
-    const result = await analyzePrompts(prompts, provider);
-    printReport(result);
-  } catch (error) {
-    if (error instanceof ProviderError) {
-      spinner.fail(`Provider error: ${error.message}`);
-      process.exit(EXIT_PROVIDER_UNAVAILABLE);
-    }
-    throw error; // Re-throw unknown errors
-  }
-}
-
-// ❌ Avoid: Swallowing errors
 try {
-  doSomething();
+  return JSON.parse(await readFile(filePath, 'utf-8'));
 } catch {
-  // Silent failure
+  // Missing or corrupt history is not fatal: it is rebuilt from the logs.
+  return [];
 }
 ```
 
----
+## CLI output
 
-## CLI Output
+- Report data goes to stdout. Everything else goes to stderr: spinner, logs, warnings, "written to" messages.
+- `chalk` for color and `ora` for the spinner. These are the only UI dependencies.
+- Use the logger (`src/utils/logger.ts`) for warnings and errors. No `console.log`.
+- Renderers return strings and do not print.
+- Colors are off when writing to a file.
 
-### Terminal UI Libraries
+## Privacy
 
-The project uses a comprehensive set of terminal UI libraries for an attractive and professional user experience:
+- Anything placed in an `Episode`, an `Insight` or elsewhere in a `Report` is sanitized.
+- Excerpts are truncated; reports carry short quotes, not whole prompts or outputs.
+- HTML output escapes every report string; log text is untrusted input.
 
-| Library      | Purpose          | When to Use                         |
-| ------------ | ---------------- | ----------------------------------- |
-| `chalk`      | Colors & styling | All colored text, semantic coloring |
-| `ora`        | Spinners         | Short operations (< 5 seconds)      |
-| `prompts`    | Interactivity    | User input, menus, confirmations    |
-| `boxen`      | Boxed sections   | Visual separation, callouts         |
-| `cli-table3` | Tables           | Structured data display             |
-| `figlet`     | ASCII art        | Optional headers/logos              |
+## Comments and documentation
 
-### Use Chalk for Colors
+- English.
+- Comment the why, not the what. A file header that states the module's job and its constraints is welcome; restating the code is not.
+- JSDoc on exported functions when the name and types do not already say it.
 
-```typescript
-import chalk from 'chalk';
+## Performance
 
-// Status messages
-console.log(chalk.green('✅ Analysis complete'));
-console.log(chalk.yellow('⚠️  Warning: Schema version unknown'));
-console.log(chalk.red('❌ Error: Provider unavailable'));
-
-// Formatting
-console.log(chalk.bold('Section Title'));
-console.log(chalk.dim('Supplementary info'));
-console.log(chalk.cyan('💡 Tip: Add more context'));
-```
-
-### Use Ora for Spinners
-
-```typescript
-import ora from 'ora';
-
-const spinner = ora('Analyzing prompts...').start();
-
-try {
-  const result = await longOperation();
-  spinner.succeed('Analysis complete');
-  return result;
-} catch (error) {
-  spinner.fail('Analysis failed');
-  throw error;
-}
-```
-
-### Use Boxen for Boxed Sections
-
-```typescript
-import boxen from 'boxen';
-import chalk from 'chalk';
-
-// Boxed sections for visual separation
-const boxedContent = boxen(
-  chalk.bold('📊 Statistics\n') +
-    `Prompts: 23\n` +
-    `Projects: my-app, backend\n` +
-    `Score: ${chalk.green('7.2/10')}`,
-  {
-    title: 'Analysis Results',
-    borderColor: 'cyan',
-    padding: 1,
-    margin: 1,
-  },
-);
-console.log(boxedContent);
-```
-
-### Use cli-table3 for Structured Data
-
-```typescript
-import Table from 'cli-table3';
-import chalk from 'chalk';
-
-const table = new Table({
-  head: ['Metric', 'Value'],
-  style: { head: ['cyan', 'bold'] },
-});
-
-table.push(
-  ['Prompts', '23'],
-  ['Projects', 'my-app, backend'],
-  ['Score', chalk.green('7.2/10')],
-);
-
-console.log(table.toString());
-```
-
-### Use Figlet for ASCII Art (Optional)
-
-```typescript
-import figlet from 'figlet';
-import chalk from 'chalk';
-
-// Optional ASCII art header
-if (!options.noArt) {
-  const asciiArt = figlet.textSync('Hyntx', {
-    font: 'Standard',
-    horizontalLayout: 'default',
-    verticalLayout: 'default',
-  });
-  console.log(chalk.cyan(asciiArt));
-}
-```
-
-### Use Prompts for Interactivity
-
-```typescript
-import prompts from 'prompts';
-import chalk from 'chalk';
-
-// Clean visual menus and prompts
-const response = await prompts({
-  type: 'multiselect',
-  name: 'providers',
-  message: 'Select providers (space to select, enter to confirm):',
-  choices: [
-    { title: 'ollama (local)', value: 'ollama', selected: true },
-    { title: 'anthropic (Claude Haiku)', value: 'anthropic' },
-    { title: 'google (Gemini Flash)', value: 'google' },
-  ],
-  instructions: false, // Hide default instructions for cleaner UI
-});
-
-// Confirmation prompts
-const confirmed = await prompts({
-  type: 'confirm',
-  name: 'value',
-  message: chalk.cyan('Save configuration to ~/.zshrc?'),
-  initial: true,
-});
-```
-
-### Avoid Plain console.log for UX
-
-```typescript
-// ✅ Good: Styled output with boxes/tables
-console.log(boxedContent);
-console.log(table.toString());
-
-// ❌ Avoid: Plain output for user-facing messages
-console.log('Analysis complete');
-```
-
----
-
-## Documentation
-
-### JSDoc for Exported Functions
-
-```typescript
-/**
- * Reads Claude Code logs from the projects directory
- * @param options - Reading options including date range and filters
- * @returns Extracted prompts and any warnings encountered
- */
-export function readLogs(options: ReadOptions): LogReadResult {
-  // ...
-}
-```
-
-### Self-Documenting Code
-
-Prefer clear names over comments:
-
-```typescript
-// ✅ Good: Self-documenting
-const promptsWithinDateRange = prompts.filter((p) =>
-  isWithinInterval(p.timestamp, { start: dateFrom, end: dateTo }),
-);
-
-// ❌ Avoid: Comment explaining obvious code
-// Filter prompts by date range
-const filtered = prompts.filter((p) => isInRange(p.timestamp));
-```
-
-### Comment Only When Necessary
-
-```typescript
-// ✅ Good: Explain non-obvious logic
-// Estimate tokens: ~4 characters per token (conservative for English)
-function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
-}
-
-// ❌ Avoid: Stating the obvious
-// Increment counter
-count++;
-```
-
----
-
-## Performance Guidelines
-
-### Chain Array Operations
-
-```typescript
-// ✅ Good: Chained operations
-const result = prompts
-  .filter((p) => p.length > 0)
-  .map((p) => sanitize(p))
-  .slice(0, MAX_PROMPTS);
-
-// ❌ Avoid: Intermediate variables
-const nonEmpty = prompts.filter((p) => p.length > 0);
-const sanitized = nonEmpty.map((p) => sanitize(p));
-const limited = sanitized.slice(0, MAX_PROMPTS);
-```
-
-### Use Map/Set for Lookups
-
-```typescript
-// ✅ Good: O(1) lookup
-const patternMap = new Map<string, AnalysisPattern>();
-if (patternMap.has(pattern.id)) {
-  // ...
-}
-
-// ❌ Avoid: O(n) lookup
-const patterns: AnalysisPattern[] = [];
-if (patterns.some((p) => p.id === pattern.id)) {
-  // ...
-}
-```
-
-### Early Returns
-
-```typescript
-// ✅ Good: Early return for edge cases
-function processPrompt(prompt: string): string {
-  if (!prompt.trim()) return '';
-  if (prompt.length > MAX_LENGTH) return truncate(prompt);
-
-  return transform(prompt);
-}
-
-// ❌ Avoid: Deep nesting
-function processPrompt(prompt: string): string {
-  if (prompt.trim()) {
-    if (prompt.length <= MAX_LENGTH) {
-      return transform(prompt);
-    } else {
-      return truncate(prompt);
-    }
-  } else {
-    return '';
-  }
-}
-```
+- Logs can be large: stream them, do not load whole files.
+- Chain array operations rather than building intermediate variables.
+- Use `Map` and `Set` for lookups.
+- Prefer early returns to nested conditionals.

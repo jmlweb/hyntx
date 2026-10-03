@@ -117,6 +117,33 @@ function redactSecretAssignments(text: string): string {
 }
 
 /**
+ * Redacts long opaque identifiers (hex digests, zone/account ids, base64
+ * blobs). Quoted shell commands carry them and reports get shared. Slugs with
+ * dashes, paths and UUIDs are left alone so quotes stay readable.
+ *
+ * @param text - Text to process
+ * @returns Text with opaque identifiers redacted
+ */
+function redactOpaqueIds(text: string): string {
+  return text
+    .replace(
+      /(?<![A-Za-z0-9])[0-9a-fA-F]{32,}(?![A-Za-z0-9])/g,
+      '[REDACTED_ID]',
+    )
+    .replace(
+      /(?<![A-Za-z0-9+/=])[A-Za-z0-9+/]{24,}={1,2}(?![A-Za-z0-9])/g,
+      '[REDACTED_ID]',
+    )
+    .replace(
+      /(?<![A-Za-z0-9])[A-Za-z0-9]{32,}(?![A-Za-z0-9])/g,
+      (match: string) =>
+        /[a-z]/.test(match) && /[A-Z]/.test(match) && /\d/.test(match)
+          ? '[REDACTED_ID]'
+          : match,
+    );
+}
+
+/**
  * Redacts credentials in URLs (https://user:pass@example.com).
  *
  * @param text - Text to process
@@ -178,7 +205,7 @@ function redactNames(text: string): string {
   // Greetings: Hi, Hello, Hey, Dear, Greetings, etc.
   // Name: Capital letter followed by lowercase letters, may include hyphens/apostrophes
   return text.replace(
-    /\b(?:Hi|Hello|Hey|Dear|Greetings|Good\s+(?:morning|afternoon|evening))\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?(?:\s+[A-Z][a-z]+)?)\b/gi,
+    /\b(?:[Hh]i|[Hh]ello|[Hh]ey|[Dd]ear|[Gg]reetings|[Gg]ood\s+(?:morning|afternoon|evening))\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?(?:\s+[A-Z][a-z]+)?)\b/g,
     (match: string, name: string) => {
       // Only redact if the name part looks like a real name (2+ chars, not common words)
       const commonWords = /\b(?:there|everyone|all|team|guys|folks|people)\b/i;
@@ -205,16 +232,18 @@ function redactNames(text: string): string {
  * @returns Text with phone numbers redacted
  */
 function redactPhoneNumbers(text: string): string {
-  // US phone number patterns:
-  // - With area code in parentheses: (555) 123-4567
-  // - With dashes: 555-123-4567
-  // - With dots: 555.123.4567
-  // - Plain: 5551234567 (10 digits)
-  // - With country code: +1 555 123 4567 or 1-555-123-4567
-  return text.replace(
-    /(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})\b/g,
-    '[REDACTED_PHONE]',
-  );
+  // Separated forms are distinctive enough on their own. A bare run of digits
+  // (epoch timestamps, counters) is only a phone number next to a label.
+  return text
+    .replace(
+      /(?:\+?1[-.\s])?\(?[0-9]{3}\)?[-.\s][0-9]{3}[-.\s][0-9]{4}\b/g,
+      '[REDACTED_PHONE]',
+    )
+    .replace(/(?<![\w.])\+[0-9]{9,14}\b/g, '[REDACTED_PHONE]')
+    .replace(
+      /\b((?:phone|tel|telephone|tel[eé]fono|mobile|m[oó]vil|movil|cell|celular|fax|whatsapp)\s*(?:number|n[uú]mero|no\.?)?[\s:#-]*)([0-9]{10})\b/gi,
+      '$1[REDACTED_PHONE]',
+    );
 }
 
 /**
@@ -230,15 +259,27 @@ function redactPhoneNumbers(text: string): string {
  * @returns Text with credit card numbers redacted
  */
 function redactCreditCards(text: string): string {
-  // Credit card patterns with optional spaces/dashes:
-  // Visa: 4XXX XXXX XXXX XXXX or 4XXX-XXXX-XXXX-XXXX (13 or 16 digits)
-  // Mastercard: 5[1-5]XX XXXX XXXX XXXX (16 digits)
-  // Amex: 3[47]XX XXXXXX XXXXX (15 digits)
-  // Diners Club: 3[068]X XXXX XXXX XXXX (14 digits)
+  // Issuer-shaped digit runs are only cards when the Luhn checksum holds;
+  // that keeps timestamps and counters readable.
   return text.replace(
     /\b(?:(?:4\d{3}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{1,4})|(?:5[1-5]\d{2}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4})|(?:3[47]\d{2}[\s-]?\d{6}[\s-]?\d{5})|(?:3[068]\d[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}))\b/g,
-    '[REDACTED_CREDIT_CARD]',
+    (match: string) =>
+      passesLuhn(match.replace(/[\s-]/g, ''))
+        ? '[REDACTED_CREDIT_CARD]'
+        : match,
   );
+}
+
+function passesLuhn(digits: string): boolean {
+  const sum = digits
+    .split('')
+    .reverse()
+    .reduce((acc, char, i) => {
+      const n = Number(char);
+      const doubled = i % 2 === 1 ? n * 2 : n;
+      return acc + (doubled > 9 ? doubled - 9 : doubled);
+    }, 0);
+  return digits.length >= 13 && sum % 10 === 0;
 }
 
 /**
@@ -250,15 +291,17 @@ function redactCreditCards(text: string): string {
  * @returns Text with SSNs redacted
  */
 function redactSSN(text: string): string {
-  // SSN pattern: XXX-XX-XXXX or XXX XX XXXX or XXXXXXXXX
-  // First 3 digits cannot be 000, 666, or 900-999
-  // Middle 2 digits cannot be 00
-  // Last 4 digits cannot be 0000
-  // We'll match the pattern and validate basic constraints
-  return text.replace(
-    /\b(?!000|666|9\d{2})([0-9]{3})[-.\s]?(?!00)([0-9]{2})[-.\s]?(?!0000)([0-9]{4})\b/g,
-    '[REDACTED_SSN]',
-  );
+  // First 3 digits cannot be 000, 666, or 900-999; middle cannot be 00; last
+  // four cannot be 0000. Plain nine-digit runs need an SSN label.
+  return text
+    .replace(
+      /\b(?!000|666|9\d{2})([0-9]{3})[-.\s](?!00)([0-9]{2})[-.\s](?!0000)([0-9]{4})\b/g,
+      '[REDACTED_SSN]',
+    )
+    .replace(
+      /\b((?:ssn|social\s+security(?:\s+number)?|seguro\s+social)[\s:#-]*)(?!000|666|9\d{2})[0-9]{3}(?!00)[0-9]{2}(?!0000)[0-9]{4}\b/gi,
+      '$1[REDACTED_SSN]',
+    );
 }
 
 /**
@@ -312,11 +355,10 @@ function redactMexicanCURP(text: string): string {
  * @returns Text with Brazilian CPF redacted
  */
 function redactBrazilianCPF(text: string): string {
-  // CPF: 11 digits with optional dots and dash (XXX.XXX.XXX-XX) or plain (XXXXXXXXXXX)
-  return text.replace(
-    /\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g,
-    '[REDACTED_BRAZILIAN_CPF]',
-  );
+  // The formatted shape is distinctive; eleven bare digits need a CPF label.
+  return text
+    .replace(/\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g, '[REDACTED_BRAZILIAN_CPF]')
+    .replace(/\b(cpf[\s:#-]*)\d{11}\b/gi, '$1[REDACTED_BRAZILIAN_CPF]');
 }
 
 /**
@@ -447,7 +489,10 @@ function redactPassportNumbers(text: string): string {
   return text.replace(
     /\b(?:passport|pasaporte)[\s:]*([A-Z0-9]{6,9})\b/gi,
     (match: string, passport: string) => {
-      return match.replace(passport, '[REDACTED_PASSPORT]');
+      // "passport strategy" is code talk; real numbers contain digits.
+      return /\d/.test(passport)
+        ? match.replace(passport, '[REDACTED_PASSPORT]')
+        : match;
     },
   );
 }
@@ -469,7 +514,9 @@ function redactDriverLicenseNumbers(text: string): string {
   return text.replace(
     /\b(?:driver\s*license|licencia\s*de\s*conducir|DL|D\.L\.)[\s:]*([A-Z0-9]{8,16})\b/gi,
     (match: string, license: string) => {
-      return match.replace(license, '[REDACTED_DRIVER_LICENSE]');
+      return /\d/.test(license)
+        ? match.replace(license, '[REDACTED_DRIVER_LICENSE]')
+        : match;
     },
   );
 }
@@ -493,18 +540,25 @@ function redactAddresses(text: string): string {
   // - Street address: Number + street name (when in context)
   let sanitized = text;
 
-  // US ZIP codes
-  sanitized = sanitized.replace(/\b\d{5}(?:-\d{4})?\b/g, '[REDACTED_ZIP_CODE]');
+  // US ZIP codes: only with a label, after "City, ST", or in ZIP+4 form;
+  // any five-digit number would otherwise be eaten (ports, counts, years+).
+  sanitized = sanitized
+    .replace(
+      /\b(zip(?:\s*code)?|postal(?:\s*code)?|c[oó]digo\s+postal|c\.?p\.?)([\s:#-]*)\d{5}(?:-\d{4})?\b/gi,
+      '$1$2[REDACTED_ZIP_CODE]',
+    )
+    .replace(/(,\s*[A-Z]{2}\s+)\d{5}(?:-\d{4})?\b/g, '$1[REDACTED_ZIP_CODE]')
+    .replace(/\b\d{5}-\d{4}\b/g, '[REDACTED_ZIP_CODE]');
 
-  // UK postcodes
+  // UK postcodes (uppercase only: "e2e 4ab" style tokens are not postcodes)
   sanitized = sanitized.replace(
-    /\b[A-Z]{1,2}\d{1,2}[A-Z]?\s?\d[A-Z]{2}\b/gi,
+    /\b[A-Z]{1,2}\d{1,2}[A-Z]?\s?\d[A-Z]{2}\b/g,
     '[REDACTED_POSTCODE]',
   );
 
   // Canadian postal codes
   sanitized = sanitized.replace(
-    /\b[A-Z]\d[A-Z]\s?\d[A-Z]\d\b/gi,
+    /\b[A-Z]\d[A-Z]\s?\d[A-Z]\d\b/g,
     '[REDACTED_POSTAL_CODE]',
   );
 
@@ -583,6 +637,7 @@ export function sanitize(text: string): SanitizeResult {
   sanitized = redactBearerTokens(sanitized);
   sanitized = redactProviderTokens(sanitized);
   sanitized = redactSecretAssignments(sanitized);
+  sanitized = redactOpaqueIds(sanitized);
   sanitized = redactURLCredentials(sanitized);
   sanitized = redactPEMKeys(sanitized);
   // PII redaction (specific patterns before broad numeric matchers)

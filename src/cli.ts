@@ -19,6 +19,7 @@ import {
   UsageError,
 } from './cli-args.js';
 import { loadDailyHistory, saveDailyHistory } from './core/history.js';
+import { loadAllowedRules } from './core/permissions.js';
 import { buildReport } from './core/report.js';
 import { claudeProjectsExist, readSessions } from './core/session-reader.js';
 import { interpretReport } from './engines/index.js';
@@ -165,6 +166,11 @@ async function run(argv: readonly string[]): Promise<number> {
 
   spinner.text = 'Analyzing...';
   const history = project ? [] : await loadDailyHistory();
+  const allowedRules = await loadAllowedRules(
+    Object.fromEntries(
+      sessions.flatMap((s) => (s.cwd ? [[s.project, s.cwd] as const] : [])),
+    ),
+  );
   let report = buildReport({
     sessions,
     stats,
@@ -172,6 +178,7 @@ async function run(argv: readonly string[]): Promise<number> {
     to,
     project,
     history,
+    allowedRules,
     version,
   });
 

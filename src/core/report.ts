@@ -18,6 +18,7 @@ import { detectFriction } from './friction.js';
 import { mergeDaily } from './history.js';
 import { generateInsights } from './insights.js';
 import { computeDailyPoints, computeMetrics } from './metrics.js';
+import { type AllowedRules } from './permissions.js';
 import { sanitize } from './sanitizer.js';
 
 export const MIN_SESSIONS_FOR_FINDINGS = 3;
@@ -30,6 +31,7 @@ export type BuildReportOptions = {
   readonly to: Date;
   readonly project: string | null;
   readonly history?: readonly DailyPoint[];
+  readonly allowedRules?: AllowedRules;
   readonly version: string;
   readonly now?: Date;
 };
@@ -132,7 +134,12 @@ export function buildReport(options: BuildReportOptions): Report {
   const { sessions, stats, from, to, project } = options;
   const metrics = computeMetrics(sessions);
   const { episodes, promptTraits } = detectFriction(sessions);
-  const insights = generateInsights({ metrics, episodes, promptTraits });
+  const insights = generateInsights({
+    metrics,
+    episodes,
+    promptTraits,
+    ...(options.allowedRules ? { allowedRules: options.allowedRules } : {}),
+  });
   const currentDaily = computeDailyPoints(sessions, episodes);
   // The stored history is global; merging a project-filtered slice into it
   // would mix scopes, so filtered runs only show their own series.

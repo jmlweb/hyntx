@@ -23,6 +23,7 @@ import {
   TurnKind,
 } from '../types/index.js';
 import { diffMinutes, isoToDateKey } from '../utils/dates.js';
+import { isRealToolError } from './tool-errors.js';
 
 const IDLE_GAP_MINUTES = 10;
 
@@ -144,7 +145,7 @@ function toolStats(sessions: readonly Session[]): ToolStat[] {
     byName.set(call.name, {
       calls: entry.calls + 1,
       denied: entry.denied + (denied ? 1 : 0),
-      errors: entry.errors + (call.result?.isError === true && !denied ? 1 : 0),
+      errors: entry.errors + (isRealToolError(call) ? 1 : 0),
     });
   }
   return [...byName.entries()]
@@ -264,8 +265,7 @@ export function computeAggregate(
 export function computeSessionMetrics(session: Session): SessionMetrics {
   const calls = session.toolCalls;
   const denied = calls.filter((c) => c.result?.denial != null).length;
-  const errors =
-    calls.filter((c) => c.result?.isError === true).length - denied;
+  const errors = calls.filter(isRealToolError).length;
   const primaryModel =
     Object.entries(session.models).sort(
       ([, a], [, b]) => b.messages - a.messages,
@@ -281,7 +281,7 @@ export function computeSessionMetrics(session: Session): SessionMetrics {
     turns: session.turns.length,
     typedPrompts: session.turns.filter(isTypedTurn).length,
     toolCalls: calls.length,
-    toolErrors: Math.max(0, errors),
+    toolErrors: errors,
     toolDenied: denied,
     tokens: toTokenTotals(session.tokens),
     primaryModel,

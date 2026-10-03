@@ -20,6 +20,7 @@ export default tseslint.config(
       '.prettierrc.mjs',
       'tests/',
       'scripts/',
+      'skills/',
     ],
   },
 );

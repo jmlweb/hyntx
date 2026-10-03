@@ -3,6 +3,7 @@
  */
 
 import { type Report } from '../types/index.js';
+import { judgeInsights } from './interpretation.js';
 import {
   describeAction,
   formatMinutes,
@@ -20,6 +21,39 @@ function escapeCell(text: string): string {
   return text.replace(/\|/g, '\\|').replace(/\n/g, ' ');
 }
 
+function renderInterpretation(report: Report): string[] {
+  const interpretation = report.interpretation;
+  if (!interpretation) {
+    return [];
+  }
+  return [
+    `## Interpretation (${interpretation.engine}${interpretation.model ? `, ${interpretation.model}` : ''})`,
+    '',
+    interpretation.summary,
+    '',
+    ...(interpretation.recommendations.length > 0
+      ? [
+          '### Recommendations',
+          '',
+          ...interpretation.recommendations.flatMap((rec, i) => [
+            `${String(i + 1)}. **${rec.title}** - ${rec.body} _(based on: ${rec.basedOn.map((id) => `\`${id}\``).join(', ')})_`,
+          ]),
+          '',
+        ]
+      : []),
+    ...(interpretation.episodeVerdicts.length > 0
+      ? [
+          '### Episode verdicts',
+          '',
+          ...interpretation.episodeVerdicts.map(
+            (v) => `- \`${v.episodeId}\`: **${v.verdict}** - ${v.note}`,
+          ),
+          '',
+        ]
+      : []),
+  ];
+}
+
 export function renderMarkdown(report: Report): string {
   const { overall } = report.metrics;
   const out: string[] = [
@@ -34,11 +68,13 @@ export function renderMarkdown(report: Report): string {
     `- **${formatTokens(overall.tokens.total)}** tokens (${formatTokens(overall.tokens.output)} output, ${formatPercent(overall.tokens.cacheHitRatio)} cache hit ratio)`,
     `- ${String(overall.interruptions)} interruptions, ${String(overall.compactions)} compactions, ${String(overall.subagents.invocations)} subagent calls`,
     '',
+    ...renderInterpretation(report),
     '## Insights',
     '',
   ];
 
-  if (report.insights.length === 0) {
+  const { kept, dismissed } = judgeInsights(report);
+  if (kept.length === 0) {
     out.push(
       report.dataQuality.enoughData
         ? 'No recurring friction found in this period.'
@@ -46,13 +82,16 @@ export function renderMarkdown(report: Report): string {
       '',
     );
   }
-  report.insights.forEach((insight, i) => {
+  kept.forEach(({ insight, state, notes }, i) => {
     const action = describeAction(insight.action);
     out.push(
-      `### ${String(i + 1)}. ${insight.title} (${insight.severity})`,
+      `### ${String(i + 1)}. ${insight.title} (${insight.severity})${state === 'confirmed' ? ' - confirmed' : ''}`,
       '',
       insight.finding,
       '',
+      ...(notes[0]
+        ? [`_Interpretation: ${notes[0].verdict} - ${notes[0].note}_`, '']
+        : []),
       `**Evidence:** ${String(insight.evidence.count)}${insight.evidence.outOf ? ` of ${String(insight.evidence.outOf)}` : ''}` +
         (insight.evidence.sessions > 0
           ? ` in ${String(insight.evidence.sessions)} session(s)`
@@ -105,8 +144,16 @@ export function renderMarkdown(report: Report): string {
     '',
   );
 
-  if (report.interpretation) {
-    out.push('## Interpretation', '', report.interpretation.summary, '');
+  if (dismissed.length > 0) {
+    out.push(
+      '## Dismissed by the interpretation',
+      '',
+      ...dismissed.map(
+        (d) =>
+          `- ${d.insight.title}${d.notes[0] ? `: ${d.notes[0].note}` : ''}`,
+      ),
+      '',
+    );
   }
   out.push(
     '## Data quality',

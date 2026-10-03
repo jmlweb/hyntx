@@ -198,6 +198,7 @@ export function makeTurn(
     readonly assistantMessages?: number;
     readonly assistantExcerpt?: string | null;
     readonly tokens?: Partial<TokenUsage>;
+    readonly models?: readonly string[];
   } = {},
 ): Turn {
   const ts = opts.ts ?? at(1, index * 5);
@@ -220,7 +221,7 @@ export function makeTurn(
     assistantMessages: opts.assistantMessages ?? 1,
     toolCalls: opts.calls ?? [],
     interruptions: opts.interruptions ?? [],
-    models: ['claude-test-1'],
+    models: opts.models ?? ['claude-test-1'],
     assistantExcerpt: opts.assistantExcerpt ?? null,
   };
 }
