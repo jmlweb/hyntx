@@ -57,6 +57,7 @@ export async function interpretReport(
       insightReviews: reviewInsights(
         sanitized.insights,
         sanitized.interpretation,
+        sanitized.episodes,
       ),
     };
   } catch (error) {

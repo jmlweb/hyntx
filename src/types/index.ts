@@ -497,7 +497,11 @@ export type DataQuality = {
 
 export type InterpretationVerdict = 'confirmed' | 'rejected' | 'unclear';
 
-export type InsightState = 'confirmed' | 'dismissed' | 'unverified';
+export type InsightState =
+  | 'confirmed'
+  | 'dismissed'
+  | 'unverified'
+  | 'not-needed';
 
 /**
  * What the interpretation step did with one insight. Renderers and the plugin
@@ -555,7 +559,7 @@ export type Report = {
   readonly episodes: readonly Episode[];
   readonly promptTraits: readonly PromptTraitFinding[];
   readonly insights: readonly Insight[];
-  /** One entry per insight; all `unverified` without an interpretation. */
+  /** One entry per insight; `unverified`, or `not-needed` for counted facts, without an interpretation. */
   readonly insightReviews: readonly InsightReview[];
   readonly interpretation: Interpretation | null;
 };

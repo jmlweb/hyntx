@@ -194,7 +194,7 @@ export function buildReport(options: BuildReportOptions): Report {
     episodes,
     promptTraits,
     insights,
-    insightReviews: reviewInsights(insights, null),
+    insightReviews: reviewInsights(insights, null, episodes),
     interpretation: null,
   };
   return sanitizeReport(report);

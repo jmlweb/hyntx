@@ -190,7 +190,11 @@ export function makeRichReport(overrides: Partial<Report> = {}): Report {
   const report = buildRich(overrides);
   return {
     ...report,
-    insightReviews: reviewInsights(report.insights, report.interpretation),
+    insightReviews: reviewInsights(
+      report.insights,
+      report.interpretation,
+      report.episodes,
+    ),
   };
 }
 

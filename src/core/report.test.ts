@@ -387,7 +387,7 @@ describe('daily history', () => {
     expect(text).not.toContain(esc);
   });
 
-  it('lists a review per insight, all unverified before any interpretation', () => {
+  it('lists a review per insight, none judged before any interpretation', () => {
     const report = buildReport({
       sessions: leakySessions(),
       stats: STATS,
@@ -397,8 +397,10 @@ describe('daily history', () => {
       version: '4.0.0',
     });
     expect(report.insightReviews).toHaveLength(report.insights.length);
-    expect(report.insightReviews.every((r) => r.state === 'unverified')).toBe(
-      true,
-    );
+    expect(
+      report.insightReviews.every(
+        (r) => r.state === 'unverified' || r.state === 'not-needed',
+      ),
+    ).toBe(true);
   });
 });

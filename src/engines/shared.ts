@@ -4,9 +4,9 @@
  * already sanitized by `buildReport`; this module only selects and truncates.
  */
 
+import { needsVerdict } from '../core/insight-review.js';
 import {
   type Episode,
-  EpisodeType,
   type Insight,
   type Interpretation,
   type InterpretationVerdict,
@@ -54,21 +54,6 @@ const MAX_RECOMMENDATIONS = 4;
 // ---------------------------------------------------------------------------
 // Evidence selection
 // ---------------------------------------------------------------------------
-
-/** Episodes whose label is a heuristic guess the model can confirm or reject. */
-export function needsVerdict(episode: Episode): boolean {
-  switch (episode.type) {
-    case EpisodeType.CORRECTION:
-    case EpisodeType.REPEATED_INSTRUCTION:
-    case EpisodeType.REWORK:
-    case EpisodeType.TOOL_ERROR_LOOP:
-      return true;
-    case EpisodeType.CONTEXT_PRESSURE:
-      return episode.confidence < 0.8;
-    default:
-      return false;
-  }
-}
 
 type EvidenceEpisode = {
   readonly id: string;

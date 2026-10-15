@@ -5,6 +5,7 @@
 
 import { reviewInsight } from '../core/insight-review.js';
 import {
+  type Episode,
   type Insight,
   type InsightReview,
   type InsightState,
@@ -35,13 +36,14 @@ const ORDER: Readonly<Record<InterpretationVerdict, number>> = {
 export function judgeInsight(
   insight: Insight,
   interpretation: Interpretation | null,
+  episodes: readonly Episode[] = [],
 ): JudgedInsight {
   const ids = new Set(insight.episodeIds);
   const notes = (interpretation?.episodeVerdicts ?? [])
     .filter((v) => ids.has(v.episodeId))
     .map((v) => ({ verdict: v.verdict, note: v.note }))
     .sort((a, b) => ORDER[a.verdict] - ORDER[b.verdict]);
-  const review = reviewInsight(insight, interpretation);
+  const review = reviewInsight(insight, interpretation, episodes);
   return { insight, state: review.state, review, notes };
 }
 
@@ -68,7 +70,7 @@ export function judgeInsights(report: Report): {
   readonly dismissed: readonly JudgedInsight[];
 } {
   const judged = report.insights.map((insight) =>
-    judgeInsight(insight, report.interpretation),
+    judgeInsight(insight, report.interpretation, report.episodes),
   );
   return {
     kept: judged.filter((j) => j.state !== 'dismissed'),
