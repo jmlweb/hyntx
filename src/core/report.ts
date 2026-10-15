@@ -22,7 +22,9 @@ import { generateInsights } from './insights.js';
 import {
   computeDailyPoints,
   computeMetrics,
+  isAutomatedSession,
   isTrivialSession,
+  isTypedTurn,
 } from './metrics.js';
 import { type AllowedRules } from './permissions.js';
 import { sanitize } from './sanitizer.js';
@@ -91,14 +93,20 @@ export function sanitizeReport(report: Report): Report {
 function buildDataQuality(
   stats: ReadStats,
   sessions: readonly Session[],
+  interactive: readonly Session[],
   typedPrompts: number,
   periodDays: number,
   episodes: readonly Episode[],
   extraNotes: readonly string[],
 ): DataQuality {
+  // Findings come from interactive work only, so that is what must be enough.
+  const interactivePrompts = interactive
+    .flatMap((s) => s.turns)
+    .filter(isTypedTurn).length;
   const enoughData =
-    sessions.length >= MIN_SESSIONS_FOR_FINDINGS &&
-    typedPrompts >= MIN_PROMPTS_FOR_FINDINGS;
+    interactive.length >= MIN_SESSIONS_FOR_FINDINGS &&
+    interactivePrompts >= MIN_PROMPTS_FOR_FINDINGS;
+  const automatedSessions = sessions.length - interactive.length;
   const unknownCount = Object.values(stats.unknownRecordTypes).reduce(
     (a, b) => a + b,
     0,
@@ -108,7 +116,7 @@ function buildDataQuality(
     ...(enoughData
       ? []
       : [
-          `Only ${plural(sessions.length, 'session')} and ${plural(typedPrompts, 'typed prompt')} in the last ${plural(periodDays, 'day')}; findings need at least ${String(MIN_SESSIONS_FOR_FINDINGS)} sessions and ${String(MIN_PROMPTS_FOR_FINDINGS)} prompts to be reliable.`,
+          `Only ${plural(interactive.length, 'interactive session')} and ${plural(interactivePrompts, 'typed prompt')} in the last ${plural(periodDays, 'day')}; findings need at least ${String(MIN_SESSIONS_FOR_FINDINGS)} sessions and ${String(MIN_PROMPTS_FOR_FINDINGS)} prompts to be reliable.`,
         ]),
     ...(unknownCount > 0
       ? [
@@ -128,6 +136,11 @@ function buildDataQuality(
     ...(stats.emptySessions > 0
       ? [
           `${plural(stats.emptySessions, 'session')} with no typed prompt, tool call or reply (for example only /clear or /model) ${stats.emptySessions === 1 ? 'was' : 'were'} left out of the counts.`,
+        ]
+      : []),
+    ...(automatedSessions > 0
+      ? [
+          `${plural(automatedSessions, 'headless session')} (started by scripts or other tools) ${automatedSessions === 1 ? 'is' : 'are'} in the totals but left out of the friction findings.`,
         ]
       : []),
     ...(trivialSessions > 0
@@ -157,6 +170,7 @@ function buildDataQuality(
     filesFailed: stats.filesFailed,
     emptySessionsSkipped: stats.emptySessions,
     trivialSessions,
+    automatedSessions,
     notes,
   };
 }
@@ -164,7 +178,9 @@ function buildDataQuality(
 export function buildReport(options: BuildReportOptions): Report {
   const { sessions, stats, from, to, project } = options;
   const metrics = computeMetrics(sessions);
-  const { episodes, promptTraits, notes } = detectFriction(sessions);
+  // Scripted prompts recur by design and are not the user's workflow.
+  const interactive = sessions.filter((s) => !isAutomatedSession(s));
+  const { episodes, promptTraits, notes } = detectFriction(interactive);
   const insights = generateInsights({
     metrics,
     episodes,
@@ -188,6 +204,7 @@ export function buildReport(options: BuildReportOptions): Report {
     dataQuality: buildDataQuality(
       stats,
       sessions,
+      interactive,
       metrics.overall.typedPrompts,
       periodDays,
       episodes,

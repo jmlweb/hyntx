@@ -32,7 +32,7 @@ Exit codes: `2` means there are no logs or no sessions for that period and filte
 The script prints a digest of the analyzer's `Report` as JSON. Every string in it has already been sanitized (secrets and personal data appear as `[REDACTED_…]`). The parts that matter:
 
 - `period`, `filters.project`: what was analyzed.
-- `dataQuality`: `sessionsInPeriod`, `typedPrompts`, `enoughData` and `notes` (caveats written by the analyzer).
+- `dataQuality`: `sessionsInPeriod`, `typedPrompts`, `enoughData`, `automatedSessions` (headless sessions started by scripts or other tools: in the totals, never in the findings) and `notes` (caveats written by the analyzer).
 - `metrics.overall`: totals for sessions, prompts, tool calls, errors, denials, interruptions, compactions, tokens, models.
 - `insights[]`: ranked findings, highest `score` first. Each has `kind`, `severity`, `title`, `finding`, `confidence` (0-1), `evidence` (`count`, `sessions`, `projects`, `outOf`, `examples[]` with `project`, `date`, `quote`, `note`), `episodeIds[]` and one `action`.
 - `insightReviews[]`: one entry per insight (`insightId`, `state`, `episodes`, `reviewed`, `confirmed`, `rejected`, `unclear`). In this skill there is no LLM review, so every state is `unverified` or `not-needed` (the insight is a counted fact, such as hook blocks or model switches, with nothing to judge); the review is yours.

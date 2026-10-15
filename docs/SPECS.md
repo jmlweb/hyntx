@@ -53,6 +53,7 @@ Rules of the contract:
 - `enoughData`: false below `MIN_SESSIONS_FOR_FINDINGS` sessions or `MIN_PROMPTS_FOR_FINDINGS` typed prompts
 - `filesFailed`, `emptySessionsSkipped`: log files that could not be read and sessions left out as empty
 - `trivialSessions`: sessions with at most `TRIVIAL_SESSION_MAX_TYPED_PROMPTS` (1) typed prompt or less than `TRIVIAL_SESSION_MIN_ACTIVE_MINUTES` (1) active minute (`isTrivialSession`, `src/core/metrics.ts`). They stay in every total and in the detectors, since a tool-error loop or an interruption in a short session is still friction, but `sessionMinutes` and `sessionTurns` leave them out
+- `automatedSessions`: headless sessions (`isAutomatedSession`, `src/core/metrics.ts`), classified by `Session.entrypoint`. Real logs contain `cli` (interactive) and `sdk-cli` (headless `claude -p`); any `sdk-` prefix counts as automated, and an unknown or missing value is interactive. They stay in the metrics totals (their tokens are real usage) but produce no episodes, and `enoughData` counts interactive sessions and prompts only
 - `notes`: human-readable caveats, including skipped records, unreadable files, an unreadable history file, unconfirmed heuristics and engine failures
 
 ### Metrics

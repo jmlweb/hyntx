@@ -201,7 +201,7 @@ describe('buildReport', () => {
     });
     expect(report.dataQuality.enoughData).toBe(false);
     expect(report.dataQuality.notes[0]).toContain(
-      'Only 1 session and 1 typed prompt',
+      'Only 1 interactive session and 1 typed prompt',
     );
     expect(report.insights).toEqual([]);
   });
@@ -223,6 +223,45 @@ describe('buildReport', () => {
     expect(report.dataQuality.notes.join(' ')).toContain(
       '1 session had one typed prompt or under a minute',
     );
+  });
+
+  it('keeps headless sessions out of episodes and counts them in dataQuality', () => {
+    const interrupted = (
+      entrypoint: string | null,
+    ): ReturnType<typeof makeSession> =>
+      makeSession(
+        [0, 1, 2].map((i) =>
+          makeTurn(i, `work ${String(i)}`, {
+            interruptions:
+              i === 1 ? [{ timestamp: at(1, 6), duringToolUse: true }] : [],
+          }),
+        ),
+        { entrypoint },
+      );
+    const run = (sessions: ReturnType<typeof makeSession>[]) =>
+      buildReport({
+        sessions,
+        stats: STATS,
+        from: FROM,
+        to: TO,
+        project: null,
+        version: '4.0.0',
+      });
+
+    const report = run([interrupted('cli'), interrupted('sdk-cli')]);
+    expect(report.dataQuality.automatedSessions).toBe(1);
+    expect(report.dataQuality.sessionsInPeriod).toBe(2);
+    expect(report.metrics.overall.sessions).toBe(2);
+    expect(
+      report.episodes.filter((e) => e.type === 'interruption'),
+    ).toHaveLength(1);
+    expect(report.dataQuality.notes.join(' ')).toContain('1 headless session');
+
+    const unknown = run([interrupted(null), interrupted('something-new')]);
+    expect(unknown.dataQuality.automatedSessions).toBe(0);
+    expect(
+      unknown.episodes.filter((e) => e.type === 'interruption'),
+    ).toHaveLength(2);
   });
 
   it('notes unknown record types and skipped lines', () => {

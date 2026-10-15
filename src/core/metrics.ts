@@ -198,6 +198,17 @@ function countBy(values: readonly string[]): Record<string, number> {
 }
 
 /**
+ * `entrypoint` seen in real logs: `cli` (interactive terminal) and `sdk-cli`
+ * (headless `claude -p`). Other SDK entrypoints share the `sdk-` prefix; an
+ * unknown or missing value is treated as interactive.
+ */
+const AUTOMATED_ENTRYPOINT_PREFIX = 'sdk-';
+
+export function isAutomatedSession(session: Session): boolean {
+  return session.entrypoint?.startsWith(AUTOMATED_ENTRYPOINT_PREFIX) === true;
+}
+
+/**
  * Quick one-offs stay in every total but would drag per-session distributions
  * toward zero, so those leave them out.
  */
