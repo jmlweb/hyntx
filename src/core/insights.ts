@@ -266,6 +266,8 @@ type ErrorAdvice = {
   readonly title: string;
   /** General CLAUDE.md line, only for causes with a general remedy. */
   readonly rule: ((param: string | null) => string) | null;
+  /** Class-specific workflow for causes that a CLAUDE.md line cannot fix. */
+  readonly workflow?: Extract<InsightAction, { kind: 'workflow' }>;
 };
 
 const ERROR_ADVICE: Readonly<Record<ErrorClass, ErrorAdvice>> = {
@@ -293,6 +295,25 @@ const ERROR_ADVICE: Readonly<Record<ErrorClass, ErrorAdvice>> = {
     title: 'Edits fail to find their target text',
     rule: () =>
       '- Re-read the file right before editing it, and give `old_string` enough surrounding context to be unique.',
+  },
+  'file-changed': {
+    title: 'Files change between Claude reading and editing them',
+    rule: null,
+    workflow: {
+      kind: 'workflow',
+      suggestion:
+        'Find what rewrites files while Claude works: a formatter or linter hook, or a second session on the same project.',
+      steps: [
+        'Check hooks in `.claude/settings.json` and `~/.claude/settings.json` for formatters that run after Edit or Write.',
+        'Run the formatter on save outside Claude, or make the hook run only at the end of a turn.',
+        'Avoid two sessions editing the same project at once; use a git worktree for the second one.',
+      ],
+    },
+  },
+  'file-too-large': {
+    title: 'Whole-file reads of files that are too large',
+    rule: () =>
+      '- For large files, search with Grep first or read with `offset` and `limit` instead of reading the whole file.',
   },
   'file-missing': {
     title: 'Calls on files or paths that do not exist',
@@ -333,32 +354,33 @@ function toolErrorInsights({ episodes }: InsightInput): readonly Insight[] {
       const tools = distinct(
         group.flatMap((e) => Object.keys(e.context.tools)),
       ).slice(0, 3);
-      const action: InsightAction = advice.rule
-        ? {
-            kind: 'claude-md-rule',
-            scope: 'project',
-            project,
-            file: 'CLAUDE.md',
-            text: advice.rule(param || null),
-          }
-        : {
-            kind: 'workflow',
-            suggestion:
-              'When the same kind of call fails twice, make Claude diagnose before it retries.',
-            steps: [
-              'Interrupt after the second identical failure instead of letting it loop.',
-              'Ask: "What is the root cause of this error? Show the evidence before changing anything."',
-              'If the cause is environmental (service down, missing tool), fix that first, then resume.',
-            ],
-          };
+      const known = advice.rule !== null || advice.workflow !== undefined;
+      const action: InsightAction =
+        advice.workflow ??
+        (advice.rule
+          ? {
+              kind: 'claude-md-rule',
+              scope: 'project',
+              project,
+              file: 'CLAUDE.md',
+              text: advice.rule(param || null),
+            }
+          : {
+              kind: 'workflow',
+              suggestion:
+                'When the same kind of call fails twice, make Claude diagnose before it retries.',
+              steps: [
+                'Interrupt after the second identical failure instead of letting it loop.',
+                'Ask: "What is the root cause of this error? Show the evidence before changing anything."',
+                'If the cause is environmental (service down, missing tool), fix that first, then resume.',
+              ],
+            });
       return buildInsight({
         id: `tool-errors:${project}:${classId}:${param}`.replace(/\s+/g, '_'),
         kind: InsightKind.TOOL_ERROR_LOOPS,
         title: `${advice.title} (${project})`,
         // Without a known cause the claim is weak, so it never ranks high.
-        severity: advice.rule
-          ? severityByCount(errors, 8, 5)
-          : SeverityValue.LOW,
+        severity: known ? severityByCount(errors, 8, 5) : SeverityValue.LOW,
         finding: `${plural(errors, 'failed tool call')} in ${plural(group.length, 'streak')} across ${plural(sessions, 'session')}${tools.length > 0 ? ` (${tools.join(', ')})` : ''}${firstError ? `; typical error: "${firstError}"` : ''}.`,
         evidence: evidenceOf(
           group,
@@ -373,7 +395,7 @@ function toolErrorInsights({ episodes }: InsightInput): readonly Insight[] {
           null,
         ),
         action,
-        confidence: advice.rule
+        confidence: known
           ? averageConfidence(group)
           : Math.min(0.5, averageConfidence(group)),
         episodes: group,

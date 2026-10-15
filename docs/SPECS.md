@@ -78,6 +78,8 @@ An episode is one moment where the workflow visibly cost the user something.
 
 Each episode has an `id`, `confidence` (0-1), `count` (occurrences collapsed into it), the sanitized triggering `prompt` when there is one, a `summary`, and `context`: the previous prompt, the tail of the assistant's last text, tool counts for the turn and type-specific `detail`. New types may be added.
 
+`tool-error-loop` episodes carry an `errorClass` (`src/core/tool-errors.ts`): `glob-no-match`, `command-not-found`, `daemon-down`, `auth-failed`, `file-changed`, `file-too-large`, `edit-mismatch`, `file-missing`, `timeout` or `unclassified`. `file-changed` ("File has been modified since read") is checked before `edit-mismatch` and yields a workflow action about formatter hooks and parallel sessions. `file-too-large` (reads rejected for size) yields a CLAUDE.md rule to use Grep or `offset`/`limit` first. The `file-too-large` patterns follow Claude Code's documented message and are not yet confirmed against a real log excerpt.
+
 `promptTraits[]` are exploratory correlations between a prompt feature and an outcome, with both group sizes. `meetsThreshold` is true when both groups reach `MIN_TRAIT_SAMPLE` and the gap is large; it is not a statistical test. They are never turned into insights or actions, because a ratio on a handful of replies ("done", "wait") does not tell anyone what to change.
 
 ### Insights

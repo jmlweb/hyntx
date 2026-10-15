@@ -86,6 +86,8 @@ export const ErrorClass = {
   DAEMON_DOWN: 'daemon-down',
   AUTH_FAILED: 'auth-failed',
   EDIT_MISMATCH: 'edit-mismatch',
+  FILE_CHANGED: 'file-changed',
+  FILE_TOO_LARGE: 'file-too-large',
   FILE_MISSING: 'file-missing',
   TIMEOUT: 'timeout',
   UNCLASSIFIED: 'unclassified',
@@ -119,8 +121,19 @@ export function classifyToolError(call: ToolCall): Classified {
   ) {
     return { id: ErrorClass.AUTH_FAILED, param: null };
   }
+  // Checked before EDIT_MISMATCH: both have their own remedy.
+  if (/file has been modified since read/i.test(text)) {
+    return { id: ErrorClass.FILE_CHANGED, param: null };
+  }
   if (
-    /string to replace not found|found \d+ matches|file has been modified|has not been read yet/i.test(
+    /exceeds maximum allowed tokens|file is too large to read|file too large/i.test(
+      text,
+    )
+  ) {
+    return { id: ErrorClass.FILE_TOO_LARGE, param: null };
+  }
+  if (
+    /string to replace not found|found \d+ matches|has not been read yet/i.test(
       text,
     ) ||
     (['Edit', 'MultiEdit'].includes(call.name) &&

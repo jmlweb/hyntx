@@ -100,6 +100,39 @@ describe('generateInsights', () => {
     expect(insight?.evidence.count).toBe(3);
   });
 
+  it('turns file-changed failures into a workflow and large reads into a rule', () => {
+    const changed = (): ReturnType<typeof makeCall> =>
+      makeCall('Edit', {
+        error: true,
+        text: 'File has been modified since read, either by the user or by a linter. Read it again before attempting to write it.',
+      });
+    const large = (): ReturnType<typeof makeCall> =>
+      makeCall('Read', {
+        error: true,
+        text: 'File content (31200 tokens) exceeds maximum allowed tokens (25000). Please use offset and limit parameters.',
+      });
+    const session = makeSession([
+      makeTurn(0, 'edit it', {
+        calls: [
+          changed(),
+          changed(),
+          changed(),
+          makeCall('Bash', { command: 'ls' }),
+          large(),
+          large(),
+          large(),
+        ],
+      }),
+    ]);
+    const insights = insightsFor([session]).filter(
+      (i) => i.kind === InsightKind.TOOL_ERROR_LOOPS,
+    );
+    const changedInsight = insights.find((i) => i.id.includes('file-changed'));
+    expect(changedInsight?.action.kind).toBe('workflow');
+    const largeInsight = insights.find((i) => i.id.includes('file-too-large'));
+    expect(largeInsight?.action).toMatchObject({ kind: 'claude-md-rule' });
+  });
+
   it('falls back to a weak workflow suggestion when the failure cause is unknown', () => {
     const session = makeSession([
       makeTurn(0, 'start the stack', {

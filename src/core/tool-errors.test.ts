@@ -78,6 +78,32 @@ describe('classifyToolError', () => {
     );
   });
 
+  it('splits modified-since-read out of edit mismatches', () => {
+    const changed = makeCall('Edit', {
+      error: true,
+      text: '<tool_use_error>File has been modified since read, either by the user or by a linter. Read it again before attempting to write it.</tool_use_error>',
+    });
+    expect(classifyToolError(changed).id).toBe(ErrorClass.FILE_CHANGED);
+    const mismatch = makeCall('Edit', {
+      error: true,
+      text: '<tool_use_error>String to replace not found in file.</tool_use_error>',
+    });
+    expect(classifyToolError(mismatch).id).toBe(ErrorClass.EDIT_MISMATCH);
+  });
+
+  it('recognises reads rejected because the file is too large', () => {
+    const tokens = makeCall('Read', {
+      error: true,
+      text: 'File content (31200 tokens) exceeds maximum allowed tokens (25000). Please use offset and limit parameters to read specific portions of the file, or use the GrepTool to search for specific content.',
+    });
+    expect(classifyToolError(tokens).id).toBe(ErrorClass.FILE_TOO_LARGE);
+    const bytes = makeCall('Read', {
+      error: true,
+      text: 'File is too large to read (3.1MB). Use offset and limit.',
+    });
+    expect(classifyToolError(bytes).id).toBe(ErrorClass.FILE_TOO_LARGE);
+  });
+
   it('summarises a group by its dominant cause only when it dominates', () => {
     const globs = [1, 2, 3].map(() => bash('ls *.x', 'no matches found: *.x'));
     expect(summarizeToolErrors(globs).id).toBe(ErrorClass.GLOB_NO_MATCH);
