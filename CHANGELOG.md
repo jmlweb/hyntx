@@ -1,3 +1,22 @@
+## [4.1.0](https://github.com/jmlweb/hyntx/compare/v4.0.0...v4.1.0) (2026-10-15)
+
+### Features
+
+- **engines:** let engines label the cause of confirmed corrections ([104056a](https://github.com/jmlweb/hyntx/commit/104056a2da3b88119870dcf17d136f8ce916751b))
+- **insights:** add CLAUDE.md section hint to claude-md-rule actions ([73c70ae](https://github.com/jmlweb/hyntx/commit/73c70ae19806ed7a14aa8a104e3d174e0ad5c722))
+- **metrics:** add parallel-session overlap and response-time metrics ([a2a32b1](https://github.com/jmlweb/hyntx/commit/a2a32b12fe6a4015800f97eba76e0317cd334ec9))
+- **metrics:** count trivial sessions separately in dataQuality ([e7b8888](https://github.com/jmlweb/hyntx/commit/e7b88880f0eedb0d1e66c8af9bb412aeb70c850a))
+- **report:** add action checkboxes and copy-checked to the HTML report ([91bb5c1](https://github.com/jmlweb/hyntx/commit/91bb5c12eafe9ced80abcd64746e77f6c2aca487))
+- **report:** mark insights made of counted facts as not-needed ([07215af](https://github.com/jmlweb/hyntx/commit/07215af7d1bd0b747da236954e96dc128aa6eaf1))
+- **skill:** fixed first-reply template for the hyntx skill ([847153f](https://github.com/jmlweb/hyntx/commit/847153fb7ac26c6ec8c18c39741870e896ba3083))
+- **tool-errors:** add file-changed and file-too-large error classes ([8cb29b3](https://github.com/jmlweb/hyntx/commit/8cb29b3a846d680430afa8ab9721bf1954cabf20))
+- **utils:** write report and history files with mode 0600 ([ec66e81](https://github.com/jmlweb/hyntx/commit/ec66e815fa9ec057c47abcce528dd3325809e4b4))
+
+### Bug Fixes
+
+- **insights:** rate rework high only when the user returned and a tool failed ([9ca6c15](https://github.com/jmlweb/hyntx/commit/9ca6c15e93d0b50cc52a23149e09a37cfffd89a5))
+- **report:** keep headless sessions out of episodes and count them ([0cf669e](https://github.com/jmlweb/hyntx/commit/0cf669e9cf4e1a255afe1546c1627c5c915f580b))
+
 ## [4.0.0](https://github.com/jmlweb/hyntx/compare/v3.1.1...v4.0.0) (2026-10-15)
 
 ### ⚠ BREAKING CHANGES
