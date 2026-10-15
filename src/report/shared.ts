@@ -49,10 +49,11 @@ export function describeAction(action: InsightAction): ActionDescription {
   switch (action.kind) {
     case 'claude-md-rule':
       return {
-        label:
+        label: `${
           action.scope === 'project'
             ? `Add to CLAUDE.md in project "${action.project ?? '?'}"`
-            : `Add to ${action.file}`,
+            : `Add to ${action.file}`
+        }${action.section ? ` under "${action.section}"` : ''}`,
         lines: [],
         verbatim: action.text.split('\n'),
       };

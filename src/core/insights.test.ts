@@ -6,6 +6,7 @@ import {
   InsightKind,
   type Session,
 } from '../types/index.js';
+import { type ClaudeMdHeadings } from './claude-md.js';
 import { detectFriction } from './friction.js';
 import { commandName, generateInsights, reworkSeverity } from './insights.js';
 import { computeMetrics } from './metrics.js';
@@ -13,10 +14,15 @@ import { at, makeCall, makeSession, makeTurn } from './test-helpers.js';
 
 function insightsFor(
   sessions: readonly Session[],
+  claudeMdHeadings?: ClaudeMdHeadings,
 ): ReturnType<typeof generateInsights> {
   const metrics = computeMetrics(sessions);
   const { episodes } = detectFriction(sessions);
-  return generateInsights({ metrics, episodes });
+  return generateInsights({
+    metrics,
+    episodes,
+    ...(claudeMdHeadings ? { claudeMdHeadings } : {}),
+  });
 }
 
 const err = (command: string): ReturnType<typeof makeCall> =>
@@ -131,6 +137,35 @@ describe('generateInsights', () => {
     expect(changedInsight?.action.kind).toBe('workflow');
     const largeInsight = insights.find((i) => i.id.includes('file-too-large'));
     expect(largeInsight?.action).toMatchObject({ kind: 'claude-md-rule' });
+  });
+
+  it('names an existing CLAUDE.md section for a rule only when a heading fits', () => {
+    const globErr = (command: string): ReturnType<typeof makeCall> =>
+      makeCall('Bash', {
+        command,
+        error: true,
+        text: 'Exit code 1\n(eval):1: no matches found: docs/*.md',
+      });
+    const session = makeSession([
+      makeTurn(0, 'list the docs', {
+        calls: [globErr('cat a*'), globErr('ls a*'), globErr('wc a*')],
+      }),
+    ]);
+    const find = (headings?: ClaudeMdHeadings): unknown =>
+      insightsFor([session], headings).find(
+        (i) => i.kind === InsightKind.TOOL_ERROR_LOOPS,
+      )?.action;
+
+    expect(
+      find({ user: [], byProject: { app: ['Overview', 'Shell commands'] } }),
+    ).toMatchObject({ kind: 'claude-md-rule', section: 'Shell commands' });
+    expect(
+      find({ user: [], byProject: { app: ['Overview'] } }),
+    ).not.toHaveProperty('section');
+    expect(
+      find({ user: ['Shell commands'], byProject: {} }),
+    ).not.toHaveProperty('section');
+    expect(find()).not.toHaveProperty('section');
   });
 
   it('falls back to a weak workflow suggestion when the failure cause is unknown', () => {

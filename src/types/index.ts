@@ -427,6 +427,8 @@ export type InsightAction =
       readonly file: string;
       /** Exact line(s) to append. */
       readonly text: string;
+      /** Existing heading the line fits under; absent when none matches. */
+      readonly section?: string;
     }
   | {
       readonly kind: 'permission-allow';

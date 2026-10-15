@@ -91,9 +91,11 @@ function renderAction(action: InsightAction, ids: Ids): string {
     case 'claude-md-rule':
       return copyBlock(
         ids,
-        action.scope === 'project'
-          ? `Add to ${action.file} in project "${action.project ?? '?'}"`
-          : `Add to ${action.file} (all projects)`,
+        `${
+          action.scope === 'project'
+            ? `Add to ${action.file} in project "${action.project ?? '?'}"`
+            : `Add to ${action.file} (all projects)`
+        }${action.section ? ` under "${action.section}"` : ''}`,
         action.text,
         'CLAUDE.md rule',
       );

@@ -17,6 +17,7 @@ import {
   resolvePeriod,
   UsageError,
 } from './cli-args.js';
+import { loadClaudeMdHeadings } from './core/claude-md.js';
 import { loadDailyHistory, saveDailyHistory } from './core/history.js';
 import { loadAllowedRules } from './core/permissions.js';
 import { buildReport } from './core/report.js';
@@ -166,11 +167,13 @@ async function run(argv: readonly string[]): Promise<number> {
   const history = project
     ? { days: [], unreadable: false }
     : await loadDailyHistory();
-  const allowedRules = await loadAllowedRules(
-    Object.fromEntries(
-      sessions.flatMap((s) => (s.cwd ? [[s.project, s.cwd] as const] : [])),
-    ),
+  const projectDirs = Object.fromEntries(
+    sessions.flatMap((s) => (s.cwd ? [[s.project, s.cwd] as const] : [])),
   );
+  const [allowedRules, claudeMdHeadings] = await Promise.all([
+    loadAllowedRules(projectDirs),
+    loadClaudeMdHeadings(projectDirs),
+  ]);
   let report = buildReport({
     sessions,
     stats,
@@ -180,6 +183,7 @@ async function run(argv: readonly string[]): Promise<number> {
     history: history.days,
     historyUnreadable: history.unreadable,
     allowedRules,
+    claudeMdHeadings,
     version,
   });
 

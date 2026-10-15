@@ -42,13 +42,13 @@ The script prints a digest of the analyzer's `Report` as JSON. Every string in i
 
 `action.kind` is one of:
 
-| kind               | fields                             | meaning                             |
-| ------------------ | ---------------------------------- | ----------------------------------- |
-| `claude-md-rule`   | `scope`, `project`, `file`, `text` | a rule to add to a CLAUDE.md        |
-| `permission-allow` | `patterns[]`, `file`, `snippet`    | allow rules for a settings file     |
-| `slash-command`    | `name`, `file`, `content`          | a reusable prompt to save as a file |
-| `prompt-habit`     | `habit`, `before`, `after`         | a change in how the user prompts    |
-| `workflow`         | `suggestion`, `steps[]`            | a change in how they work           |
+| kind               | fields                                         | meaning                                                                         |
+| ------------------ | ---------------------------------------------- | ------------------------------------------------------------------------------- |
+| `claude-md-rule`   | `scope`, `project`, `file`, `text`, `section?` | a rule to add to a CLAUDE.md, under the existing heading `section` when present |
+| `permission-allow` | `patterns[]`, `file`, `snippet`                | allow rules for a settings file                                                 |
+| `slash-command`    | `name`, `file`, `content`                      | a reusable prompt to save as a file                                             |
+| `prompt-habit`     | `habit`, `before`, `after`                     | a change in how the user prompts                                                |
+| `workflow`         | `suggestion`, `steps[]`                        | a change in how they work                                                       |
 
 The report is versioned (`schemaVersion`, currently 1) and grows by adding fields. Use what you recognize and ignore the rest; an insight or action kind you do not recognize should be described from its own text, not dropped. If `schemaVersion` is higher than 1, say that the plugin may be older than the analyzer and carry on carefully.
 

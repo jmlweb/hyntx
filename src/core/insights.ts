@@ -18,6 +18,11 @@ import {
 import { pushTo } from '../utils/collections.js';
 import { isoToDateKey } from '../utils/dates.js';
 import { excerpt, plural, wordCount } from '../utils/text.js';
+import {
+  type ClaudeMdHeadings,
+  NO_CLAUDE_MD_HEADINGS,
+  pickSection,
+} from './claude-md.js';
 import { SAFE_RULE_KEYS } from './friction.js';
 import {
   type AllowedRules,
@@ -33,6 +38,8 @@ export type InsightInput = {
   readonly episodes: readonly Episode[];
   /** Existing permission rules, so allowlist suggestions skip allowed ones. */
   readonly allowedRules?: AllowedRules;
+  /** Existing CLAUDE.md headings, so a rule can name the section it fits. */
+  readonly claudeMdHeadings?: ClaudeMdHeadings;
 };
 
 const MAX_EXAMPLES = 3;
@@ -969,7 +976,24 @@ function modelSwitchInsight({ episodes }: InsightInput): Insight | null {
   });
 }
 
+function withSectionHint(
+  insight: Insight,
+  headings: ClaudeMdHeadings,
+): Insight {
+  const { action } = insight;
+  if (action.kind !== 'claude-md-rule') {
+    return insight;
+  }
+  const known =
+    action.scope === 'user'
+      ? headings.user
+      : (headings.byProject[action.project ?? ''] ?? []);
+  const section = pickSection(known, insight.kind);
+  return section ? { ...insight, action: { ...action, section } } : insight;
+}
+
 export function generateInsights(input: InsightInput): readonly Insight[] {
+  const headings = input.claudeMdHeadings ?? NO_CLAUDE_MD_HEADINGS;
   return [
     interruptionInsight(input),
     correctionInsight(input),
@@ -982,5 +1006,6 @@ export function generateInsights(input: InsightInput): readonly Insight[] {
     modelSwitchInsight(input),
   ]
     .filter((insight): insight is Insight => insight !== null)
+    .map((insight) => withSectionHint(insight, headings))
     .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
 }

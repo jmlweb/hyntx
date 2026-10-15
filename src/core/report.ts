@@ -15,6 +15,7 @@ import {
 } from '../types/index.js';
 import { listDateKeys, toDateKey } from '../utils/dates.js';
 import { plural, stripControlChars } from '../utils/text.js';
+import { type ClaudeMdHeadings } from './claude-md.js';
 import { detectFriction } from './friction.js';
 import { mergeDaily } from './history.js';
 import { reviewInsights } from './insight-review.js';
@@ -42,6 +43,7 @@ export type BuildReportOptions = {
   /** The stored history file existed but could not be used. */
   readonly historyUnreadable?: boolean;
   readonly allowedRules?: AllowedRules;
+  readonly claudeMdHeadings?: ClaudeMdHeadings;
   readonly version: string;
   readonly now?: Date;
 };
@@ -185,6 +187,9 @@ export function buildReport(options: BuildReportOptions): Report {
     metrics,
     episodes,
     ...(options.allowedRules ? { allowedRules: options.allowedRules } : {}),
+    ...(options.claudeMdHeadings
+      ? { claudeMdHeadings: options.claudeMdHeadings }
+      : {}),
   });
   const currentDaily = computeDailyPoints(sessions, episodes);
   // The stored history is global; merging a project-filtered slice into it

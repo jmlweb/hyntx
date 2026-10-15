@@ -111,13 +111,15 @@ type Insight = {
 
 An insight is produced only when its evidence clears a minimum bar. Each has exactly one action:
 
-| `action.kind`      | Fields                             | Applied as                                                 |
-| ------------------ | ---------------------------------- | ---------------------------------------------------------- |
-| `claude-md-rule`   | `scope`, `project`, `file`, `text` | Lines appended to a project or user `CLAUDE.md`            |
-| `permission-allow` | `patterns`, `file`, `snippet`      | Entries merged into `permissions.allow` of a settings file |
-| `slash-command`    | `name`, `file`, `content`          | A new command file                                         |
-| `prompt-habit`     | `habit`, `before`, `after`         | Nothing to write; a habit with an example                  |
-| `workflow`         | `suggestion`, `steps`              | Nothing to write; steps to follow                          |
+| `action.kind`      | Fields                                         | Applied as                                                                  |
+| ------------------ | ---------------------------------------------- | --------------------------------------------------------------------------- |
+| `claude-md-rule`   | `scope`, `project`, `file`, `text`, `section?` | Lines appended to a project or user `CLAUDE.md`, under `section` when given |
+| `permission-allow` | `patterns`, `file`, `snippet`                  | Entries merged into `permissions.allow` of a settings file                  |
+| `slash-command`    | `name`, `file`, `content`                      | A new command file                                                          |
+| `prompt-habit`     | `habit`, `before`, `after`                     | Nothing to write; a habit with an example                                   |
+| `workflow`         | `suggestion`, `steps`                          | Nothing to write; steps to follow                                           |
+
+`section` is a hint, not an edit instruction: the first heading (levels 2-4, file order) of the target `CLAUDE.md` whose words fit the insight's topic (`pickSection` in `src/core/claude-md.ts`; for example a tool-error rule fits "Tools", "Commands" or "Workflow"). The files are read-only (`loadClaudeMdHeadings`: the project's `CLAUDE.md` in its working directory, or `~/.claude/CLAUDE.md` for user scope) and never written. It is absent when the file is unreadable or no heading fits.
 
 Permission suggestions come only from a short list of `<binary> <subcommand>` prefixes (`SAFE_RULE_KEYS`: read-only `gh` views, `docker ps`/`images`, `pnpm`/`npm` listing) whose every invocation, with any arguments, is meant to be harmless. Plain read-only commands such as `ls`, `cat`, `grep` and read-only `git` are already run by Claude Code without a prompt and are never suggested. A suggestion is skipped if an `allow` rule already covers it or a `deny`/`ask` rule touches it. This is a conservative heuristic, not a proof: review a pattern before you paste it. Repeated-instruction actions are emitted only when the prompt text is intact (not shortened, not redacted): a slash-command file holds the complete prompt and a quoted `description`, and a task-like prompt never becomes a CLAUDE.md rule; otherwise the action is a `workflow` explaining how to save it. The CLI only prints actions. The plugin applies them after confirmation.
 
