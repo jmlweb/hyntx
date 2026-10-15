@@ -7,7 +7,7 @@ import {
   type Session,
 } from '../types/index.js';
 import { detectFriction } from './friction.js';
-import { commandName, generateInsights } from './insights.js';
+import { commandName, generateInsights, reworkSeverity } from './insights.js';
 import { computeMetrics } from './metrics.js';
 import { at, makeCall, makeSession, makeTurn } from './test-helpers.js';
 
@@ -201,6 +201,14 @@ describe('generateInsights', () => {
       makeSession(turnsOf(), { planModeUsed: true }),
     ]).find((i) => i.kind === InsightKind.REWORK);
     expect(withPlan?.finding).toContain('plan mode was used');
+  });
+
+  it('rates rework high only when the user returned and something broke', () => {
+    expect(reworkSeverity(13, 2, 0)).toBe('low');
+    expect(reworkSeverity(13, 2, 1)).toBe('medium');
+    expect(reworkSeverity(13, 3, 0)).toBe('medium');
+    expect(reworkSeverity(11, 5, 3)).toBe('high');
+    expect(reworkSeverity(6, 5, 3)).toBe('low');
   });
 
   it('flags context pressure with concrete numbers', () => {

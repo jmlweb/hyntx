@@ -543,6 +543,25 @@ function denialInsights({ episodes }: InsightInput): readonly Insight[] {
     });
 }
 
+/**
+ * Edit volume alone is ordinary authoring. High needs the user coming back to
+ * the file and something breaking in between; medium needs one of the two.
+ */
+export function reworkSeverity(
+  edits: number,
+  turns: number,
+  interleavedFailures: number,
+): Severity {
+  const returned = turns >= 3;
+  const broke = interleavedFailures >= 1;
+  if (edits >= 10 && returned && broke) {
+    return SeverityValue.HIGH;
+  }
+  return edits >= 7 && (returned || broke)
+    ? SeverityValue.MEDIUM
+    : SeverityValue.LOW;
+}
+
 function reworkInsights({ episodes }: InsightInput): readonly Insight[] {
   return episodes
     .filter((e) => e.type === EpisodeType.REWORK)
@@ -562,7 +581,7 @@ function reworkInsights({ episodes }: InsightInput): readonly Insight[] {
         ),
         kind: InsightKind.REWORK,
         title: `\`${file}\` was reworked repeatedly`,
-        severity: severityByCount(episode.count, 10, 7),
+        severity: reworkSeverity(episode.count, turns, interleaved),
         finding: `\`${file}\` was edited ${String(episode.count)} times across ${plural(turns, 'of your prompts', 'of your prompts')}${interleaved > 0 ? `, with ${plural(interleaved, 'tool failure')} in between` : ''}${planUsed ? ' (plan mode was used)' : ' (plan mode was not used)'}.`,
         evidence: evidenceOf(
           [episode],
