@@ -6,6 +6,7 @@ import {
   computeDailyPoints,
   computeMetrics,
   computeSessionMetrics,
+  isTrivialSession,
   percentile,
   toTokenTotals,
 } from './metrics.js';
@@ -137,6 +138,49 @@ describe('computeAggregate', () => {
     expect(m.toolErrorRate).toBe(0);
     expect(m.tokens.cacheHitRatio).toBeNull();
     expect(m.sessionMinutes.median).toBe(0);
+  });
+});
+
+describe('isTrivialSession', () => {
+  const spaced = (n: number, minutes: number): ReturnType<typeof makeTurn>[] =>
+    Array.from({ length: n }, (_, i) =>
+      makeTurn(i, `prompt ${String(i)}`, { ts: at(1, i * minutes) }),
+    );
+
+  it('is trivial with one typed prompt, however long it ran', () => {
+    const session = makeSession([
+      makeTurn(0, 'one question', {
+        calls: [
+          makeCall('Bash', { ts: at(1, 5) }),
+          makeCall('Bash', { ts: at(1, 12) }),
+        ],
+      }),
+    ]);
+    expect(isTrivialSession(session)).toBe(true);
+  });
+
+  it('is trivial when two prompts span under a minute of activity', () => {
+    const session = makeSession([
+      makeTurn(0, 'a', { ts: at(1, 0) }),
+      makeTurn(1, 'b', { ts: at(1, 0.5) }),
+    ]);
+    expect(isTrivialSession(session)).toBe(true);
+  });
+
+  it('is not trivial at two prompts and exactly one active minute', () => {
+    expect(isTrivialSession(makeSession(spaced(2, 1)))).toBe(false);
+  });
+
+  it('keeps trivial sessions in totals but out of the distributions', () => {
+    const quick = makeSession([makeTurn(0, 'quick question')]);
+    const real = makeSession(spaced(4, 5));
+    const aggregate = computeAggregate([quick, real]);
+    expect(aggregate.sessions).toBe(2);
+    expect(aggregate.typedPrompts).toBe(5);
+    const counted = (d: typeof aggregate.sessionTurns): number =>
+      d.buckets.reduce((n, b) => n + b.count, 0);
+    expect(counted(aggregate.sessionTurns)).toBe(1);
+    expect(counted(aggregate.sessionMinutes)).toBe(1);
   });
 });
 

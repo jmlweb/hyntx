@@ -206,6 +206,25 @@ describe('buildReport', () => {
     expect(report.insights).toEqual([]);
   });
 
+  it('counts trivial sessions in dataQuality and says they are kept in totals', () => {
+    const real = makeSession(
+      [0, 1, 2].map((i) => makeTurn(i, `real ${String(i)}`)),
+    );
+    const report = buildReport({
+      sessions: [makeSession([makeTurn(0, 'quick question')]), real],
+      stats: STATS,
+      from: FROM,
+      to: TO,
+      project: null,
+      version: '4.0.0',
+    });
+    expect(report.dataQuality.trivialSessions).toBe(1);
+    expect(report.dataQuality.sessionsInPeriod).toBe(2);
+    expect(report.dataQuality.notes.join(' ')).toContain(
+      '1 session had one typed prompt or under a minute',
+    );
+  });
+
   it('notes unknown record types and skipped lines', () => {
     const report = buildReport({
       sessions: leakySessions(),

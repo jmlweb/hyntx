@@ -19,7 +19,11 @@ import { detectFriction } from './friction.js';
 import { mergeDaily } from './history.js';
 import { reviewInsights } from './insight-review.js';
 import { generateInsights } from './insights.js';
-import { computeDailyPoints, computeMetrics } from './metrics.js';
+import {
+  computeDailyPoints,
+  computeMetrics,
+  isTrivialSession,
+} from './metrics.js';
 import { type AllowedRules } from './permissions.js';
 import { sanitize } from './sanitizer.js';
 
@@ -99,6 +103,7 @@ function buildDataQuality(
     (a, b) => a + b,
     0,
   );
+  const trivialSessions = sessions.filter(isTrivialSession).length;
   const notes = [
     ...(enoughData
       ? []
@@ -125,6 +130,11 @@ function buildDataQuality(
           `${plural(stats.emptySessions, 'session')} with no typed prompt, tool call or reply (for example only /clear or /model) ${stats.emptySessions === 1 ? 'was' : 'were'} left out of the counts.`,
         ]
       : []),
+    ...(trivialSessions > 0
+      ? [
+          `${plural(trivialSessions, 'session')} had one typed prompt or under a minute of activity; ${trivialSessions === 1 ? 'it is' : 'they are'} in the totals but left out of the session length distributions.`,
+        ]
+      : []),
     ...extraNotes,
     ...(episodes.some((e) => e.type === EpisodeType.CORRECTION)
       ? [
@@ -146,6 +156,7 @@ function buildDataQuality(
     enoughData,
     filesFailed: stats.filesFailed,
     emptySessionsSkipped: stats.emptySessions,
+    trivialSessions,
     notes,
   };
 }

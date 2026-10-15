@@ -29,6 +29,11 @@ import { isRealToolError } from './tool-errors.js';
 
 const IDLE_GAP_MINUTES = 10;
 
+/** A session with at most this many typed prompts is a quick one-off. */
+export const TRIVIAL_SESSION_MAX_TYPED_PROMPTS = 1;
+/** A session active for less than this many minutes is a quick one-off. */
+export const TRIVIAL_SESSION_MIN_ACTIVE_MINUTES = 1;
+
 export const ZERO_TOKENS: TokenUsage = {
   input: 0,
   output: 0,
@@ -192,6 +197,18 @@ function countBy(values: readonly string[]): Record<string, number> {
   );
 }
 
+/**
+ * Quick one-offs stay in every total but would drag per-session distributions
+ * toward zero, so those leave them out.
+ */
+export function isTrivialSession(session: Session): boolean {
+  return (
+    session.turns.filter(isTypedTurn).length <=
+      TRIVIAL_SESSION_MAX_TYPED_PROMPTS ||
+    computeActiveMinutes(session) < TRIVIAL_SESSION_MIN_ACTIVE_MINUTES
+  );
+}
+
 export function computeAggregate(
   sessions: readonly Session[],
 ): AggregateMetrics {
@@ -212,7 +229,8 @@ export function computeAggregate(
     {},
   );
   // Active minutes, not wall clock: a session left open overnight is not long.
-  const durations = sessions.map(computeActiveMinutes);
+  const substantial = sessions.filter((s) => !isTrivialSession(s));
+  const durations = substantial.map(computeActiveMinutes);
 
   return {
     sessions: sessions.length,
@@ -260,7 +278,7 @@ export function computeAggregate(
       MINUTE_EDGES,
     ),
     sessionTurns: distribution(
-      sessions.map((s) => s.turns.length),
+      substantial.map((s) => s.turns.length),
       TURN_EDGES,
     ),
   };

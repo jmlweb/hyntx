@@ -489,6 +489,8 @@ export type DataQuality = {
   readonly filesFailed?: number;
   /** Sessions with no prompt, tool call or reply that were left out. */
   readonly emptySessionsSkipped?: number;
+  /** Quick one-off sessions: counted in totals, left out of per-session distributions. */
+  readonly trivialSessions?: number;
   /** False when there is too little data for trustworthy findings. */
   readonly enoughData: boolean;
   /** Human-readable caveats; engines append theirs. */
