@@ -70,19 +70,38 @@ If `dataQuality.enoughData` is false, or nothing survives, say that plainly: how
 
 ## 4. Present
 
-Lead with one or two sentences on the period: sessions, typed prompts, and the single most important thing you found. Then the insights that matter, usually two to four and never more than five, most valuable first. For each:
+The first reply is short and has a fixed shape, so the user can read it in ten seconds and answer. Keep the full digest and your notes on each episode in context: they are for the follow-ups, not for this reply.
 
-- what happens, with the real numbers (how often, in how many sessions, in which projects)
-- one or two pieces of evidence, quoted from `evidence.examples` or the episode, with project and date
-- what you propose to change, concretely
+Use exactly this template, filled with real numbers and nothing else:
 
-Write for the user, not for the schema: no ids, no confidence decimals, no field names. Keep quotes short. Metrics belong in the answer only where they support a finding.
+```text
+**<period>**: <N> sessions, <N> typed prompts<, project name when filtered>. <One sentence: the single most important thing you found.>
+
+**What I'd change**
+1. <Finding in plain words, with how often and where> -> <the change, in a few words>
+2. ...
+3. ...
+
+<Dropped: one line on what you discarded and why. Leave this line out when nothing was dropped.>
+
+Which of these should I turn into a change? Reply with numbers, "all" or "none", or ask about any of them first.
+```
+
+- Two to four items, never more than five, most valuable first. One line each.
+- No ids, no confidence decimals, no field names, no quotes and no metrics beyond the counts that support the item. Evidence comes in the follow-up, not here.
+- When nothing survives section 3, replace the list with one honest sentence and offer a longer period; the closing question stays out.
+
+Follow-ups use the digest already in context; do not run the analyzer again unless the user changes the period or the project. Answer what was asked:
+
+- "Why" or "show me": one or two quotes from `evidence.examples` or the episode, with project and date. Keep quotes short.
+- A question about a number or another project: answer from `metrics`, `episodes` and `dataQuality`.
+- "Apply" or a choice of numbers: go to section 5.
 
 Treat the analyzer's `action` as a draft. Rule text generated from a template often just restates the incident ("`cat x` failed 7 times"). Rewrite it as the durable instruction that would have prevented the incident, short and specific, in the voice of the file it is going into. If you cannot phrase a rule that would still make sense in three months, the right action is probably a habit or nothing at all.
 
 ## 5. Offer to apply
 
-After presenting, ask which of the proposed changes the user wants. Then handle them one at a time: read the target, show the exact change (file path plus the lines to add, or a diff), and wait for a yes before writing. A yes covers that one change only. Never write anything the user has not seen, and if the session is not interactive, present the changes and apply none.
+Once the user has picked changes from the first reply, handle them one at a time: read the target, show the exact change (file path plus the lines to add, or a diff), and wait for a yes before writing. A yes covers that one change only. Never write anything the user has not seen, and if the session is not interactive, present the changes and apply none.
 
 Finding the right file:
 
