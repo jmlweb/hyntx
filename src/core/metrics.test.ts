@@ -5,6 +5,8 @@ import {
   computeAggregate,
   computeDailyPoints,
   computeMetrics,
+  computeParallelSessions,
+  computeResponseTime,
   computeSessionMetrics,
   isTrivialSession,
   percentile,
@@ -255,5 +257,54 @@ describe('computeDailyPoints', () => {
       typedPrompts: 1,
       corrections: 1,
     });
+  });
+});
+
+describe('computeParallelSessions', () => {
+  const prompts = (...minutes: number[]): ReturnType<typeof makeSession> =>
+    makeSession(
+      minutes.map((m, i) => makeTurn(i, `p${String(m)}`, { ts: at(1, m) })),
+    );
+
+  it('counts interleaved prompts of two sessions within 30 minutes', () => {
+    const result = computeParallelSessions([prompts(0, 40), prompts(20, 100)]);
+    expect(result.overlappingPrompts).toBe(3);
+    expect(result.sessionsInvolved).toBe(2);
+    expect(result.share).toBe(0.75);
+  });
+
+  it('ignores prompts of the same session and distant sessions', () => {
+    const result = computeParallelSessions([prompts(0, 5, 10), prompts(200)]);
+    expect(result.overlappingPrompts).toBe(0);
+    expect(result.sessionsInvolved).toBe(0);
+  });
+
+  it('is zero without sessions', () => {
+    expect(computeParallelSessions([]).share).toBe(0);
+  });
+});
+
+describe('computeResponseTime', () => {
+  const turn = (i: number, startSec: number, endSec: number) => {
+    const base = new Date(2026, 8, 1, 12, 0, 0).getTime();
+    const ts = new Date(base + startSec * 1000).toISOString();
+    return {
+      ...makeTurn(i, `t${String(i)}`, { ts }),
+      endedAt: new Date(base + endSec * 1000).toISOString(),
+    };
+  };
+
+  it('measures end of turn to next typed prompt and drops outliers', () => {
+    const session = makeSession([
+      turn(0, 0, 10),
+      turn(1, 11, 20), // 1 s: too short
+      turn(2, 50, 60), // 30 s
+      turn(3, 60 + 7200, 60 + 7200), // 2 h: too long
+      turn(4, 60 + 7200 + 300, 60 + 7200 + 300), // 5 min
+    ]);
+    const result = computeResponseTime([session]);
+    expect(result.samples).toBe(2);
+    expect(result.max).toBe(300);
+    expect(result.buckets.map((b) => b.count)).toEqual([0, 1, 0, 1, 0]);
   });
 });

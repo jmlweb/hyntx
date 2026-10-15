@@ -442,8 +442,15 @@ function renderModels(report: Report): string {
     .join('')}</tbody></table></div>`;
 }
 
+function formatSeconds(seconds: number): string {
+  return seconds < 90
+    ? `${String(Math.round(seconds))} s`
+    : formatMinutes(seconds / 60);
+}
+
 function renderHabits(report: Report): string {
   const { overall, activity } = report.metrics;
+  const { parallelSessions, responseTime } = activity;
   if (overall.typedPrompts < MIN_PROMPTS_FOR_HABIT_CHARTS) {
     return `<p class="empty">${esc(plural(overall.typedPrompts, 'typed prompt'))} so far: too few to chart when you work. Charts appear from ${String(MIN_PROMPTS_FOR_HABIT_CHARTS)} prompts.</p>`;
   }
@@ -485,8 +492,32 @@ function renderHabits(report: Report): string {
       labels: overall.sessionMinutes.buckets.map((b) => b.label),
       values: overall.sessionMinutes.buckets.map((b) => b.count),
     }),
+    ...(responseTime.samples > 0
+      ? [
+          renderCategoryChart({
+            chart: describeChart(
+              responseTime.buckets.map((b) => b.label),
+              'response-time',
+              'Time before your next prompt',
+              'prompts',
+              responseTime.buckets.map((b) => b.count),
+              count,
+            ),
+            labels: responseTime.buckets.map((b) => b.label),
+            values: responseTime.buckets.map((b) => b.count),
+          }),
+        ]
+      : []),
   ];
-  return `<div class="charts">${charts.join('')}</div>`;
+  const parallelNote =
+    parallelSessions.overlappingPrompts > 0
+      ? `<p class="muted small">Parallel sessions: ${esc(formatPercent(parallelSessions.share))} of typed prompts (${esc(count(parallelSessions.overlappingPrompts))}) came within 30 minutes of a prompt in another session, across ${esc(plural(parallelSessions.sessionsInvolved, 'session'))}.</p>`
+      : '';
+  const responseNote =
+    responseTime.samples > 0
+      ? `<p class="muted small">Response time: median ${esc(formatSeconds(responseTime.median))}, p90 ${esc(formatSeconds(responseTime.p90))} over ${esc(plural(responseTime.samples, 'gap'))} between 2 seconds and 1 hour.</p>`
+      : '';
+  return `<div class="charts">${charts.join('')}</div>${parallelNote}${responseNote}`;
 }
 
 function renderMetrics(report: Report): string {

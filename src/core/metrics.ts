@@ -34,6 +34,12 @@ export const TRIVIAL_SESSION_MAX_TYPED_PROMPTS = 1;
 /** A session active for less than this many minutes is a quick one-off. */
 export const TRIVIAL_SESSION_MIN_ACTIVE_MINUTES = 1;
 
+/** Typed prompts of two sessions this close in time count as interleaved. */
+export const PARALLEL_WINDOW_MINUTES = 30;
+/** Shorter gaps are tool noise, longer ones are the user having left. */
+export const RESPONSE_TIME_MIN_SECONDS = 2;
+export const RESPONSE_TIME_MAX_SECONDS = 3600;
+
 export const ZERO_TOKENS: TokenUsage = {
   input: 0,
   output: 0,
@@ -117,6 +123,14 @@ const TURN_EDGES = [
   { label: '6-15', upTo: 15 },
   { label: '16-40', upTo: 40 },
   { label: '>40', upTo: Number.POSITIVE_INFINITY },
+] as const;
+
+const RESPONSE_EDGES = [
+  { label: '<=10s', upTo: 10 },
+  { label: '10-30s', upTo: 30 },
+  { label: '30s-2m', upTo: 120 },
+  { label: '2-10m', upTo: 600 },
+  { label: '10m-1h', upTo: Number.POSITIVE_INFINITY },
 ] as const;
 
 function round(value: number, digits = 1): number {
@@ -339,6 +353,78 @@ function groupBy<T>(
   return groups;
 }
 
+type PromptStamp = { readonly sessionId: string; readonly ms: number };
+
+/**
+ * For each stamp, the distance in ms to the nearest earlier stamp of another
+ * session (Infinity when none). Input sorted ascending by `ms`.
+ */
+function gapsToPreviousOtherSession(
+  sorted: readonly PromptStamp[],
+): readonly number[] {
+  let latest: PromptStamp | null = null;
+  let latestOther: PromptStamp | null = null;
+  return sorted.map((stamp) => {
+    const other = latest?.sessionId === stamp.sessionId ? latestOther : latest;
+    if (latest && latest.sessionId !== stamp.sessionId) {
+      latestOther = latest;
+    }
+    latest = stamp;
+    return other ? stamp.ms - other.ms : Number.POSITIVE_INFINITY;
+  });
+}
+
+export function computeParallelSessions(
+  sessions: readonly Session[],
+): Metrics['activity']['parallelSessions'] {
+  const stamps = sessions
+    .flatMap((s) =>
+      s.turns
+        .filter(isTypedTurn)
+        .map((t) => ({ sessionId: s.id, ms: Date.parse(t.prompt.timestamp) })),
+    )
+    .filter((stamp) => !Number.isNaN(stamp.ms))
+    .sort((a, b) => a.ms - b.ms);
+  const windowMs = PARALLEL_WINDOW_MINUTES * 60_000;
+  const before = gapsToPreviousOtherSession(stamps);
+  const after = [
+    ...gapsToPreviousOtherSession(
+      stamps.map((s) => ({ ...s, ms: -s.ms })).reverse(),
+    ),
+  ].reverse();
+  const overlapping = stamps.filter(
+    (_, i) =>
+      (before[i] ?? Number.POSITIVE_INFINITY) <= windowMs ||
+      (after[i] ?? Number.POSITIVE_INFINITY) <= windowMs,
+  );
+  return {
+    overlappingPrompts: overlapping.length,
+    sessionsInvolved: new Set(overlapping.map((s) => s.sessionId)).size,
+    share: stamps.length > 0 ? round(overlapping.length / stamps.length, 3) : 0,
+  };
+}
+
+export function computeResponseTime(
+  sessions: readonly Session[],
+): Metrics['activity']['responseTime'] {
+  const gaps = sessions
+    .flatMap((s) =>
+      s.turns.slice(1).map((turn, i) => {
+        const previous = s.turns[i];
+        return previous && isTypedTurn(turn)
+          ? (Date.parse(turn.prompt.timestamp) - Date.parse(previous.endedAt)) /
+              1000
+          : Number.NaN;
+      }),
+    )
+    .filter(
+      (gap) =>
+        gap >= RESPONSE_TIME_MIN_SECONDS && gap <= RESPONSE_TIME_MAX_SECONDS,
+    )
+    .map((gap) => round(gap));
+  return { ...distribution(gaps, RESPONSE_EDGES), samples: gaps.length };
+}
+
 export function computeMetrics(sessions: readonly Session[]): Metrics {
   const typedTimes = sessions
     .flatMap((s) => s.turns.filter(isTypedTurn))
@@ -363,7 +449,12 @@ export function computeMetrics(sessions: readonly Session[]): Metrics {
       .map(([date, group]) => ({ date, ...computeAggregate(group) }))
       .sort((a, b) => a.date.localeCompare(b.date)),
     sessions: sessions.map(computeSessionMetrics),
-    activity: { byHour, byWeekday },
+    activity: {
+      byHour,
+      byWeekday,
+      parallelSessions: computeParallelSessions(sessions),
+      responseTime: computeResponseTime(sessions),
+    },
   };
 }
 

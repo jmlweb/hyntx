@@ -289,6 +289,21 @@ export type Metrics = {
     readonly byHour: readonly number[];
     /** Typed prompts per weekday, index 0 = Sunday. */
     readonly byWeekday: readonly number[];
+    /**
+     * Typed prompts that have a typed prompt from another session within
+     * `PARALLEL_WINDOW_MINUTES`. Descriptive only, never an insight.
+     */
+    readonly parallelSessions: {
+      readonly overlappingPrompts: number;
+      readonly sessionsInvolved: number;
+      /** overlappingPrompts / typed prompts; 0 without prompts. */
+      readonly share: number;
+    };
+    /**
+     * Seconds between the end of one turn and the next typed prompt of the same
+     * session, keeping only gaps of 2 s to 1 h.
+     */
+    readonly responseTime: Distribution & { readonly samples: number };
   };
 };
 

@@ -58,7 +58,10 @@ Rules of the contract:
 
 ### Metrics
 
-`metrics.overall`, `metrics.byProject[]` and `metrics.byDay[]` share one shape: sessions, turns, typed prompts, tool calls with errors and denials per tool, token totals with cache-hit ratio, model mix, subagent use, permission modes, plan mode, slash commands, interruptions, compactions, API errors and session length distributions. `metrics.sessions[]` has one row per session and `metrics.activity` the prompts per hour and weekday.
+`metrics.overall`, `metrics.byProject[]` and `metrics.byDay[]` share one shape: sessions, turns, typed prompts, tool calls with errors and denials per tool, token totals with cache-hit ratio, model mix, subagent use, permission modes, plan mode, slash commands, interruptions, compactions, API errors and session length distributions. `metrics.sessions[]` has one row per session and `metrics.activity` the prompts per hour and weekday plus two descriptive working-style metrics (never insights, additive fields):
+
+- `parallelSessions`: `overlappingPrompts` (typed prompts with a typed prompt from another session within `PARALLEL_WINDOW_MINUTES`, 30), `sessionsInvolved` and `share` of all typed prompts (`computeParallelSessions`)
+- `responseTime`: distribution in seconds of the gap between the end of a turn and the next typed prompt of the same session, keeping only gaps from `RESPONSE_TIME_MIN_SECONDS` (2) to `RESPONSE_TIME_MAX_SECONDS` (3600), with `samples` (`computeResponseTime`)
 
 Active minutes exclude idle gaps longer than 10 minutes. Tokens are counts; there are no cost figures.
 
