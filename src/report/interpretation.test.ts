@@ -120,6 +120,27 @@ describe('coverage of verdicts', () => {
     );
   });
 
+  it('lists the causes of confirmed corrections in the coverage line', () => {
+    const report = withEpisodes(['confirmed'], 1);
+    const interpretation = report.interpretation;
+    if (!interpretation) {
+      throw new Error('fixture has an interpretation');
+    }
+    const [verdict] = interpretation.episodeVerdicts;
+    const withCause: Report = {
+      ...report,
+      interpretation: {
+        ...interpretation,
+        episodeVerdicts: verdict
+          ? [{ ...verdict, cause: 'excessive-changes' }]
+          : [],
+      },
+    };
+    expect(describeCoverage(firstReview(judgeInsights(withCause).kept))).toBe(
+      'LLM reviewed 1 of 1 episode: 1 confirmed; causes: 1 excessive changes',
+    );
+  });
+
   it('dismisses only when every episode was reviewed and rejected', () => {
     expect(
       judgeInsights(withEpisodes(['rejected', 'rejected'], 2)).dismissed,

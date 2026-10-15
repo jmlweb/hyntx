@@ -135,10 +135,13 @@ type Interpretation = {
     episodeId;
     verdict: 'confirmed' | 'rejected' | 'unclear';
     note;
+    cause?: CorrectionCause;
   }[];
   recommendations: { title; body; basedOn: string[] }[];
 };
 ```
+
+`cause` is optional and appears only on a `confirmed` verdict for a `correction` episode. It comes from the closed set `misunderstood-request`, `wrong-approach`, `buggy-code`, `excessive-changes`, `wrong-location`, `other` (`CorrectionCause`); any other value an engine returns becomes `other`, and a cause on any other verdict or episode type is dropped. `insightReviews[].causes` counts the causes among an insight's confirmed corrections and is absent without an engine, so the deterministic report does not change. Terminal, Markdown and HTML show the causes next to the coverage line or verdict. Both engines share the schema and validation in `src/engines/shared.ts`.
 
 Engines get a sanitized selection from the report and their output is sanitized again. `null` from an engine or an exception becomes a `dataQuality` note; the run still succeeds.
 

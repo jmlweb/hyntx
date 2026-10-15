@@ -5,6 +5,7 @@
  */
 
 import {
+  type CorrectionCause,
   type Episode,
   EpisodeType,
   type Insight,
@@ -62,6 +63,13 @@ export function reviewInsight(
         : isCountedFact
           ? 'not-needed'
           : 'unverified';
+  const causes = verdicts.reduce<Partial<Record<CorrectionCause, number>>>(
+    (acc, v) =>
+      v.cause === undefined
+        ? acc
+        : { ...acc, [v.cause]: (acc[v.cause] ?? 0) + 1 },
+    {},
+  );
   return {
     insightId: insight.id,
     state,
@@ -70,6 +78,7 @@ export function reviewInsight(
     confirmed,
     rejected,
     unclear,
+    ...(Object.keys(causes).length > 0 ? { causes } : {}),
   };
 }
 

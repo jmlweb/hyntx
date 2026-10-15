@@ -47,6 +47,14 @@ export function judgeInsight(
   return { insight, state: review.state, review, notes };
 }
 
+/** "2 wrong approach, 1 buggy code", most common first, or null without causes. */
+export function describeCauses(review: InsightReview): string | null {
+  const parts = Object.entries(review.causes ?? {})
+    .sort(([a, x], [b, y]) => y - x || a.localeCompare(b))
+    .map(([cause, n]) => `${String(n)} ${cause.replace(/-/g, ' ')}`);
+  return parts.length > 0 ? parts.join(', ') : null;
+}
+
 /** "3 of 9 episodes reviewed: 1 confirmed, 2 rejected", or null if none were. */
 export function describeCoverage(review: InsightReview): string | null {
   if (review.reviewed === 0) {
@@ -58,10 +66,12 @@ export function describeCoverage(review: InsightReview): string | null {
     review.unclear > 0 ? `${String(review.unclear)} unclear` : null,
   ].filter((part): part is string => part !== null);
   const unreviewed = review.episodes - review.reviewed;
+  const causes = describeCauses(review);
   return (
     `LLM reviewed ${String(review.reviewed)} of ${String(review.episodes)} ` +
     `${review.episodes === 1 ? 'episode' : 'episodes'}: ${parts.join(', ')}` +
-    (unreviewed > 0 ? `; ${String(unreviewed)} not reviewed` : '')
+    (unreviewed > 0 ? `; ${String(unreviewed)} not reviewed` : '') +
+    (causes ? `; causes: ${causes}` : '')
   );
 }
 

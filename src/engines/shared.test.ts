@@ -63,6 +63,52 @@ describe('validateAnswer', () => {
     ]);
   });
 
+  it('keeps a valid cause on a confirmed correction and maps unknown ones to other', () => {
+    const withCause = (cause: unknown): string | undefined =>
+      validateAnswer(
+        {
+          ...GOOD_ANSWER,
+          verdicts: [{ ...GOOD_ANSWER.verdicts[0], cause }],
+        },
+        evidence,
+      ).episodeVerdicts[0]?.cause;
+    expect(withCause('excessive-changes')).toBe('excessive-changes');
+    expect(withCause('Wrong-Approach')).toBe('wrong-approach');
+    expect(withCause('they were rude')).toBe('other');
+    expect(withCause(42)).toBeUndefined();
+    expect(withCause(undefined)).toBeUndefined();
+  });
+
+  it('ignores a cause on a rejected verdict or a non-correction episode', () => {
+    const rejected = validateAnswer(
+      {
+        ...GOOD_ANSWER,
+        verdicts: [
+          {
+            ...GOOD_ANSWER.verdicts[0],
+            verdict: 'rejected',
+            cause: 'buggy-code',
+          },
+        ],
+      },
+      evidence,
+    );
+    expect(rejected.episodeVerdicts[0]).not.toHaveProperty('cause');
+
+    const rework = {
+      ...evidence,
+      episodes: evidence.episodes.map((e) => ({ ...e, type: 'rework' })),
+    };
+    const answer = validateAnswer(
+      {
+        ...GOOD_ANSWER,
+        verdicts: [{ ...GOOD_ANSWER.verdicts[0], cause: 'buggy-code' }],
+      },
+      rework,
+    );
+    expect(answer.episodeVerdicts[0]).not.toHaveProperty('cause');
+  });
+
   it('drops verdicts and references to ids that were never sent', () => {
     const answer = validateAnswer(
       {

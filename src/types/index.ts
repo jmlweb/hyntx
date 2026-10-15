@@ -501,6 +501,18 @@ export type DataQuality = {
 
 export type InterpretationVerdict = 'confirmed' | 'rejected' | 'unclear';
 
+/** Why a confirmed correction happened; engines pick one, anything else becomes `other`. */
+export const CorrectionCause = {
+  MISUNDERSTOOD_REQUEST: 'misunderstood-request',
+  WRONG_APPROACH: 'wrong-approach',
+  BUGGY_CODE: 'buggy-code',
+  EXCESSIVE_CHANGES: 'excessive-changes',
+  WRONG_LOCATION: 'wrong-location',
+  OTHER: 'other',
+} as const;
+export type CorrectionCause =
+  (typeof CorrectionCause)[keyof typeof CorrectionCause];
+
 export type InsightState =
   | 'confirmed'
   | 'dismissed'
@@ -523,6 +535,8 @@ export type InsightReview = {
   readonly confirmed: number;
   readonly rejected: number;
   readonly unclear: number;
+  /** Causes of the confirmed corrections, only when an engine gave any. */
+  readonly causes?: Readonly<Partial<Record<CorrectionCause, number>>>;
 };
 
 /** Filled by the LLM interpretation step (phase 2). */
@@ -535,6 +549,8 @@ export type Interpretation = {
     readonly episodeId: string;
     readonly verdict: InterpretationVerdict;
     readonly note: string;
+    /** Only on a confirmed `correction` episode. */
+    readonly cause?: CorrectionCause;
   }[];
   readonly recommendations: readonly {
     readonly title: string;

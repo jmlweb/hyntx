@@ -58,7 +58,8 @@ function renderInterpretation(report: Report): string[] {
           '### Episode verdicts',
           '',
           ...interpretation.episodeVerdicts.map(
-            (v) => `- \`${v.episodeId}\`: **${v.verdict}** - ${v.note}`,
+            (v) =>
+              `- \`${v.episodeId}\`: **${v.verdict}**${v.cause ? ` (${v.cause})` : ''} - ${v.note}`,
           ),
           '',
         ]

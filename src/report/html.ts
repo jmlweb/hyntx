@@ -529,7 +529,7 @@ function renderEpisode(report: Report, episode: Episode): string {
   const verdict = report.interpretation?.episodeVerdicts.find(
     (v) => v.episodeId === episode.id,
   );
-  return `<div class="ep"><span class="type">${esc(EPISODE_LABELS[episode.type])}</span>${verdict ? `<span class="badge ${esc(verdict.verdict)}">${esc(verdict.verdict)}</span> ` : ''}${esc(episode.summary)}${episode.count > 1 ? ` (x${esc(episode.count)})` : ''}<div class="muted small">${esc(episode.project)} - ${esc(episode.timestamp.slice(0, 10))}${episode.prompt ? ` - &ldquo;${esc(episode.prompt)}&rdquo;` : ''}${verdict?.note ? ` - ${esc(verdict.note)}` : ''}</div></div>`;
+  return `<div class="ep"><span class="type">${esc(EPISODE_LABELS[episode.type])}</span>${verdict ? `<span class="badge ${esc(verdict.verdict)}">${esc(verdict.verdict)}</span> ${verdict.cause ? `<span class="muted small">${esc(verdict.cause.replace(/-/g, ' '))}</span> ` : ''}` : ''}${esc(episode.summary)}${episode.count > 1 ? ` (x${esc(episode.count)})` : ''}<div class="muted small">${esc(episode.project)} - ${esc(episode.timestamp.slice(0, 10))}${episode.prompt ? ` - &ldquo;${esc(episode.prompt)}&rdquo;` : ''}${verdict?.note ? ` - ${esc(verdict.note)}` : ''}</div></div>`;
 }
 
 function renderEpisodes(report: Report): string {

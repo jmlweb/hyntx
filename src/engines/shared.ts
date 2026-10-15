@@ -6,7 +6,9 @@
 
 import { needsVerdict } from '../core/insight-review.js';
 import {
+  CorrectionCause,
   type Episode,
+  EpisodeType,
   type Insight,
   type Interpretation,
   type InterpretationVerdict,
@@ -187,6 +189,7 @@ export const SYSTEM_PROMPT = `You are a careful analyst of a developer's Claude 
 Rules:
 - Use only the evidence you are given. Never invent episodes, numbers, projects or quotes.
 - Judge every episode in "episodes". The type and summary of an episode are only a regex guess by the tool, so they are not evidence. Decide from the actual words in "prompt", "previousPrompt" and "assistantSaid" and from "facts". "confirmed": those words show real friction (for a correction, the user rejects or redoes what the assistant just did; for rework, the same file is being fixed again because earlier edits were wrong). "rejected": they show something else (a follow-up, a new request, a routine step). "unclear": the words are not enough; choose this when unsure. The reason is one short sentence that quotes or paraphrases specific words from that episode, never the episode type or the tool's summary.
+- For a "confirmed" episode of type "correction", also set "cause" to the closest of: misunderstood-request (Claude did not grasp what was asked), wrong-approach (right goal, wrong method), buggy-code (the change was faulty), excessive-changes (more changed than asked), wrong-location (the wrong file or place), other. Leave "cause" out for any other episode or verdict.
 - The summary is 2 to 4 plain sentences about how the period went, with numbers taken from "stats". Say honestly if there is little to report or if things went well.
 - Recommendations are 0 to ${String(MAX_RECOMMENDATIONS)} concrete actions the developer can take: a line for CLAUDE.md, a settings change, or a prompting habit. Never suggest loosening safety rules, hooks or auto-mode protections. Each one lists in basedOn the ids of the episodes or insights that justify it, copied exactly from the input. Prefer fewer, better recommendations. An empty list is correct when the evidence does not support one.
 - Reply with the requested JSON object only. Write in English.`;
@@ -206,6 +209,7 @@ export const RESPONSE_SCHEMA = {
             enum: ['confirmed', 'rejected', 'unclear'],
           },
           reason: { type: 'string' },
+          cause: { type: 'string', enum: Object.values(CorrectionCause) },
         },
         required: ['id', 'verdict', 'reason'],
       },
@@ -312,6 +316,30 @@ const VERDICTS: ReadonlySet<string> = new Set([
   'unclear',
 ]);
 
+const CAUSES: ReadonlySet<string> = new Set(Object.values(CorrectionCause));
+
+/**
+ * A cause only makes sense on a confirmed correction. A value outside the
+ * closed set becomes `other`: the model still said something was wrong.
+ */
+function asCause(
+  value: unknown,
+  verdict: string,
+  episodeType: string | undefined,
+): CorrectionCause | null {
+  if (
+    typeof value !== 'string' ||
+    verdict !== 'confirmed' ||
+    episodeType !== EpisodeType.CORRECTION
+  ) {
+    return null;
+  }
+  const normalized = value.trim().toLowerCase();
+  return CAUSES.has(normalized)
+    ? (normalized as CorrectionCause)
+    : CorrectionCause.OTHER;
+}
+
 export type ParsedAnswer = Pick<
   Interpretation,
   'summary' | 'episodeVerdicts' | 'recommendations'
@@ -332,7 +360,8 @@ export function validateAnswer(raw: unknown, evidence: Evidence): ParsedAnswer {
       'the model returned no usable summary (empty or placeholder text)',
     );
   }
-  const episodeIds = new Set(evidence.episodes.map((e) => e.id));
+  const episodeTypes = new Map(evidence.episodes.map((e) => [e.id, e.type]));
+  const episodeIds = new Set(episodeTypes.keys());
   const knownIds = new Set([
     ...episodeIds,
     ...evidence.insights.map((i) => i.id),
@@ -360,7 +389,15 @@ export function validateAnswer(raw: unknown, evidence: Evidence): ParsedAnswer {
       return [];
     }
     seen.add(id);
-    return [{ episodeId: id, verdict: verdict as InterpretationVerdict, note }];
+    const cause = asCause(item['cause'], verdict, episodeTypes.get(id));
+    return [
+      {
+        episodeId: id,
+        verdict: verdict as InterpretationVerdict,
+        note,
+        ...(cause ? { cause } : {}),
+      },
+    ];
   });
 
   const recommendations = (
