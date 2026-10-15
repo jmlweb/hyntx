@@ -73,6 +73,11 @@ ${body}
 </section>`;
 }
 
+/** Checkbox that adds the text of element `id` to "Copy checked"; shown only with JS. */
+function pick(id: string, copyLabel: string): string {
+  return `<label class="pick"><input type="checkbox" data-pick="${id}" aria-label="${esc(`Include in copy checked: ${copyLabel}`)}"><span>Select</span></label>`;
+}
+
 function copyBlock(
   ids: Ids,
   label: string,
@@ -81,7 +86,7 @@ function copyBlock(
 ): string {
   const id = ids();
   return `<div class="action">
-<div class="label"><span>${esc(label)}</span><button type="button" class="copy" data-copy-target="${id}" aria-label="${esc(`Copy: ${copyLabel}`)}">Copy</button></div>
+<div class="label"><span>${esc(label)}</span><span class="acts">${pick(id, copyLabel)}<button type="button" class="copy" data-copy-target="${id}" aria-label="${esc(`Copy: ${copyLabel}`)}">Copy</button></span></div>
 <pre id="${id}">${esc(text)}</pre>
 </div>`;
 }
@@ -120,7 +125,7 @@ function renderAction(action: InsightAction, ids: Ids): string {
         action.before !== null || action.after !== null
           ? `<div class="ba">
 ${action.before !== null ? `<div><div class="tag">Before</div><pre id="${beforeId}">${esc(action.before)}</pre></div>` : ''}
-${action.after !== null ? `<div><div class="tag">After <button type="button" class="copy" data-copy-target="${afterId}" aria-label="Copy: improved prompt">Copy</button></div><pre id="${afterId}">${esc(action.after)}</pre></div>` : ''}
+${action.after !== null ? `<div><div class="tag">After <span class="acts">${pick(afterId, 'improved prompt')}<button type="button" class="copy" data-copy-target="${afterId}" aria-label="Copy: improved prompt">Copy</button></span></div><pre id="${afterId}">${esc(action.after)}</pre></div>` : ''}
 </div>`
           : '';
       return `<div class="action"><div class="label"><span>Prompt habit: ${esc(action.habit)}</span></div>${pair}</div>`;
@@ -132,7 +137,7 @@ ${action.after !== null ? `<div><div class="tag">After <button type="button" cla
         ...action.steps.map((step, i) => `${String(i + 1)}. ${step}`),
       ].join('\n');
       return `<div class="action">
-<div class="label"><span>Workflow: ${esc(action.suggestion)}</span><button type="button" class="copy" data-copy-target="${id}" aria-label="Copy: workflow steps">Copy</button></div>
+<div class="label"><span>Workflow: ${esc(action.suggestion)}</span><span class="acts">${pick(id, 'workflow steps')}<button type="button" class="copy" data-copy-target="${id}" aria-label="Copy: workflow steps">Copy</button></span></div>
 ${action.steps.length > 0 ? `<ol class="steps">${action.steps.map((step) => `<li>${esc(step)}</li>`).join('')}</ol>` : ''}
 <pre id="${id}" class="sr-only">${esc(text)}</pre>
 </div>`;
@@ -252,10 +257,13 @@ function renderInsights(report: Report, ids: Ids): string {
           )
           .join('')}</ul></details>`
       : '';
+  const copyAll = body.includes('data-pick=')
+    ? '<div class="copyall"><button type="button" id="copy-checked" class="copyall" disabled>Copy checked (0)</button></div>'
+    : '';
   return section(
     'insights',
     `What to change${kept.length > 0 ? ` (${String(kept.length)})` : ''}`,
-    `${renderInterpretationSummary(report)}${body}${dismissedHtml}`,
+    `${renderInterpretationSummary(report)}${copyAll}${body}${dismissedHtml}`,
   );
 }
 

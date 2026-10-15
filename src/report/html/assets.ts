@@ -51,9 +51,14 @@ pre{margin:.35rem 0 0;padding:10px 12px;background:var(--code-bg);border:1px sol
 .ba{display:grid;grid-template-columns:1fr;gap:6px}
 @media (min-width:640px){.ba{grid-template-columns:1fr 1fr}}
 .ba .tag{display:flex;justify-content:space-between;align-items:center;min-height:26px;font-size:.75rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
-button.copy{display:none;font:inherit;font-size:.8rem;padding:2px 10px;border-radius:5px;border:1px solid var(--border);background:var(--bg);color:var(--text);cursor:pointer}
-.js button.copy{display:inline-block}
-button.copy:hover{border-color:var(--accent)}
+button.copy,button.copyall{display:none;font:inherit;font-size:.8rem;padding:2px 10px;border-radius:5px;border:1px solid var(--border);background:var(--bg);color:var(--text);cursor:pointer}
+.js button.copy,.js button.copyall{display:inline-block}
+button.copy:hover,button.copyall:hover:not(:disabled){border-color:var(--accent)}
+button.copyall:disabled{opacity:.55;cursor:default}
+.acts{display:inline-flex;align-items:center;gap:10px}
+.pick{display:none;align-items:center;gap:5px;font-weight:400;font-size:.8rem;color:var(--muted);cursor:pointer}
+.js .pick{display:inline-flex}
+.copyall{margin:0 0 .75rem}
 details{margin:.6rem 0 0}
 summary{cursor:pointer;color:var(--muted);font-size:.875rem}
 summary:hover{color:var(--text)}
@@ -90,7 +95,7 @@ footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media print{
   body{font-size:11pt}
-  button.copy,.js button.copy{display:none}
+  button.copy,.js button.copy,button.copyall,.js button.copyall,.pick,.js .pick{display:none}
   .card,figure.chart{break-inside:avoid}
   h2{break-after:avoid}
 }
@@ -117,20 +122,44 @@ export const JS = `
     }
     return Promise.resolve(fallbackCopy(text));
   }
+  function flash(button,ok,restore){
+    var original=button.getAttribute('data-label')||button.textContent;
+    button.setAttribute('data-label',original);
+    button.textContent=ok?'Copied':'Copy failed';
+    if(live)live.textContent=ok?'Copied to clipboard':'Copy failed';
+    setTimeout(function(){button.textContent=original;button.removeAttribute('data-label');if(restore)restore();if(live)live.textContent='';},1800);
+  }
+  var all=document.getElementById('copy-checked');
+  function picked(){
+    return Array.prototype.filter.call(document.querySelectorAll('input[data-pick]'),function(input){return input.checked;});
+  }
+  function syncAll(){
+    if(!all)return;
+    var n=picked().length;
+    all.disabled=n===0;
+    all.textContent='Copy checked ('+n+')';
+  }
+  document.addEventListener('change',function(event){
+    var target=event.target;
+    if(target&&target.matches&&target.matches('input[data-pick]'))syncAll();
+  });
   document.addEventListener('click',function(event){
     var target=event.target;
     if(!(target instanceof Element))return;
+    if(all&&target.closest('#copy-checked')){
+      var texts=picked().map(function(input){
+        var source=document.getElementById(input.getAttribute('data-pick')||'');
+        return source?(source.textContent||''):'';
+      }).filter(function(text){return text!=='';});
+      if(texts.length===0)return;
+      copyText(texts.join('\\n\\n')).then(function(ok){flash(all,ok,syncAll);});
+      return;
+    }
     var button=target.closest('button.copy');
     if(!button)return;
     var source=document.getElementById(button.getAttribute('data-copy-target')||'');
     if(!source)return;
-    copyText(source.textContent||'').then(function(ok){
-      var original=button.getAttribute('data-label')||button.textContent;
-      button.setAttribute('data-label',original);
-      button.textContent=ok?'Copied':'Copy failed';
-      if(live)live.textContent=ok?'Copied to clipboard':'Copy failed';
-      setTimeout(function(){button.textContent=original;if(live)live.textContent='';},1800);
-    });
+    copyText(source.textContent||'').then(function(ok){flash(button,ok,null);});
   });
   window.addEventListener('beforeprint',function(){
     document.querySelectorAll('details').forEach(function(d){d.setAttribute('data-was-open',d.open?'1':'0');d.open=true;});
