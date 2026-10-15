@@ -14,7 +14,8 @@ export async function writeFileAtomic(
   await mkdir(dirname(filePath), { recursive: true });
   const tmpFile = `${filePath}.${String(process.pid)}.${randomUUID()}.tmp`;
   try {
-    await writeFile(tmpFile, content, 'utf-8');
+    // Reports hold personal excerpts; the rename keeps the temp file's owner-only mode
+    await writeFile(tmpFile, content, { encoding: 'utf-8', mode: 0o600 });
     await rename(tmpFile, filePath);
   } catch (error) {
     await unlink(tmpFile).catch(() => undefined);
