@@ -28,9 +28,9 @@
             { "type": "revert", "section": "Reverts" },
             { "type": "docs", "section": "Documentation" },
             { "type": "refactor", "section": "Code Refactoring" },
-            { "type": "test", "section": "Tests", "hidden": true },
-            { "type": "chore", "section": "Chores", "hidden": true },
-            { "type": "ci", "section": "CI/CD", "hidden": true }
+            { "type": "test", "section": "Tests", "effect": "hidden" },
+            { "type": "chore", "section": "Chores", "effect": "hidden" },
+            { "type": "ci", "section": "CI/CD", "effect": "hidden" }
           ]
         }
       }

@@ -3,7 +3,7 @@
   "compilerOptions": {
     "outDir": "dist",
     "lib": ["ES2022"],
-    "esModuleInterop": false,
+    "types": ["node"],
     "exactOptionalPropertyTypes": false
   },
   "include": ["src/**/*"],
