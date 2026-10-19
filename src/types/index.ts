@@ -531,10 +531,7 @@ export type CorrectionCause =
   (typeof CorrectionCause)[keyof typeof CorrectionCause];
 
 export type InsightState =
-  | 'confirmed'
-  | 'dismissed'
-  | 'unverified'
-  | 'not-needed';
+  'confirmed' | 'dismissed' | 'unverified' | 'not-needed';
 
 /**
  * What the interpretation step did with one insight. Renderers and the plugin

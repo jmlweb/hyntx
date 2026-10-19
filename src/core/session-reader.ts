@@ -1072,17 +1072,15 @@ function foldSession(acc: SessionAccumulator): FoldResult {
 
         const calls = event.toolUses
           .filter((use) => !seenCallIds.has(use.id))
-          .map(
-            (use): ToolCall => ({
-              id: use.id,
-              name: use.name,
-              timestamp: event.ts,
-              sidechain: event.sidechain,
-              target: use.target,
-              command: use.command,
-              result: resultsById.get(use.id) ?? null,
-            }),
-          );
+          .map((use): ToolCall => ({
+            id: use.id,
+            name: use.name,
+            timestamp: event.ts,
+            sidechain: event.sidechain,
+            target: use.target,
+            command: use.command,
+            result: resultsById.get(use.id) ?? null,
+          }));
         for (const call of calls) {
           seenCallIds.add(call.id);
           allCalls.push(call);
