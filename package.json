@@ -48,7 +48,7 @@
     "@jmlweb/eslint-config-base": "^3.0.4",
     "@jmlweb/prettier-config-base": "^2.0.2",
     "@jmlweb/tsconfig-base": "^2.0.1",
-    "@jmlweb/tsup-config-base": "^2.0.2",
+    "@jmlweb/tsup-config-base": "^2.0.3",
     "@jmlweb/vitest-config": "^3.0.2",
     "@semantic-release/changelog": "^7.0.0",
     "@semantic-release/exec": "^7.1.0",
@@ -65,7 +65,7 @@
     "semantic-release": "^25.0.9",
     "tsup": "^9.0.0",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.71.2",
+    "typescript-eslint": "^8.72.0",
     "vitest": "^5.0.5"
   },
   "bin": {
