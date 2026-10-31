@@ -3,3 +3,6 @@ dist/
 
 # Lock files (auto-generated)
 pnpm-lock.yaml
+
+# Flowstate backlog (CLI-generated)
+.backlog/
