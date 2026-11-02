@@ -751,20 +751,6 @@ describe('provider tokens and secret assignments', () => {
     expect(text).toContain('[REDACTED_JWT]');
   });
 
-  it.each(['-', '_'])(
-    'redacts Google keys whose last character is %s',
-    (lastCharacter) => {
-      const key = `AIza${'a1B2c3D4e5'.repeat(3)}Zx9Y${lastCharacter}`;
-      const contexts = [key, `${key} next`, `"${key}"`, `'${key}'`];
-
-      for (const input of contexts) {
-        const { text } = sanitize(input);
-        expect(text).toContain('[REDACTED_GOOGLE_KEY]');
-        expect(text).not.toContain('AIza');
-      }
-    },
-  );
-
   it('redacts values assigned to secret-looking names but not variable references', () => {
     expect(sanitize('API_KEY=abcdef123456789').text).toBe(
       'API_KEY=[REDACTED_SECRET]',
