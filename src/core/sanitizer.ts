@@ -89,7 +89,10 @@ function redactProviderTokens(text: string): string {
     .replace(/\bnpm_[A-Za-z0-9]{30,}\b/g, '[REDACTED_NPM_TOKEN]')
     .replace(/\bglpat-[A-Za-z0-9_-]{20,}/g, '[REDACTED_GITLAB_TOKEN]')
     .replace(/\bxox[abprs]-[A-Za-z0-9-]{10,}/g, '[REDACTED_SLACK_TOKEN]')
-    .replace(/\bAIza[0-9A-Za-z_-]{35}\b/g, '[REDACTED_GOOGLE_KEY]')
+    .replace(
+      /\bAIza[0-9A-Za-z_-]{35}(?![0-9A-Za-z_-])/g,
+      '[REDACTED_GOOGLE_KEY]',
+    )
     .replace(
       /\b[sr]k_(?:live|test)_[A-Za-z0-9]{16,}\b/g,
       '[REDACTED_STRIPE_KEY]',
