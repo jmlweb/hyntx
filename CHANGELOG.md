@@ -1,3 +1,23 @@
+## [4.1.1](https://github.com/jmlweb/hyntx/compare/v4.1.0...v4.1.1) (2026-11-04)
+
+### Bug Fixes
+
+- **deps:** pin conventionalcommits preset to v9 for release notes ([b90ab11](https://github.com/jmlweb/hyntx/commit/b90ab113c39e0f9dcbdf908ddcc8ab06683bd894))
+- **sanitizer:** redact Google API keys ending in '-' (TSK-001) ([#91](https://github.com/jmlweb/hyntx/issues/91)) ([fb49798](https://github.com/jmlweb/hyntx/commit/fb497989ee7f665936325e37296a0ea621d15acd))
+
+### Reverts
+
+- Revert "fix(sanitizer): redact Google API keys ending in '-' (TSK-001) ([#91](https://github.com/jmlweb/hyntx/issues/91))" ([#92](https://github.com/jmlweb/hyntx/issues/92)) ([9dace37](https://github.com/jmlweb/hyntx/commit/9dace376b8c0d8f91ecf02184ce0cb279eb64151))
+
+### Chores
+
+- **backlog:** file and triage three reports from 2026-10-30 grooming ([a134042](https://github.com/jmlweb/hyntx/commit/a13404255f8680e3e1cb873a426532cbf63876c1))
+- **backlog:** file and triage three sanitizer reports from 2026-11-02 grooming ([b1f9e4f](https://github.com/jmlweb/hyntx/commit/b1f9e4f67558d4143888fb6683b7413ecbb9ddf4))
+- **backlog:** initialize flowstate backlog ([d8672c4](https://github.com/jmlweb/hyntx/commit/d8672c4ab046817f3fb7f6a85f77dc52a9216b5b))
+- **deps:** upgrade dependencies to latest compatible versions ([#88](https://github.com/jmlweb/hyntx/issues/88)) ([143921c](https://github.com/jmlweb/hyntx/commit/143921c91ac0c4abf8711f9ed2902fe0ca1a11be))
+- **deps:** upgrade dependencies to latest stable versions ([f6616f0](https://github.com/jmlweb/hyntx/commit/f6616f041e48aeb4384137f57d5b65dda34c9177))
+- **format:** exclude flowstate backlog from Prettier ([e53cffe](https://github.com/jmlweb/hyntx/commit/e53cffe348cf1741c4900fcd03bdf6cb17cce500))
+
 ## [4.1.0](https://github.com/jmlweb/hyntx/compare/v4.0.0...v4.1.0) (2026-10-15)
 
 ### Features
