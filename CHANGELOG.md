@@ -1,3 +1,13 @@
+## [4.1.2](https://github.com/jmlweb/hyntx/compare/v4.1.1...v4.1.2) (2026-11-05)
+
+### Bug Fixes
+
+- **sanitizer:** redact Google API keys ending in '-' (TSK-001) ([#95](https://github.com/jmlweb/hyntx/issues/95)) ([d018907](https://github.com/jmlweb/hyntx/commit/d0189073a874faee7e4614bc9bd70bc81677b9cb)), closes [#91](https://github.com/jmlweb/hyntx/issues/91) [#92](https://github.com/jmlweb/hyntx/issues/92)
+
+### Chores
+
+- **backlog:** file and triage sanitizer redaction gaps ([#94](https://github.com/jmlweb/hyntx/issues/94)) ([842e0df](https://github.com/jmlweb/hyntx/commit/842e0df5b6b27cda22a28023992d891b5afa3053))
+
 ## [4.1.1](https://github.com/jmlweb/hyntx/compare/v4.1.0...v4.1.1) (2026-11-04)
 
 ### Bug Fixes
