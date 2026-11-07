@@ -4,7 +4,7 @@
 
 | Status | Count |
 |--------|-------|
-| Pending | 7 |
+| Pending | 9 |
 | Active | 0 |
 | Blocked | 0 |
 | Complete | 1 |
@@ -24,6 +24,8 @@ _No active tasks._
 | TSK-006 | Fix: AWS temporary access key IDs (ASIA...) are not redacted | P4 |  | 2026-11-02 |
 | TSK-007 | Fix: SendGrid API keys (SG.) are not redacted when they appear bare | P2 |  | 2026-11-05 |
 | TSK-008 | Fix: International phone numbers written with spaces are not redacted | P3 |  | 2026-11-05 |
+| TSK-009 | Fix: IBAN bank account numbers are not redacted | P3 |  | 2026-11-07 |
+| TSK-010 | Fix: Huge --days values report 'No sessions found' (exit 2) instead of a usage error | P4 |  | 2026-11-07 |
 
 ## Recently Completed
 
