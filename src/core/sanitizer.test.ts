@@ -765,6 +765,36 @@ describe('provider tokens and secret assignments', () => {
     },
   );
 
+  it('redacts the secret path of Slack incoming-webhook URLs', () => {
+    // Built from parts so this file does not trip GitHub secret scanning.
+    const secretPath = 'T024BE7LD/B01ABCDEF2G/' + 'abcdefGHIJKLmnopQRSTuvwx';
+    const slackUrl = 'https://hooks.slack.com/' + 'services/' + secretPath;
+
+    const { text } = sanitize(`curl -X POST ${slackUrl} -d hi`);
+
+    expect(text).toBe(
+      'curl -X POST https://hooks.slack.com/services/[REDACTED_SLACK_WEBHOOK] -d hi',
+    );
+    expect(text).not.toContain('T024BE7LD');
+    expect(text).not.toContain('abcdefGHIJKLmnopQRSTuvwx');
+  });
+
+  it.each([
+    'https://discord.com/api/webhooks',
+    'https://discordapp.com/api/webhooks',
+    'https://discord.com/api/v10/webhooks',
+  ])('redacts the whole token segment of %s URLs', (prefix) => {
+    const token =
+      'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-abcdefghijklmnopqrstuv';
+    const url = `${prefix}/123456789012345678/${token}`;
+
+    const { text } = sanitize(`curl ${url}`);
+
+    expect(text).toContain('[REDACTED_DISCORD_WEBHOOK]');
+    expect(text).not.toContain('_-abcdefghijklmnopqrstuv');
+    expect(text).not.toContain('AbCdEf');
+  });
+
   it('redacts values assigned to secret-looking names but not variable references', () => {
     expect(sanitize('API_KEY=abcdef123456789').text).toBe(
       'API_KEY=[REDACTED_SECRET]',

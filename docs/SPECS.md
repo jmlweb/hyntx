@@ -162,7 +162,7 @@ What is selected (`selectEvidence`): aggregate stats (period, counts of sessions
 
 ## Sanitization
 
-`sanitize(text)` replaces matches with `[REDACTED_<TYPE>]`: provider API keys and tokens (OpenAI, Anthropic, AWS, GitHub, Slack, Google, Stripe, JWT), bearer tokens, values assigned to secret-looking names, credentials in URLs, PEM private keys, emails, and personal identifiers such as phone numbers, card numbers, national IDs, IP and MAC addresses and postal addresses.
+`sanitize(text)` replaces matches with `[REDACTED_<TYPE>]`: provider API keys and tokens (OpenAI, Anthropic, AWS, GitHub, Slack, Google, Stripe, JWT), Slack and Discord webhook URLs, bearer tokens, values assigned to secret-looking names, credentials in URLs, PEM private keys, emails, and personal identifiers such as phone numbers, card numbers, national IDs, IP and MAC addresses and postal addresses.
 
 It is pattern-based. It can miss a secret in an unknown format and it can redact something harmless that looks like an identifier. Besides well-known token formats it covers URL credentials for any scheme, `--password`/`-p`/`curl -u` style arguments, `Authorization` and `Cookie` headers, quoted secret values, and unterminated PEM blocks. Greetings of the form "Hey Claude", version numbers, commit ids next to git words and `ssh user@host` targets are kept readable (the account name in an ssh target is still redacted). When readability and secrecy conflict, secrecy wins.
 
