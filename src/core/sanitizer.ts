@@ -75,7 +75,9 @@ function redactBearerTokens(text: string): string {
 }
 
 /**
- * Redacts well-known provider tokens (GitHub, Slack, Google, Stripe, JWT).
+ * Redacts well-known provider tokens (GitHub, Slack, Google, Stripe, JWT) and
+ * Slack and Discord webhook URLs. Anyone holding a webhook URL can post to the
+ * channel, so the whole path after its fixed prefix is the credential.
  * Shell commands and error output shown in reports often carry these.
  *
  * @param text - Text to process
@@ -89,6 +91,14 @@ function redactProviderTokens(text: string): string {
     .replace(/\bnpm_[A-Za-z0-9]{30,}\b/g, '[REDACTED_NPM_TOKEN]')
     .replace(/\bglpat-[A-Za-z0-9_-]{20,}/g, '[REDACTED_GITLAB_TOKEN]')
     .replace(/\bxox[abprs]-[A-Za-z0-9-]{10,}/g, '[REDACTED_SLACK_TOKEN]')
+    .replace(
+      /(\bhooks\.slack\.com\/(?:services|workflows|triggers)\/)[A-Za-z0-9_/-]+/g,
+      '$1[REDACTED_SLACK_WEBHOOK]',
+    )
+    .replace(
+      /(\b(?:discord|discordapp)\.com\/api\/(?:v\d+\/)?webhooks\/\d+\/)[A-Za-z0-9_-]+/g,
+      '$1[REDACTED_DISCORD_WEBHOOK]',
+    )
     .replace(
       /\bAIza[0-9A-Za-z_-]{35}(?![0-9A-Za-z_-])/g,
       '[REDACTED_GOOGLE_KEY]',
