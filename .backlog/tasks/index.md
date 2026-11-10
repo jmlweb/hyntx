@@ -4,7 +4,7 @@
 
 | Status | Count |
 |--------|-------|
-| Pending | 8 |
+| Pending | 9 |
 | Active | 0 |
 | Blocked | 0 |
 | Complete | 2 |
@@ -25,6 +25,7 @@ _No active tasks._
 | TSK-008 | Fix: International phone numbers written with spaces are not redacted | P3 |  | 2026-11-05 |
 | TSK-009 | Fix: IBAN bank account numbers are not redacted | P3 |  | 2026-11-07 |
 | TSK-010 | Fix: Huge --days values report 'No sessions found' (exit 2) instead of a usage error | P4 |  | 2026-11-07 |
+| TSK-011 | Fix: Azure storage account keys after 'AccountKey=' are only partly redacted | P3 |  | 2026-11-10 |
 
 ## Recently Completed
 
