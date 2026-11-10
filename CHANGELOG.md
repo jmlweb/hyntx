@@ -1,3 +1,15 @@
+## [4.1.3](https://github.com/jmlweb/hyntx/compare/v4.1.2...v4.1.3) (2026-11-10)
+
+### Bug Fixes
+
+- **sanitizer:** redact Slack and Discord webhook URLs (TSK-004) ([#99](https://github.com/jmlweb/hyntx/issues/99)) ([3336bf1](https://github.com/jmlweb/hyntx/commit/3336bf1a4c9ba81f9598e08cdb80f1bc71b67ee2))
+
+### Chores
+
+- **backlog:** complete TSK-002 after verifying Prettier ignores .backlog ([#97](https://github.com/jmlweb/hyntx/issues/97)) ([abc014f](https://github.com/jmlweb/hyntx/commit/abc014f29c0e0df0685f2bc3d228d75179dbd301))
+- **backlog:** file and triage Azure AccountKey partial redaction report ([#98](https://github.com/jmlweb/hyntx/issues/98)) ([7561c52](https://github.com/jmlweb/hyntx/commit/7561c52516421a8280b67ff696a32050a20bc3bc))
+- **backlog:** file and triage IBAN redaction and --days overflow reports ([#96](https://github.com/jmlweb/hyntx/issues/96)) ([33704d0](https://github.com/jmlweb/hyntx/commit/33704d0173b05afbe1cc2a9bf9f9e8d272372aa0))
+
 ## [4.1.2](https://github.com/jmlweb/hyntx/compare/v4.1.1...v4.1.2) (2026-11-05)
 
 ### Bug Fixes
