@@ -1,0 +1,6 @@
+# Backlog reports reproduce sanitizer bugs with fake secrets (e.g. RPT-011),
+# which GitGuardian flags as real ones.
+version: 2
+secret:
+  ignored_paths:
+    - '.backlog/**'
