@@ -4,7 +4,7 @@
 
 | Status | Count |
 |--------|-------|
-| Pending | 7 |
+| Pending | 9 |
 | Active | 0 |
 | Blocked | 0 |
 | Complete | 4 |
@@ -24,6 +24,8 @@ _No active tasks._
 | TSK-009 | Fix: IBAN bank account numbers are not redacted | P3 |  | 2026-11-07 |
 | TSK-010 | Fix: Huge --days values report 'No sessions found' (exit 2) instead of a usage error | P4 |  | 2026-11-07 |
 | TSK-011 | Fix: Azure storage account keys after 'AccountKey=' are only partly redacted | P3 |  | 2026-11-10 |
+| TSK-012 | Fix: Bearer tokens containing + / = or ~ are only partly redacted | P3 |  | 2026-11-13 |
+| TSK-013 | Fix: Google OAuth client secrets (GOCSPX-), Stripe webhook secrets (whsec_) and Slack app tokens (xapp-) are not redacted | P3 |  | 2026-11-13 |
 
 ## Recently Completed
 
