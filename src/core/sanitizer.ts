@@ -157,7 +157,8 @@ function redactSecretAssignments(text: string): string {
 
 /**
  * Redacts secrets passed on command lines and in HTTP headers: `--password x`,
- * `mysql -pSECRET`, `curl -u user:pass`, `Authorization: Basic ...`,
+ * `mysql -pSECRET`, `docker login -p x`, `sshpass -p x`, `redis-cli -a x`,
+ * `curl -u user:pass`, `Authorization: Basic ...`,
  * `Cookie: ...`.
  *
  * @param text - Text to process
@@ -172,6 +173,15 @@ function redactCommandLineSecrets(text: string): string {
     .replace(
       /(\bmysql(?:dump|admin)?\b[^|;&\n]*?\s)-p(?!\s|\$|\[REDACTED)("[^"\n]*"|'[^'\n]*'|\S+)/g,
       '$1-p[REDACTED_SECRET]',
+    )
+    .replace(
+      /(\b(?:docker\s+login|sshpass)\b[^|;&\n]*?\s-p(?:=|\s+)?)(?!\$|\[REDACTED|-)("[^"\n]*"|'[^'\n]*'|[^\s"']+)/g,
+      '$1[REDACTED_SECRET]',
+    )
+    .replace(
+      // Only -a: redis-cli -p is the port.
+      /(\bredis-cli\b[^|;&\n]*?\s-a(?:=|\s+)?)(?!\$|\[REDACTED|-)("[^"\n]*"|'[^'\n]*'|[^\s"']+)/g,
+      '$1[REDACTED_SECRET]',
     )
     .replace(
       /(\bcurl\b[^|;&\n]*?\s(?:-u|--user)[=\s]+)(?!\$|\[REDACTED)("[^"\n]*"|'[^'\n]*'|\S+)/g,

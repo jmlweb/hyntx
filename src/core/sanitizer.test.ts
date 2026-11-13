@@ -906,6 +906,45 @@ describe('sanitize: review findings', () => {
     expect(sanitize(input).text).not.toContain(secret);
   });
 
+  it.each([
+    ['docker login -u me -p S3cretPass registry.example.com', 'S3cretPass'],
+    [
+      'echo "$PW" | docker login -u me -p S3cretPass registry.example.com',
+      'S3cretPass',
+    ],
+    ['docker login -pS3cretPass registry.example.com', 'S3cretPass'],
+    ['docker login -u me --password S3cretPass', 'S3cretPass'],
+    ['sshpass -p S3cretPass ssh deploy@host', 'S3cretPass'],
+    ["sshpass -p 'S3cret Pass' ssh deploy@host", 'S3cret Pass'],
+    ['redis-cli -h cache -p 6379 -a S3cretPass ping', 'S3cretPass'],
+  ])('redacts the short password flag in %s', (input, secret) => {
+    const { text } = sanitize(input);
+    expect(text).not.toContain(secret);
+    expect(text).toContain('[REDACTED_SECRET]');
+  });
+
+  it('keeps the rest of a short-flag password command readable', () => {
+    expect(sanitize('redis-cli -h cache -p 6379 -a S3cretPass ping').text).toBe(
+      'redis-cli -h cache -p 6379 -a [REDACTED_SECRET] ping',
+    );
+    expect(sanitize('sshpass -p S3cretPass ssh deploy@host').text).toBe(
+      'sshpass -p [REDACTED_SECRET] ssh deploy@host',
+    );
+  });
+
+  it.each([
+    'mkdir -p src/core/utils',
+    'git commit -a -m "fix the parser"',
+    'docker run -p 8080:80 nginx',
+    'docker login -u me --password-stdin registry.example.com',
+    'sshpass -e ssh deploy@host',
+    'sshpass -p $SSHPASS ssh deploy@host',
+    'redis-cli -h cache -p 6379 ping',
+    'cp -a src dist && mkdir -p out',
+  ])('leaves unrelated short flags in %s unchanged', (input) => {
+    expect(sanitize(input).text).toBe(input);
+  });
+
   it('redacts a PEM block cut off before its END line', () => {
     const body = 'MIIEvQIBADANBgkqhkiG9w0BAQEFAASC'.repeat(5);
     const { text } = sanitize(
