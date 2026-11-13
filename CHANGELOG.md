@@ -1,3 +1,15 @@
+## [4.1.4](https://github.com/jmlweb/hyntx/compare/v4.1.3...v4.1.4) (2026-11-13)
+
+### Bug Fixes
+
+- **sanitizer:** redact short password flags for docker login, sshpass and redis-cli (TSK-005) ([#102](https://github.com/jmlweb/hyntx/issues/102)) ([8c6dff3](https://github.com/jmlweb/hyntx/commit/8c6dff3eb685d24cb34cceffdd1407f9e49fcd08))
+
+### Chores
+
+- **backlog:** file and triage bearer token and provider secret redaction reports ([#101](https://github.com/jmlweb/hyntx/issues/101)) ([421f13e](https://github.com/jmlweb/hyntx/commit/421f13ef3ce4b8e163e0d7574d72a9625de76c29))
+- **deps:** upgrade dependencies to latest compatible versions ([#100](https://github.com/jmlweb/hyntx/issues/100)) ([86bb3d9](https://github.com/jmlweb/hyntx/commit/86bb3d902e98774e13c780df16c9165a9d43879b))
+- **security:** ignore .backlog in GitGuardian scans ([060a20d](https://github.com/jmlweb/hyntx/commit/060a20d70cb1dd58021ddd475562022a5fece9dd)), closes [#98](https://github.com/jmlweb/hyntx/issues/98)
+
 ## [4.1.3](https://github.com/jmlweb/hyntx/compare/v4.1.2...v4.1.3) (2026-11-10)
 
 ### Bug Fixes
