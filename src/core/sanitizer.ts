@@ -75,7 +75,8 @@ function redactBearerTokens(text: string): string {
 }
 
 /**
- * Redacts well-known provider tokens (GitHub, Slack, Google, Stripe, JWT) and
+ * Redacts well-known provider tokens (GitHub, Slack, Google, Stripe, SendGrid,
+ * JWT) and
  * Slack and Discord webhook URLs. Anyone holding a webhook URL can post to the
  * channel, so the whole path after its fixed prefix is the credential.
  * Shell commands and error output shown in reports often carry these.
@@ -102,6 +103,10 @@ function redactProviderTokens(text: string): string {
     .replace(
       /\bAIza[0-9A-Za-z_-]{35}(?![0-9A-Za-z_-])/g,
       '[REDACTED_GOOGLE_KEY]',
+    )
+    .replace(
+      /\bSG\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}(?![A-Za-z0-9_-])/g,
+      '[REDACTED_SENDGRID_KEY]',
     )
     .replace(
       /\b[sr]k_(?:live|test)_[A-Za-z0-9]{16,}\b/g,

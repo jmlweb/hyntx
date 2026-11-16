@@ -765,6 +765,51 @@ describe('provider tokens and secret assignments', () => {
     },
   );
 
+  describe('SendGrid API keys', () => {
+    // Built at runtime so this file does not trip GitHub secret scanning.
+    const sendGridKey = (keyId: string, secret: string): string =>
+      ['SG', keyId, secret].join('.');
+    const realisticKey = sendGridKey(
+      'aB3_xY-9kL2m' + 'Np4Q-r_7sT',
+      'Zx9_Yw-8vU7t' + 'S6rQ5-pO4n_M3lK2jI1hG0fEdCbA-z_',
+    );
+    const allLetterKey = sendGridKey(
+      'abcdefghijklmnopqrstuv',
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopq',
+    );
+
+    it('builds keys with the 22 and 43 character segments SendGrid uses', () => {
+      for (const key of [realisticKey, allLetterKey]) {
+        const [, keyId, secret] = key.split('.');
+        expect(keyId).toHaveLength(22);
+        expect(secret).toHaveLength(43);
+      }
+    });
+
+    it.each([
+      ['a realistic key with _ and -', realisticKey],
+      ['an all-letter key', allLetterKey],
+    ])('redacts %s whole', (_label, key) => {
+      const [, keyId, secret] = key.split('.');
+      const { text, redacted } = sanitize(key);
+      expect(text).toBe('[REDACTED_SENDGRID_KEY]');
+      expect(text).not.toContain(keyId?.slice(0, 8));
+      expect(text).not.toContain(secret?.slice(-8));
+      expect(redacted).toBeGreaterThan(0);
+    });
+
+    it('redacts a key inside surrounding text and keeps the text', () => {
+      const { text } = sanitize(
+        `curl -d @mail.json -H "X-Key: ${realisticKey}" api.example.test && echo done`,
+      );
+      expect(text).toContain('X-Key: [REDACTED_SENDGRID_KEY]"');
+      expect(text).toContain('&& echo done');
+      expect(text).not.toContain('SG.');
+      expect(text).not.toContain('Zx9_Yw');
+      expect(text).not.toContain('fEdCbA');
+    });
+  });
+
   it('redacts the secret path of Slack incoming-webhook URLs', () => {
     // Built from parts so this file does not trip GitHub secret scanning.
     const secretPath = 'T024BE7LD/B01ABCDEF2G/' + 'abcdefGHIJKLmnopQRSTuvwx';
