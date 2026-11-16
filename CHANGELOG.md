@@ -1,3 +1,13 @@
+## [4.1.5](https://github.com/jmlweb/hyntx/compare/v4.1.4...v4.1.5) (2026-11-16)
+
+### Bug Fixes
+
+- **sanitizer:** redact bare SendGrid API keys (TSK-007) ([#104](https://github.com/jmlweb/hyntx/issues/104)) ([e316a70](https://github.com/jmlweb/hyntx/commit/e316a70db8030e0c929b62341ca3cb3f41e082a6))
+
+### Chores
+
+- **backlog:** file and triage permission deny-rule overlap report ([#103](https://github.com/jmlweb/hyntx/issues/103)) ([606df32](https://github.com/jmlweb/hyntx/commit/606df32c0ce3c5a66348e969b5696e0b94aecfb5))
+
 ## [4.1.4](https://github.com/jmlweb/hyntx/compare/v4.1.3...v4.1.4) (2026-11-13)
 
 ### Bug Fixes
