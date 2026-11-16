@@ -4,7 +4,7 @@
 
 | Status | Count |
 |--------|-------|
-| Pending | 9 |
+| Pending | 10 |
 | Active | 0 |
 | Blocked | 0 |
 | Complete | 4 |
@@ -26,6 +26,7 @@ _No active tasks._
 | TSK-011 | Fix: Azure storage account keys after 'AccountKey=' are only partly redacted | P3 |  | 2026-11-10 |
 | TSK-012 | Fix: Bearer tokens containing + / = or ~ are only partly redacted | P3 |  | 2026-11-13 |
 | TSK-013 | Fix: Google OAuth client secrets (GOCSPX-), Stripe webhook secrets (whsec_) and Slack app tokens (xapp-) are not redacted | P3 |  | 2026-11-13 |
+| TSK-014 | Fix: Permission suggestions ignore exact-command deny and ask rules such as Bash(docker ps) | P4 |  | 2026-11-16 |
 
 ## Recently Completed
 
