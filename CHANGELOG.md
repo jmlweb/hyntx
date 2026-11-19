@@ -1,3 +1,13 @@
+## [4.1.6](https://github.com/jmlweb/hyntx/compare/v4.1.5...v4.1.6) (2026-11-19)
+
+### Bug Fixes
+
+- **sanitizer:** redact grouped international phone numbers (TSK-008) ([#106](https://github.com/jmlweb/hyntx/issues/106)) ([afb4428](https://github.com/jmlweb/hyntx/commit/afb44287c888740f968cdb9c1672064e170bf488))
+
+### Chores
+
+- **backlog:** file and triage project filter dot-name report ([#105](https://github.com/jmlweb/hyntx/issues/105)) ([ef663f3](https://github.com/jmlweb/hyntx/commit/ef663f3a575e8b3cea5fadf9a50c86d030ee0366))
+
 ## [4.1.5](https://github.com/jmlweb/hyntx/compare/v4.1.4...v4.1.5) (2026-11-16)
 
 ### Bug Fixes
