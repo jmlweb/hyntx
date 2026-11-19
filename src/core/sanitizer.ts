@@ -356,15 +356,18 @@ function redactNames(text: string): string {
 }
 
 /**
- * Redacts US phone numbers in various formats.
+ * Redacts phone numbers.
  *
- * Supports formats:
- * - (555) 123-4567
- * - 555-123-4567
- * - 555.123.4567
- * - 5551234567
- * - +1 555 123 4567
- * - 1-555-123-4567
+ * Covers:
+ * - International numbers with a + prefix and 9 to 15 digits, unbroken or
+ *   grouped with single spaces, dots or dashes: +34612345678,
+ *   +34 612 345 678, +44 7700 900123, +34.612.345.678, +1 555 123 4567
+ * - US numbers in the 3-3-4 layout: (555) 123-4567, 555-123-4567,
+ *   555.123.4567, 1-555-123-4567
+ * - Exactly 10 unbroken digits after a label such as "phone", "tel" or
+ *   "mobile": Phone: 5551234567
+ *
+ * Bare digit runs without a + prefix or a label are left untouched.
  *
  * @param text - Text to process
  * @returns Text with phone numbers redacted
@@ -372,12 +375,15 @@ function redactNames(text: string): string {
 function redactPhoneNumbers(text: string): string {
   // Separated forms are distinctive enough on their own. A bare run of digits
   // (epoch timestamps, counters) is only a phone number next to a label.
+  // International numbers run first so a grouped one is redacted whole rather
+  // than having a US-looking fragment cut out of it. Separators are single
+  // spaces, not \s, so a match never spans a line break.
   return text
+    .replace(/(?<![\w.+])\+[0-9](?:[-. ]?[0-9]){8,14}\b/g, '[REDACTED_PHONE]')
     .replace(
       /(?:\+?1[-.\s])?\(?[0-9]{3}\)?[-.\s][0-9]{3}[-.\s][0-9]{4}\b/g,
       '[REDACTED_PHONE]',
     )
-    .replace(/(?<![\w.])\+[0-9]{9,14}\b/g, '[REDACTED_PHONE]')
     .replace(
       /\b((?:phone|tel|telephone|tel[eé]fono|mobile|m[oó]vil|movil|cell|celular|fax|whatsapp)\s*(?:number|n[uú]mero|no\.?)?[\s:#-]*)([0-9]{10})\b/gi,
       '$1[REDACTED_PHONE]',

@@ -322,6 +322,39 @@ Connect to https://user:pass@api.example.com`;
 
       expect(redacted).toBe(2);
     });
+
+    it.each([
+      ['+34 612 345 678'],
+      ['+44 7700 900123'],
+      ['phone +34 612 345 678'],
+      ['+34.612.345.678'],
+      ['+34-612-345-678'],
+      ['+49 30 1234 5678'],
+    ])('redacts the grouped international number in %s', (input) => {
+      const { text, redacted } = sanitize(input);
+
+      expect(text).toContain('[REDACTED_PHONE]');
+      expect(text).not.toMatch(/[0-9]/);
+      expect(redacted).toBe(1);
+    });
+
+    it('keeps the text around a grouped international number', () => {
+      const { text } = sanitize('Call +44 7700 900123 tomorrow.');
+
+      expect(text).toBe('Call [REDACTED_PHONE] tomorrow.');
+    });
+
+    it.each([
+      ['1700000000123'],
+      ['612 345 678'],
+      ['build 20261119 took 345 678 ms'],
+      ['version 1.2.3'],
+    ])('leaves %s untouched without a + prefix or a label', (input) => {
+      const { text, redacted } = sanitize(input);
+
+      expect(text).toBe(input);
+      expect(redacted).toBe(0);
+    });
   });
 
   describe('Credit cards', () => {
