@@ -4,10 +4,10 @@
 
 | Status | Count |
 |--------|-------|
-| Pending | 9 |
+| Pending | 8 |
 | Active | 0 |
 | Blocked | 0 |
-| Complete | 6 |
+| Complete | 7 |
 
 ## Active Tasks
 
@@ -19,7 +19,6 @@ _No active tasks._
 |----|-------|----------|------|---------|
 | TSK-003 | Fix: Dev install fails on Node 22.0-22.17 despite documented Node 22 support | P4 |  | 2026-10-30 |
 | TSK-006 | Fix: AWS temporary access key IDs (ASIA...) are not redacted | P4 |  | 2026-11-02 |
-| TSK-009 | Fix: IBAN bank account numbers are not redacted | P3 |  | 2026-11-07 |
 | TSK-010 | Fix: Huge --days values report 'No sessions found' (exit 2) instead of a usage error | P4 |  | 2026-11-07 |
 | TSK-011 | Fix: Azure storage account keys after 'AccountKey=' are only partly redacted | P3 |  | 2026-11-10 |
 | TSK-012 | Fix: Bearer tokens containing + / = or ~ are only partly redacted | P3 |  | 2026-11-13 |
@@ -31,6 +30,7 @@ _No active tasks._
 
 | ID | Title | Completed |
 |----|-------|-----------|
+| TSK-009 | Fix: IBAN bank account numbers are not redacted | 2026-11-22 |
 | TSK-008 | Fix: International phone numbers written with spaces are not redacted | 2026-11-19 |
 | TSK-007 | Fix: SendGrid API keys (SG.) are not redacted when they appear bare | 2026-11-16 |
 | TSK-005 | Fix: Passwords given as short flags (docker login -p, sshpass -p, redis-cli -a) are not redacted | 2026-11-13 |

@@ -396,6 +396,39 @@ Connect to https://user:pass@api.example.com`;
     });
   });
 
+  describe('IBAN bank account numbers', () => {
+    it.each(['ES9121000418450200051332', 'GB82WEST12345698765432'])(
+      'redacts compact IBAN %s',
+      (iban) => {
+        const { text, redacted } = sanitize(`Transfer to ${iban} today`);
+
+        expect(text).toBe('Transfer to [REDACTED_IBAN] today');
+        expect(redacted).toBe(1);
+      },
+    );
+
+    it.each(['ES91 2100 0418 4502 0005 1332', 'DE89 3704 0044 0532 0130 00'])(
+      'redacts IBAN grouped in fours %s',
+      (iban) => {
+        const { text, redacted } = sanitize(`IBAN: ${iban}.`);
+
+        expect(text).toBe('IBAN: [REDACTED_IBAN].');
+        expect(redacted).toBe(1);
+      },
+    );
+
+    it.each([
+      'ES9221000418450200051332',
+      'GB83WEST12345698765432',
+      'DE89 3704 0044 0532 0130 01',
+    ])('leaves %s untouched when the mod-97 checksum fails', (candidate) => {
+      const input = `Reference ${candidate} here`;
+      const { text } = sanitize(input);
+
+      expect(text).not.toContain('[REDACTED_IBAN]');
+    });
+  });
+
   describe('Social Security Numbers', () => {
     it('redacts SSN with dashes', () => {
       const input = 'SSN: 123-45-6789';

@@ -414,6 +414,39 @@ function redactCreditCards(text: string): string {
   );
 }
 
+/**
+ * Redacts IBAN bank account numbers, compact or grouped in fours with spaces.
+ *
+ * Format: 2-letter country code, 2 check digits, 11-30 alphanumerics
+ * (ISO 13616), e.g. "ES91 2100 0418 4502 0005 1332".
+ *
+ * @param text - Text to process
+ * @returns Text with IBANs redacted
+ */
+function redactIBANs(text: string): string {
+  // The mod-97 checksum keeps uppercase reference codes readable.
+  return text.replace(
+    /\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){2,7}(?: ?[A-Z0-9]{1,4})?\b/g,
+    (match: string) =>
+      passesIbanChecksum(match.replace(/ /g, '')) ? '[REDACTED_IBAN]' : match,
+  );
+}
+
+function passesIbanChecksum(iban: string): boolean {
+  if (iban.length < 15 || iban.length > 34) {
+    return false;
+  }
+  const rearranged = iban.slice(4) + iban.slice(0, 4);
+  // Letters become 10-35; folding digit by digit avoids big integers.
+  const remainder = rearranged
+    .split('')
+    .map((char) => parseInt(char, 36).toString())
+    .join('')
+    .split('')
+    .reduce((acc, digit) => (acc * 10 + Number(digit)) % 97, 0);
+  return remainder === 1;
+}
+
 function passesLuhn(digits: string): boolean {
   const sum = digits
     .split('')
@@ -788,6 +821,9 @@ export function sanitize(text: string): SanitizeResult {
   sanitized = redactOpaqueIds(sanitized);
   // PII redaction (specific patterns before broad numeric matchers)
   sanitized = redactEmails(sanitized);
+  // IBANs before cards and other numeric rules: their digit groups would
+  // otherwise be partially taken by card, phone or SSN matchers.
+  sanitized = redactIBANs(sanitized);
   sanitized = redactCreditCards(sanitized);
   // Document numbers (often numeric; must run before SSN/phone)
   sanitized = redactPassportNumbers(sanitized);
