@@ -1,3 +1,9 @@
+## [4.1.7](https://github.com/jmlweb/hyntx/compare/v4.1.6...v4.1.7) (2026-11-22)
+
+### Bug Fixes
+
+- **sanitizer:** redact IBAN bank account numbers (TSK-009) ([#108](https://github.com/jmlweb/hyntx/issues/108)) ([e44ae25](https://github.com/jmlweb/hyntx/commit/e44ae256095d44274ad811a43027fef207a68e41))
+
 ## [4.1.6](https://github.com/jmlweb/hyntx/compare/v4.1.5...v4.1.6) (2026-11-19)
 
 ### Bug Fixes
