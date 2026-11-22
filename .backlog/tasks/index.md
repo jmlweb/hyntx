@@ -4,7 +4,7 @@
 
 | Status | Count |
 |--------|-------|
-| Pending | 8 |
+| Pending | 10 |
 | Active | 0 |
 | Blocked | 0 |
 | Complete | 7 |
@@ -25,6 +25,8 @@ _No active tasks._
 | TSK-013 | Fix: Google OAuth client secrets (GOCSPX-), Stripe webhook secrets (whsec_) and Slack app tokens (xapp-) are not redacted | P3 |  | 2026-11-13 |
 | TSK-014 | Fix: Permission suggestions ignore exact-command deny and ask rules such as Bash(docker ps) | P4 |  | 2026-11-16 |
 | TSK-015 | Fix: Project filter misses the project name the report shows when it contains a dot | P4 |  | 2026-11-19 |
+| TSK-016 | Fix: Bare Google OAuth access tokens (ya29.) are not redacted | P3 |  | 2026-11-22 |
+| TSK-017 | Fix: Docker Hub access tokens (dckr_pat_) and GitLab tokens other than glpat- are not redacted | P3 |  | 2026-11-22 |
 
 ## Recently Completed
 
