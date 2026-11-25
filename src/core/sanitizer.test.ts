@@ -876,6 +876,80 @@ describe('provider tokens and secret assignments', () => {
     });
   });
 
+  describe('Azure Storage credentials', () => {
+    // Built from parts so this file does not trip GitHub secret scanning.
+    // This is the public Azurite development key, not a real credential.
+    const azuriteKey = [
+      'Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsu',
+      'Fq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==',
+    ].join('');
+    const azuriteConnectionString = [
+      'DefaultEndpointsProtocol=http',
+      'AccountName=devstoreaccount1',
+      `AccountKey=${azuriteKey}`,
+      'BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1',
+    ].join(';');
+
+    it('redacts the whole AccountKey of an Azurite connection string', () => {
+      const { text, redacted } = sanitize(azuriteConnectionString);
+      expect(text).toContain('AccountKey=[REDACTED_SECRET];BlobEndpoint=');
+      expect(text).toContain('AccountName=devstoreaccount1');
+      expect(text).not.toContain('Eby8vd');
+      expect(text).not.toContain('K1SZFPTOtr');
+      expect(text).not.toContain('KBHBeksoGMGw');
+      expect(text).not.toContain('==');
+      expect(redacted).toBeGreaterThan(0);
+    });
+
+    it('redacts an AccountKey containing + and quoted in a command', () => {
+      const key = ['ab+CD/ef', 'GH+ij/KL', 'mn+OP/qr=='].join('');
+      const { text } = sanitize(
+        `export AZURE_STORAGE_CONNECTION_STRING="AccountName=x;AccountKey=${key};EndpointSuffix=core.windows.net"`,
+      );
+      expect(text).toContain('AccountKey=[REDACTED_SECRET];EndpointSuffix=');
+      expect(text).not.toContain('ab+CD');
+      expect(text).not.toContain('GH+ij');
+      expect(text).not.toContain('mn+OP');
+    });
+
+    it('redacts the whole URL-encoded sig of a SAS URL', () => {
+      const signature = [
+        'AbCdEf%2B',
+        'gHiJkLmNoPqRsTuVwXyZ0123',
+        '4567%2Fz%3D',
+      ].join('');
+      const sasUrl = `https://devstoreaccount1.blob.core.windows.net/container/file.txt?sv=2022-11-02&ss=b&srt=co&sp=r&se=2026-12-01T00:00:00Z&sig=${signature}&spr=https`;
+      const { text, redacted } = sanitize(`curl "${sasUrl}"`);
+      expect(text).toContain('&sig=[REDACTED_SECRET]&spr=https"');
+      expect(text).toContain('sv=2022-11-02&ss=b');
+      expect(text).not.toContain('AbCdEf');
+      expect(text).not.toContain('gHiJkLmNoPqRsTuVwXyZ');
+      expect(text).not.toContain('%2B');
+      expect(text).not.toContain('%3D');
+      expect(redacted).toBeGreaterThan(0);
+    });
+
+    it('redacts a sig that ends the URL', () => {
+      const { text } = sanitize(
+        'GET https://a.blob.core.windows.net/c/b?sp=r&sig=Zx9%2BYw8%3D done',
+      );
+      expect(text).toContain('&sig=[REDACTED_SECRET] done');
+      expect(text).not.toContain('Zx9');
+    });
+
+    it('keeps punctuation that closes a SAS URL in prose', () => {
+      const { text } = sanitize(
+        '(see https://a.blob.core.windows.net/c/b?sp=r&sig=Zx9%2BYw8%3D).',
+      );
+      expect(text).toContain('&sig=[REDACTED_SECRET]).');
+    });
+
+    it('leaves words that merely contain sig alone', () => {
+      const { text } = sanitize('design=flat config=signature=on');
+      expect(text).toBe('design=flat config=signature=on');
+    });
+  });
+
   it('redacts the secret path of Slack incoming-webhook URLs', () => {
     // Built from parts so this file does not trip GitHub secret scanning.
     const secretPath = 'T024BE7LD/B01ABCDEF2G/' + 'abcdefGHIJKLmnopQRSTuvwx';
