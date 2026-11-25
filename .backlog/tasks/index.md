@@ -4,7 +4,7 @@
 
 | Status | Count |
 |--------|-------|
-| Pending | 10 |
+| Pending | 12 |
 | Active | 0 |
 | Blocked | 0 |
 | Complete | 7 |
@@ -27,6 +27,8 @@ _No active tasks._
 | TSK-015 | Fix: Project filter misses the project name the report shows when it contains a dot | P4 |  | 2026-11-19 |
 | TSK-016 | Fix: Bare Google OAuth access tokens (ya29.) are not redacted | P3 |  | 2026-11-22 |
 | TSK-017 | Fix: Docker Hub access tokens (dckr_pat_) and GitLab tokens other than glpat- are not redacted | P3 |  | 2026-11-22 |
+| TSK-018 | Fix: age encryption secret keys (AGE-SECRET-KEY-1...) are not redacted | P2 |  | 2026-11-25 |
+| TSK-019 | Fix: Databricks personal access tokens (dapi...) and Square access tokens (sq0atp-) are not redacted | P3 |  | 2026-11-25 |
 
 ## Recently Completed
 
