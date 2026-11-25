@@ -1,3 +1,13 @@
+## [4.1.8](https://github.com/jmlweb/hyntx/compare/v4.1.7...v4.1.8) (2026-11-25)
+
+### Bug Fixes
+
+- **sanitizer:** redact whole Azure AccountKey and SAS sig values (TSK-011) ([#110](https://github.com/jmlweb/hyntx/issues/110)) ([8de7567](https://github.com/jmlweb/hyntx/commit/8de75675c063f77cc7ccbf1684b304a1a0f54ecf))
+
+### Chores
+
+- **backlog:** file and triage ya29 and dckr_pat/GitLab token redaction gaps ([#107](https://github.com/jmlweb/hyntx/issues/107)) ([70f8b71](https://github.com/jmlweb/hyntx/commit/70f8b7184f4e9e3c8a18ab99ecd16023b948c968))
+
 ## [4.1.7](https://github.com/jmlweb/hyntx/compare/v4.1.6...v4.1.7) (2026-11-22)
 
 ### Bug Fixes
