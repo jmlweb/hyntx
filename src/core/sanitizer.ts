@@ -119,7 +119,8 @@ function redactProviderTokens(text: string): string {
 }
 
 /**
- * Redacts values assigned to secret-looking names (TOKEN=..., "password": ...).
+ * Redacts values assigned to secret-looking names (TOKEN=..., "password": ...,
+ * AccountKey=...) and the sig parameter of Azure SAS URLs.
  * Variable references such as $TOKEN are left alone.
  *
  * @param text - Text to process
@@ -129,7 +130,7 @@ function redactSecretAssignments(text: string): string {
   const passwordName =
     '[A-Za-z0-9_-]*(?:password|passwd|passphrase|pwd)[A-Za-z0-9_-]*';
   const otherName =
-    '[A-Za-z0-9_-]*(?:token|secret|api[_-]?key|apikey|access[_-]?key|private[_-]?key|credential)[A-Za-z0-9_-]*';
+    '[A-Za-z0-9_-]*(?:token|secret|api[_-]?key|apikey|access[_-]?key|account[_-]?key|private[_-]?key|credential)[A-Za-z0-9_-]*';
   // Words that follow "password:" in prose or type annotations, not secrets.
   const notAValue =
     '(?!\\$|\\[REDACTED|(?:string|number|boolean|str|int|any|null|none|true|false|undefined|required|optional|hash|hashed|field|input|here|is|was|for|to|and|or|the|a|an)\\b)';
@@ -155,6 +156,11 @@ function redactSecretAssignments(text: string): string {
           `\\b(${otherName}["']?\\s*[=:]\\s*["']?)${notAValue}[^\\s"'&,;)]{8,}`,
           'gi',
         ),
+        '$1[REDACTED_SECRET]',
+      )
+      // Azure SAS signature: "sig" is too short a word to be a name above.
+      .replace(
+        /([?&]sig=)(?!\$|\[REDACTED)[^\s&#"',;)]+/gi,
         '$1[REDACTED_SECRET]',
       )
   );
