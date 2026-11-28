@@ -1,3 +1,15 @@
+## [4.1.9](https://github.com/jmlweb/hyntx/compare/v4.1.8...v4.1.9) (2026-11-28)
+
+### Bug Fixes
+
+- **sanitizer:** redact age encryption secret keys (TSK-018) ([#113](https://github.com/jmlweb/hyntx/issues/113)) ([937683a](https://github.com/jmlweb/hyntx/commit/937683a9a15a2d6afd32ecf813511ad6d738d2da))
+
+### Chores
+
+- **backlog:** file and triage age secret key and Databricks/Square token redaction gaps ([#109](https://github.com/jmlweb/hyntx/issues/109)) ([c3d1934](https://github.com/jmlweb/hyntx/commit/c3d19345e50b70ac88354fd0729b705c85881f06))
+- **backlog:** file and triage engine failure note sanitization gap (RPT-020) ([#112](https://github.com/jmlweb/hyntx/issues/112)) ([72eeb79](https://github.com/jmlweb/hyntx/commit/72eeb79a22b89f64c17ec23e532338202fe41670))
+- **deps:** upgrade dependencies to latest compatible versions ([#111](https://github.com/jmlweb/hyntx/issues/111)) ([7605302](https://github.com/jmlweb/hyntx/commit/7605302b66061609e42bb2f4c78348f418511ebc))
+
 ## [4.1.8](https://github.com/jmlweb/hyntx/compare/v4.1.7...v4.1.8) (2026-11-25)
 
 ### Bug Fixes
