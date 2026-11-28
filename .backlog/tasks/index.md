@@ -4,7 +4,7 @@
 
 | Status | Count |
 |--------|-------|
-| Pending | 10 |
+| Pending | 11 |
 | Active | 0 |
 | Blocked | 0 |
 | Complete | 9 |
@@ -27,6 +27,7 @@ _No active tasks._
 | TSK-016 | Fix: Bare Google OAuth access tokens (ya29.) are not redacted | P3 |  | 2026-11-22 |
 | TSK-017 | Fix: Docker Hub access tokens (dckr_pat_) and GitLab tokens other than glpat- are not redacted | P3 |  | 2026-11-22 |
 | TSK-019 | Fix: Databricks personal access tokens (dapi...) and Square access tokens (sq0atp-) are not redacted | P3 |  | 2026-11-25 |
+| TSK-020 | Fix: Engine failure notes bypass sanitizeReport and leak OLLAMA_HOST credentials into the Report | P3 |  | 2026-11-28 |
 
 ## Recently Completed
 
