@@ -309,6 +309,21 @@ function redactPEMKeys(text: string): string {
 }
 
 /**
+ * Redacts age encryption secret keys (the identities in age and SOPS key
+ * files). Their body is Bech32, either all upper or all lower case, which the
+ * mixed-case opaque-id rule does not catch.
+ *
+ * @param text - Text to process
+ * @returns Text with age secret keys redacted
+ */
+function redactAgeSecretKeys(text: string): string {
+  return text.replace(
+    /\bAGE-SECRET-KEY-1[QPZRY9X8GF2TVDW0S3JN54KHCE6MUA7L]{58}(?![A-Za-z0-9])/gi,
+    '[REDACTED_AGE_KEY]',
+  );
+}
+
+/**
  * Redacts person names detected through greeting patterns.
  *
  * Detects names that appear after common greetings like:
@@ -816,6 +831,7 @@ export function sanitize(text: string): SanitizeResult {
   // Order matters: more specific patterns first, then general PII
   // PEM first: its body must not be chewed by the opaque-id matchers.
   sanitized = redactPEMKeys(sanitized);
+  sanitized = redactAgeSecretKeys(sanitized);
   sanitized = redactOpenAIKeys(sanitized);
   sanitized = redactAnthropicKeys(sanitized);
   sanitized = redactAWSCredentials(sanitized);

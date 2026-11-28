@@ -950,6 +950,54 @@ describe('provider tokens and secret assignments', () => {
     });
   });
 
+  describe('age encryption keys', () => {
+    // Built from parts so this file does not trip secret scanners.
+    const bech32Body = 'QPZRY9X8GF2TVDW0S3JN54KHCE6MUA7L'
+      .repeat(2)
+      .slice(0, 58);
+    const ageIdentity = ['AGE', 'SECRET', 'KEY', '1'].join('-') + bech32Body;
+    const ageRecipient = 'age1' + bech32Body.toLowerCase();
+
+    it('redacts a bare age secret key', () => {
+      const { text } = sanitize(`echo ${ageIdentity} | sops -d x && run`);
+
+      expect(text).toBe('echo [REDACTED_AGE_KEY] | sops -d x && run');
+      expect(text).not.toContain(bech32Body.slice(0, 16));
+    });
+
+    it('redacts a lowercase age secret key', () => {
+      const { text } = sanitize(`echo ${ageIdentity.toLowerCase()} end`);
+
+      expect(text).toBe('echo [REDACTED_AGE_KEY] end');
+    });
+
+    it('redacts an age secret key in a commented key-file line', () => {
+      const { text } = sanitize(`# ${ageIdentity}`);
+
+      expect(text).toBe('# [REDACTED_AGE_KEY]');
+    });
+
+    it('redacts the key line of an age key file and keeps the recipient comment', () => {
+      const keyFile = [
+        '# created: 2026-11-28T10:00:00Z',
+        `# public key: ${ageRecipient}`,
+        ageIdentity,
+      ].join('\n');
+
+      const { text } = sanitize(keyFile);
+
+      expect(text).toContain(`# public key: ${ageRecipient}`);
+      expect(text).toContain('\n[REDACTED_AGE_KEY]');
+      expect(text).not.toContain(bech32Body.slice(0, 16));
+    });
+
+    it('leaves a public age recipient unchanged', () => {
+      const input = `age -r ${ageRecipient} -o out.age in.txt`;
+
+      expect(sanitize(input).text).toBe(input);
+    });
+  });
+
   it('redacts the secret path of Slack incoming-webhook URLs', () => {
     // Built from parts so this file does not trip GitHub secret scanning.
     const secretPath = 'T024BE7LD/B01ABCDEF2G/' + 'abcdefGHIJKLmnopQRSTuvwx';

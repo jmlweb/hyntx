@@ -4,10 +4,10 @@
 
 | Status | Count |
 |--------|-------|
-| Pending | 11 |
+| Pending | 10 |
 | Active | 0 |
 | Blocked | 0 |
-| Complete | 8 |
+| Complete | 9 |
 
 ## Active Tasks
 
@@ -26,13 +26,13 @@ _No active tasks._
 | TSK-015 | Fix: Project filter misses the project name the report shows when it contains a dot | P4 |  | 2026-11-19 |
 | TSK-016 | Fix: Bare Google OAuth access tokens (ya29.) are not redacted | P3 |  | 2026-11-22 |
 | TSK-017 | Fix: Docker Hub access tokens (dckr_pat_) and GitLab tokens other than glpat- are not redacted | P3 |  | 2026-11-22 |
-| TSK-018 | Fix: age encryption secret keys (AGE-SECRET-KEY-1...) are not redacted | P2 |  | 2026-11-25 |
 | TSK-019 | Fix: Databricks personal access tokens (dapi...) and Square access tokens (sq0atp-) are not redacted | P3 |  | 2026-11-25 |
 
 ## Recently Completed
 
 | ID | Title | Completed |
 |----|-------|-----------|
+| TSK-018 | Fix: age encryption secret keys (AGE-SECRET-KEY-1...) are not redacted | 2026-11-28 |
 | TSK-011 | Fix: Azure storage account keys after 'AccountKey=' are only partly redacted | 2026-11-25 |
 | TSK-009 | Fix: IBAN bank account numbers are not redacted | 2026-11-22 |
 | TSK-008 | Fix: International phone numbers written with spaces are not redacted | 2026-11-19 |
